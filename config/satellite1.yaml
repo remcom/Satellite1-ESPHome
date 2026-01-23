@@ -49,13 +49,10 @@ packages:
 
   home-assistant-voice: !include satellite1.base.yaml
 
-
 esphome:
   project:
     name: ${company_name}.${project_name}
     version: ${esp32_fw_version}
-
-
 
 esp32_improv:
   authorizer: btn_action
@@ -69,38 +66,7 @@ esp32_improv:
     - lambda: id(improv_ble_in_progress) = false;
     - script.execute: control_leds
 
-
-
 http_request:
-
-ota:
-  - platform: http_request
-    id: ota_http_request
-
-update:
-  - platform: http_request
-    name: None
-    id: update_http_request
-    source: https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/manifest.json
-
-
-switch:
-  - platform: template
-    id: beta_firmware
-    name: Beta firmware
-    icon: "mdi:test-tube"
-    entity_category: diagnostic
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      - logger.log: "OTA updates set to use Beta firmware"
-      - lambda: id(update_http_request).set_source_url("https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/manifest-beta.json");
-      - component.update: update_http_request
-    on_turn_off:
-      - logger.log: "OTA updates set to use Production firmware"
-      - lambda: id(update_http_request).set_source_url("https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/manifest.json");
-      - component.update: update_http_request
-
 
 external_components:
   - source:
@@ -127,7 +93,3 @@ logger:
   level: debug
   logs:
     ltr_als_ps: WARN
-    
-
-
-
