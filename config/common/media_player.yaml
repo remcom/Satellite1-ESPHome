@@ -20,6 +20,7 @@ audio_dac:
     
     on_state_change:
       - media_player.volume_set:
+          id: external_media_player
           volume: !lambda return id(dac_proxy).volume();
       - lambda: |
            if( id(dac_proxy).is_muted() ){
@@ -73,7 +74,7 @@ binary_sensor:
       - script.execute:
           id: play_sound
           priority: false
-          sound_file: !lambda return id(jack_connected_sound);
+          sound_file: "jack_connected_sound"
       - delay: 800ms
       - lambda: id(jack_plugged_recently) = false;
       - script.execute: control_leds
@@ -87,7 +88,7 @@ binary_sensor:
       - script.execute:
           id: play_sound
           priority: false
-          sound_file: !lambda return id(jack_disconnected_sound);
+          sound_file: "jack_disconnected_sound"
       - delay: 800ms
       - lambda: id(jack_unplugged_recently) = false;
       - script.execute: control_leds
@@ -125,36 +126,18 @@ speaker:
     i2s_audio_id: i2s_shared
     dac_type: external
     channel: stereo
-    timeout: never
     audio_dac: dac_proxy
-    #buffer_duration: 100ms
 
-# Virtual speakers to combine the announcement and media streams together into one output
+  # Mixer to combine announcement and media streams
   - platform: mixer
     id: mixing_speaker
     output_speaker: i2s_audio_speaker
     num_channels: 2
     source_speakers:
-      - id: announcement_mixing_input
+      - id: announcement_speaker
         timeout: never
-      - id: media_mixing_input
+      - id: media_speaker
         timeout: never
-        buffer_duration: 100ms
-
-  # Vritual speakers to resample each pipelines' audio, if necessary, as the mixer speaker requires the same sample rate
-  - platform: resampler
-    id: announcement_resampling_speaker
-    output_speaker: announcement_mixing_input
-    sample_rate: 48000
-    bits_per_sample: 16
-  - platform: resampler
-    id: media_resampling_speaker
-    output_speaker: media_mixing_input
-    sample_rate: 48000
-    bits_per_sample: 16
-
-snapcast:
-  id: snapcast_client
 
 media_player:
   - platform: speaker
@@ -164,45 +147,16 @@ media_player:
     volume_increment: 0.05
     volume_min: 0.1
     volume_max: 1.
-    snapcast: snapcast_client
     announcement_pipeline:
-      speaker: announcement_resampling_speaker
+      speaker: announcement_speaker
       format: FLAC     # FLAC is the least processor intensive codec
       num_channels: 1  # Stereo audio is unnecessary for announcements
       sample_rate: 48000
     media_pipeline:
-      speaker: media_resampling_speaker
+      speaker: media_speaker
       format: FLAC     # FLAC is the least processor intensive codec
       num_channels: 2
       sample_rate: 48000
-    
-    on_mute:
-      - script.execute: control_leds
-    on_unmute:
-      - script.execute: control_leds
-    on_volume:
-      - script.execute: control_leds
-    
-    on_announcement:
-      - mixer_speaker.apply_ducking:
-          id: media_mixing_input
-          decibel_reduction: 20
-          duration: 0.0s
-    
-    on_state:
-      if:
-        condition:
-          and:
-            - switch.is_off: timer_ringing
-            - not:
-                voice_assistant.is_running:
-            - not:
-                media_player.is_announcing:
-        then:
-          - mixer_speaker.apply_ducking:
-              id: media_mixing_input
-              decibel_reduction: 0
-              duration: 1.0s
 
     files:
       - id: center_button_press_sound
@@ -228,7 +182,14 @@ media_player:
       - id: jack_connected_sound
         file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_connected.flac
       - id: jack_disconnected_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_disconnected.flac    
+        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_disconnected.flac
+    
+    on_mute:
+      - script.execute: control_leds
+    on_unmute:
+      - script.execute: control_leds
+    on_volume:
+      - script.execute: control_leds    
 
 
 script:
@@ -263,8 +224,10 @@ script:
             lambda: return increase_volume;
           then:
             - media_player.volume_up:
+                id: external_media_player
           else:
             - media_player.volume_down:
+                id: external_media_player
       - script.execute: control_leds
       - delay: 2s
       - lambda: id(volume_buttons_touched) = false;

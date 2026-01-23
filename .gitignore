@@ -11,7 +11,7 @@ __pycache__
 .vscode/
 
 build/
-/components
+
 managed_components/
 sdkconfig.esp32-idf
 sdkconfig.esp32-s3-idf
@@ -24,3 +24,6 @@ sdkconfig.esp32-s3-idf
 /Docker/firmware_server/shared-folder
 
 **/.DS_Store
+*.tmp
+*.bak
+*.new

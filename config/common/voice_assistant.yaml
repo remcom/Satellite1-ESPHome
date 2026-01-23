@@ -24,7 +24,7 @@ globals:
 
 microphone:
   - platform: satellite1
-    id: sat1_mics
+    id: sat1_mics_raw
     sample_rate: 48000
     i2s_din_pin: GPIO15
     bits_per_sample: 32bit
@@ -32,6 +32,14 @@ microphone:
     pdm: false
     adc_type: external
     i2s_audio_id: i2s_shared
+
+  - platform: resampler
+    id: sat1_mics
+    microphone:
+      microphone: sat1_mics_raw
+      channels: [0]
+    sample_rate: 16000
+    buffer_duration: 100ms
 
 
 micro_wake_word:
@@ -47,7 +55,7 @@ micro_wake_word:
   vad:
   microphone:
     microphone: sat1_mics
-    channels: 1
+    channels: 0
     gain_factor: 6
   stop_after_detection: false
   on_wake_word_detected:
@@ -73,9 +81,10 @@ micro_wake_word:
                     else:
                       - if:
                           condition:
-                            media_player.is_announcing:
+                            media_player.is_announcing: external_media_player
                           then:
                             - media_player.stop:
+                                id: external_media_player
                                 announcement: true
                           # Start the voice assistant and play the wake sound, if enabled
                           else:
@@ -123,18 +132,11 @@ voice_assistant:
         then:
           - lambda: id(voice_assistant_phase) = ${voice_assist_error_phase_id};
           - script.execute: control_leds
-    # Stop ducking audio.
-    - mixer_speaker.apply_ducking:
-        id: media_mixing_input
-        decibel_reduction: 0   # 0 dB means no reduction
-        duration: 1.0s
-  
-  # When the voice assistant starts: Play a wake up sound, duck audio.
+
+  # When the voice assistant starts
   on_start:
-    - mixer_speaker.apply_ducking:
-        id: media_mixing_input
-        decibel_reduction: 20   # Number of dB quieter; higher implies more quiet, 0 implies full volume
-        duration: 0.0s          # The duration of the transition (default is 0)
+    - lambda: |-
+        // Audio ducking is handled by the speaker media_player automatically
   on_listening:
     - lambda: id(voice_assistant_phase) = ${voice_assist_waiting_for_command_phase_id};
     - script.execute: control_leds
@@ -169,11 +171,6 @@ voice_assistant:
     - wait_until:
         not:
           voice_assistant.is_running:
-    # Stop ducking audio.
-    - mixer_speaker.apply_ducking:
-        id: media_mixing_input
-        decibel_reduction: 0   # 0 dB means no reduction
-        duration: 1.0s
     # Stop the script that would potentially enable the stop word if the response is longer than a second
     - script.stop: activate_stop_word_if_tts_step_is_long
     # Disable the stop word (If the tiemr is not ringing)
@@ -226,7 +223,7 @@ script:
             - micro_wake_word.enable_model: stop
             - wait_until:
                 not:
-                  media_player.is_announcing:
+                  media_player.is_announcing: external_media_player
             - if:
                 condition:
                   switch.is_off: timer_ringing

@@ -23,23 +23,14 @@ switch:
       # Stop any current annoucement (ie: stop the timer ring mid playback)
       - if:
           condition:
-            media_player.is_announcing:
+            media_player.is_announcing: external_media_player
           then:
-            media_player.stop:
-              announcement: true
-      # Set back ducking ratio to zero
-      - mixer_speaker.apply_ducking:
-          id: media_mixing_input
-          decibel_reduction: 0
-          duration: 1.0s
+            - media_player.stop:
+                id: external_media_player
+                announcement: true
       # Refresh the LED ring
       - script.execute: control_leds
     on_turn_on:
-      # Duck audio
-      - mixer_speaker.apply_ducking:
-          id: media_mixing_input
-          decibel_reduction: 20
-          duration: 0.0s
       # Enable stop wake word
       - micro_wake_word.enable_model: stop
       # Ring timer

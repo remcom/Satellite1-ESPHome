@@ -142,16 +142,18 @@ binary_sensor:
                           else:
                             - if:
                                 condition:
-                                  media_player.is_announcing:
+                                  media_player.is_announcing: external_media_player
                                 then:
-                                  media_player.stop:
-                                    announcement: true
+                                  - media_player.stop:
+                                      id: external_media_player
+                                      announcement: true
                                 else:
                                   - if:
                                       condition:
-                                        media_player.is_playing:
+                                        media_player.is_playing: external_media_player
                                       then:
                                         - media_player.pause:
+                                            id: external_media_player
                                       else:
                                         - if:
                                             condition:
