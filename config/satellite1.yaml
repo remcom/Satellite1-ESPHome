@@ -84,7 +84,6 @@ external_components:
     components:
         - i2s_audio
         - resampler
-        
 
 
 logger:
