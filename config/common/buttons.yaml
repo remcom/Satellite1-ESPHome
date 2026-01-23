@@ -81,7 +81,7 @@ binary_sensor:
             - script.execute:
                 id: play_sound
                 priority: false
-                sound_file: !lambda return id(mute_switch_off_sound);
+                sound_file: "mute_switch_off_sound"
             - switch.template.publish:
                 id: master_mute_switch
                 state: OFF
@@ -89,7 +89,7 @@ binary_sensor:
             - script.execute:
                 id: play_sound
                 priority: false
-                sound_file: !lambda return id(mute_switch_on_sound);
+                sound_file: "mute_switch_on_sound"
             - switch.template.publish:
                 id: master_mute_switch
                 state: ON
@@ -165,7 +165,7 @@ binary_sensor:
                                               - script.execute:
                                                   id: play_sound
                                                   priority: true
-                                                  sound_file: !lambda return id(center_button_press_sound);
+                                                  sound_file: "center_button_press_sound"
                                               - delay: 300ms
                                               - voice_assistant.start:
       # Double Click
@@ -183,7 +183,7 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: false
-                    sound_file: !lambda return id(center_button_double_press_sound);
+                    sound_file: "center_button_double_press_sound"
                 - event.trigger:
                     id: action_button_press_event
                     event_type: "double_press"
@@ -204,7 +204,7 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: false
-                    sound_file: !lambda return id(center_button_triple_press_sound);
+                    sound_file: "center_button_triple_press_sound"
                 - event.trigger:
                     id: action_button_press_event
                     event_type: "triple_press"
@@ -220,7 +220,7 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: false
-                    sound_file: !lambda return id(center_button_long_press_sound);
+                    sound_file: "center_button_long_press_sound"
                 - light.turn_off: voice_assistant_leds
                 - event.trigger:
                     id: action_button_press_event
@@ -242,14 +242,14 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: true
-                    sound_file: !lambda return id(factory_reset_initiated_sound);
+                    sound_file: "factory_reset_initiated_sound"
                 - wait_until:
                     binary_sensor.is_off: btn_action
                 - light.turn_off: voice_assistant_leds
                 - script.execute:
                     id: play_sound
                     priority: true
-                    sound_file: !lambda return id(factory_reset_cancelled_sound);
+                    sound_file: "factory_reset_cancelled_sound"
       
       # Factory Reset
       - timing:
