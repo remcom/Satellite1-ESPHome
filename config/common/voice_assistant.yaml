@@ -38,6 +38,48 @@ globals:
     restore_value: no
     # initial_value: ${voice_assist_not_ready_phase_id}
 
+select:
+  # Wake word sensitivity control - adjusts detection threshold for wake word models
+  # Higher sensitivity = more responsive but more false triggers
+  - platform: template
+    name: "Wake word sensitivity"
+    id: wake_word_sensitivity
+    optimistic: true
+    initial_option: "Moderately sensitive"
+    restore_value: true
+    entity_category: config
+    icon: "mdi:ear-hearing"
+    options:
+      - "Slightly sensitive"
+      - "Moderately sensitive"
+      - "Very sensitive"
+    on_value:
+      then:
+        - lambda: |-
+            // Probability cutoff values from Home Assistant Voice PE
+            // FAPH = False Accepts Per Hour (measured against Dinner Party Corpus)
+            // Lower cutoff = more sensitive but more false triggers
+            auto index = id(wake_word_sensitivity).active_index();
+            if (!index.has_value()) return;
+
+            switch (index.value()) {
+              case 0:  // Slightly sensitive (lowest false accepts)
+                id(okay_nabu).set_probability_cutoff(217);   // 0.85 threshold, ~0.000 FAPH
+                id(hey_jarvis).set_probability_cutoff(247);  // 0.97 threshold, ~0.563 FAPH
+                id(hey_mycroft).set_probability_cutoff(253); // 0.99 threshold, ~0.567 FAPH
+                break;
+              case 1:  // Moderately sensitive (balanced)
+                id(okay_nabu).set_probability_cutoff(176);   // 0.69 threshold, ~0.376 FAPH
+                id(hey_jarvis).set_probability_cutoff(235);  // 0.92 threshold, ~0.939 FAPH
+                id(hey_mycroft).set_probability_cutoff(242); // 0.95 threshold, ~1.502 FAPH
+                break;
+              case 2:  // Very sensitive (highest detection rate)
+                id(okay_nabu).set_probability_cutoff(143);   // 0.56 threshold, ~0.751 FAPH
+                id(hey_jarvis).set_probability_cutoff(212);  // 0.83 threshold, ~1.502 FAPH
+                id(hey_mycroft).set_probability_cutoff(237); // 0.93 threshold, ~1.878 FAPH
+                break;
+            }
+
 microphone:
   - platform: satellite1
     id: sat1_mics_raw
