@@ -257,6 +257,7 @@ bool I2SPortComponent::init_driver_(i2s_std_config_t std_cfg) {
     err = i2s_channel_init_std_mode(this->tx_handle_, &std_cfg);
     if (err != ESP_OK) {
       i2s_del_channel(this->tx_handle_);
+      this->tx_handle_ = nullptr;
       this->unlock();
       return false;
     }
@@ -266,6 +267,7 @@ bool I2SPortComponent::init_driver_(i2s_std_config_t std_cfg) {
     err = i2s_channel_init_std_mode(this->rx_handle_, &std_cfg);
     if (err != ESP_OK) {
       i2s_del_channel(this->rx_handle_);
+      this->rx_handle_ = nullptr;
       this->unlock();
       return false;
     }
@@ -304,18 +306,21 @@ bool I2SAudioOut::start_i2s_channel_(i2s_event_callbacks_t callbacks) {
     return false;
   }
 
-  if (callbacks.on_sent != nullptr) {
+  if (callbacks.on_sent != nullptr && !this->callbacks_registered_) {
     err = i2s_channel_register_event_callback(this->parent_->tx_handle_, &callbacks, this);
     if (err != ESP_OK) {
       ESP_LOGE(TAG, "Failed to register TX channel callbacks: %s", esp_err_to_name(err));
       return false;
     }
+    this->callbacks_registered_ = true;
   }
 
   err = i2s_channel_enable(this->parent_->tx_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to enable TX channel: %s", esp_err_to_name(err));
     i2s_del_channel(this->parent_->tx_handle_);
+    this->parent_->tx_handle_ = nullptr;
+    this->callbacks_registered_ = false;
     return false;
   }
 #else
@@ -347,15 +352,21 @@ bool I2SAudioOut::stop_i2s_channel_() {
     ESP_LOGE(TAG, "Trying to stop I2S-TX channel, but handle is nullptr.");
     return false;
   }
-  if( this->parent_->tx_handle_ == nullptr ){
-    return false;
-  }
 
   esp_err_t err = i2s_channel_disable(this->parent_->tx_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to disable TX channel: %s", esp_err_to_name(err));
     return false;
   }
+
+  // Delete channel and reset state for clean restart (matches upstream behavior)
+  err = i2s_del_channel(this->parent_->tx_handle_);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to delete TX channel: %s", esp_err_to_name(err));
+    return false;
+  }
+  this->parent_->tx_handle_ = nullptr;
+  this->callbacks_registered_ = false;
 #endif
   return true;
 }

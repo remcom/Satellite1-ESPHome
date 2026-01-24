@@ -334,6 +334,7 @@ protected:
   i2s_comm_format_t i2s_comm_fmt_;
 #else
   gpio_num_t dout_pin_{I2S_GPIO_UNUSED};
+  bool callbacks_registered_{false};
 #endif
 };
 

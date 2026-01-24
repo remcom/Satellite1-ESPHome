@@ -25,7 +25,7 @@ class I2SAudioSpeaker : public I2SAudioOut, public speaker::Speaker, public Comp
 
   void setup() override;
   void loop() override;
-  void dump_config() override {this->dump_i2s_settings();}
+  void dump_config() override;
 
   void set_buffer_duration(uint32_t buffer_duration_ms) { this->buffer_duration_ms_ = buffer_duration_ms; }
   void set_timeout(uint32_t ms) { this->timeout_ = ms; }
@@ -45,7 +45,6 @@ class I2SAudioSpeaker : public I2SAudioOut, public speaker::Speaker, public Comp
   /// @return The number of bytes that were actually written to the ring buffer.
   size_t play(const uint8_t *data, size_t length, TickType_t ticks_to_wait) override;
   size_t play(const uint8_t *data, size_t length) override { return play(data, length, 0); }
-
 
   /// @brief Inserts silence by delaying audio readout and filling the DMA buffer with zeros.
   /// This function writes zeros to the DMA buffer instead of audio data for a specified duration.
@@ -67,8 +66,15 @@ class I2SAudioSpeaker : public I2SAudioOut, public speaker::Speaker, public Comp
   /// @param mute_state true for muting, false for unmuting
   void set_mute_state(bool mute_state) override;
 
-  int64_t get_playout_time( int64_t self_buffer_us ) const;
-  bool update_buffer_states(int32_t bytes_transfered );
+  /// @brief Returns the estimated playout time for audio currently in buffers
+  /// @param add_buffer_us Additional buffer time to add in microseconds
+  /// @return Estimated playout time in microseconds
+  int64_t get_playout_time(int64_t add_buffer_us) const;
+
+  /// @brief Updates buffer state tracking for external synchronization
+  /// @param bytes_transferred Number of bytes transferred
+  /// @return True if state was updated successfully
+  bool update_buffer_states(int32_t bytes_transferred);
 
  protected:
   /// @brief Function for the FreeRTOS task handling audio output.
@@ -120,30 +126,33 @@ class I2SAudioSpeaker : public I2SAudioOut, public speaker::Speaker, public Comp
   /// @param event (i2s_event_data_t)
   /// @param user_ctx (void*) User context pointer that the callback accesses
   /// @return True if a higher priority task was interrupted
-  static bool i2s_on_sent_cb(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx);
+  static bool IRAM_ATTR i2s_on_sent_cb(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx);
 #endif
 
   TaskHandle_t speaker_task_handle_{nullptr};
   EventGroupHandle_t event_group_{nullptr};
 
-  uint8_t *data_buffer_;
+  uint8_t *data_buffer_{nullptr};
   std::shared_ptr<esphome::RingBuffer> audio_ring_buffer_;
 
   uint32_t buffer_duration_ms_;
 
   optional<uint32_t> timeout_;
 
-  bool task_created_{false};
   bool pause_state_{false};
 
   int16_t q15_volume_factor_{INT16_MAX};
 
+  // Playout time tracking for sendspin synchronization
   int64_t last_dma_write_{0};
   size_t padded_zero_frames_{0};
   size_t bytes_in_ringbuffer_{0};
   size_t in_write_buffer_{0};
-  SemaphoreHandle_t lock_;
-  QueueHandle_t i2s_sent_time_queue_;
+  SemaphoreHandle_t lock_{nullptr};
+  QueueHandle_t i2s_sent_time_queue_{nullptr};
+
+  // Stream info tracking for dynamic reconfiguration
+  audio::AudioStreamInfo current_stream_info_;
 };
 
 }  // namespace i2s_audio
