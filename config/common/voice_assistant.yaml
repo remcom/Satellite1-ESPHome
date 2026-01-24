@@ -151,8 +151,11 @@ voice_assistant:
 
   # When the voice assistant starts
   on_start:
-    - lambda: |-
-        // Audio ducking is handled by the speaker media_player automatically
+    # Apply audio ducking to reduce media volume during voice interaction
+    - mixer_speaker.apply_ducking:
+        id: media_mixing_input
+        decibel_reduction: 20
+        duration: 0.0s
   on_listening:
     - lambda: id(voice_assistant_phase) = ${voice_assist_waiting_for_command_phase_id};
     - script.execute: control_leds
@@ -187,6 +190,18 @@ voice_assistant:
     - wait_until:
         not:
           voice_assistant.is_running:
+    # Restore audio ducking (unless timer is ringing or announcement is playing)
+    - if:
+        condition:
+          and:
+            - switch.is_off: timer_ringing
+            - not:
+                media_player.is_announcing: external_media_player
+        then:
+          - mixer_speaker.apply_ducking:
+              id: media_mixing_input
+              decibel_reduction: 0
+              duration: 1.0s
     # Stop the script that would potentially enable the stop word if the response is longer than a second
     - script.stop: activate_stop_word_if_tts_step_is_long
     # Disable the stop word (If the tiemr is not ringing)

@@ -2,9 +2,6 @@ substitutions:
   company_name: FutureProofHomes
   project_name: Satellite1
 
-  #set this version by GHA at build time
-  esp32_fw_version: dev
-
 packages:
   # This is an inline package to prefix the on_client_connected with the wait_until action
   # It must appear before the actual package so it becomes the orignal config and the
@@ -69,7 +66,7 @@ esp32_improv:
 http_request:
 
 external_components:
-  # Local custom components
+    # FPH Custom Components
   - source:
       type: local
       path: ../esphome/components
@@ -79,6 +76,8 @@ external_components:
         - pcm5122
         - satellite1
         - tas2780
+    # i2s_audio from esphome with shared i2s bus support
+    # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
   - source:
       type: local
       path: ../components
