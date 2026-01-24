@@ -9,7 +9,7 @@ from esphome.const import (
     CONF_ID,
     CONF_MODE,
     CONF_NEVER,
-    CONF_NUM_CHANNELS, 
+    CONF_NUM_CHANNELS,
     CONF_SAMPLE_RATE,
     CONF_TIMEOUT
 )

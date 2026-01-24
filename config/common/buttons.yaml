@@ -81,7 +81,7 @@ binary_sensor:
             - script.execute:
                 id: play_sound
                 priority: false
-                sound_file: !lambda return id(mute_switch_off_sound);
+                sound_file: "mute_switch_off_sound"
             - switch.template.publish:
                 id: master_mute_switch
                 state: OFF
@@ -89,7 +89,7 @@ binary_sensor:
             - script.execute:
                 id: play_sound
                 priority: false
-                sound_file: !lambda return id(mute_switch_on_sound);
+                sound_file: "mute_switch_on_sound"
             - switch.template.publish:
                 id: master_mute_switch
                 state: ON
@@ -136,26 +136,24 @@ binary_sensor:
                     else:
                       - if:
                           condition:
-                            lambda: return id(external_media_player)->state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
+                            voice_assistant.is_running:
                           then:
-                            - lambda: |
-                                id(external_media_player)
-                                  ->make_call()
-                                  .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
-                                  .set_announcement(true)
-                                  .perform();
+                            - voice_assistant.stop:
                           else:
                             - if:
                                 condition:
-                                  voice_assistant.is_running:
+                                  media_player.is_announcing: external_media_player
                                 then:
-                                  - voice_assistant.stop:
+                                  - media_player.stop:
+                                      id: external_media_player
+                                      announcement: true
                                 else:
                                   - if:
                                       condition:
-                                        media_player.is_playing:
+                                        media_player.is_playing: external_media_player
                                       then:
                                         - media_player.pause:
+                                            id: external_media_player
                                       else:
                                         - if:
                                             condition:
@@ -167,7 +165,7 @@ binary_sensor:
                                               - script.execute:
                                                   id: play_sound
                                                   priority: true
-                                                  sound_file: !lambda return id(center_button_press_sound);
+                                                  sound_file: "center_button_press_sound"
                                               - delay: 300ms
                                               - voice_assistant.start:
       # Double Click
@@ -185,7 +183,7 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: false
-                    sound_file: !lambda return id(center_button_double_press_sound);
+                    sound_file: "center_button_double_press_sound"
                 - event.trigger:
                     id: action_button_press_event
                     event_type: "double_press"
@@ -206,7 +204,7 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: false
-                    sound_file: !lambda return id(center_button_triple_press_sound);
+                    sound_file: "center_button_triple_press_sound"
                 - event.trigger:
                     id: action_button_press_event
                     event_type: "triple_press"
@@ -222,7 +220,7 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: false
-                    sound_file: !lambda return id(center_button_long_press_sound);
+                    sound_file: "center_button_long_press_sound"
                 - light.turn_off: voice_assistant_leds
                 - event.trigger:
                     id: action_button_press_event
@@ -244,14 +242,14 @@ binary_sensor:
                 - script.execute:
                     id: play_sound
                     priority: true
-                    sound_file: !lambda return id(factory_reset_initiated_sound);
+                    sound_file: "factory_reset_initiated_sound"
                 - wait_until:
                     binary_sensor.is_off: btn_action
                 - light.turn_off: voice_assistant_leds
                 - script.execute:
                     id: play_sound
                     priority: true
-                    sound_file: !lambda return id(factory_reset_cancelled_sound);
+                    sound_file: "factory_reset_cancelled_sound"
       
       # Factory Reset
       - timing:

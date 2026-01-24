@@ -9,9 +9,9 @@ from esphome.components.esp32.const import (
 )
 import esphome.config_validation as cv
 from esphome.const import (
-    CONF_BITS_PER_SAMPLE, 
-    CONF_CHANNEL, 
-    CONF_ID, 
+    CONF_BITS_PER_SAMPLE,
+    CONF_CHANNEL,
+    CONF_ID,
     CONF_SAMPLE_RATE,
     KEY_CORE,
     KEY_FRAMEWORK_VERSION,
@@ -202,7 +202,7 @@ def i2s_audio_component_schema(
 
 def use_legacy():
     framework_version = CORE.data[KEY_CORE][KEY_FRAMEWORK_VERSION]
-    if CORE.using_esp_idf and framework_version >= cv.Version(5, 0, 0):
+    if CORE.is_esp32 and framework_version >= cv.Version(5, 0, 0):
         if not _use_legacy_driver:
             return False
     return True
@@ -307,5 +307,3 @@ async def to_code(config):
     if CONF_I2S_MCLK_PIN in config:
         cg.add(var.set_mclk_pin(config[CONF_I2S_MCLK_PIN]))
     cg.add(var.set_access_mode(config[CONF_I2S_ACCESS_MODE]))
-
-

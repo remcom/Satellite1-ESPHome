@@ -26,7 +26,9 @@ void Satellite1::setup(){
 void Satellite1::dump_config(){
   esph_log_config(TAG, "Satellite1 config:");
   if( this->xmos_rst_pin_ ){
-    this->xmos_rst_pin_->dump_summary();
+    char buffer[64];
+    this->xmos_rst_pin_->dump_summary(buffer, sizeof(buffer));
+    esph_log_config(TAG, "    xmos_rst_pin: %s", buffer);
   } else {
     esph_log_config(TAG, "    xmos_rst_pin not set up properly.");
   }

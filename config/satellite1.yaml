@@ -2,9 +2,6 @@ substitutions:
   company_name: FutureProofHomes
   project_name: Satellite1
 
-  #set this version by GHA at build time
-  esp32_fw_version: dev
-
 packages:
   # This is an inline package to prefix the on_client_connected with the wait_until action
   # It must appear before the actual package so it becomes the orignal config and the
@@ -49,13 +46,10 @@ packages:
 
   home-assistant-voice: !include satellite1.base.yaml
 
-
 esphome:
   project:
     name: ${company_name}.${project_name}
     version: ${esp32_fw_version}
-
-
 
 esp32_improv:
   authorizer: btn_action
@@ -69,69 +63,67 @@ esp32_improv:
     - lambda: id(improv_ble_in_progress) = false;
     - script.execute: control_leds
 
-
-
 http_request:
 
-ota:
-  - platform: http_request
-    id: ota_http_request
-
-update:
-  - platform: http_request
-    name: None
-    id: update_http_request
-    source: https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/manifest.json
-
-
-switch:
-  - platform: template
-    id: beta_firmware
-    name: Beta firmware
-    icon: "mdi:test-tube"
-    entity_category: diagnostic
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
-    on_turn_on:
-      - logger.log: "OTA updates set to use Beta firmware"
-      - lambda: id(update_http_request).set_source_url("https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/manifest-beta.json");
-      - component.update: update_http_request
-    on_turn_off:
-      - logger.log: "OTA updates set to use Production firmware"
-      - lambda: id(update_http_request).set_source_url("https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/manifest.json");
-      - component.update: update_http_request
-
-
 external_components:
+    # FPH Custom Components
   - source:
       type: local
       path: ../esphome/components
-    components: 
-        - audio 
+    components:
         - fusb302b
-        - i2s_audio
         - memory_flasher
-        - microphone
-        - micro_wake_word
-        - mixer
         - pcm5122
-        - psram 
-        - resampler 
-        - satellite1 
-        - snapcast
-        - speaker
+        - satellite1
         - tas2780
-        - voice_assistant
-        
+    # i2s_audio from esphome with shared i2s bus support
+    # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
+  - source:
+      type: local
+      path: ../components
+    components:
+        - i2s_audio
+        - resampler
+  # ESPHome PRs for sendspin and related features
+  - source:
+      # https://github.com/esphome/esphome/pull/12253
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 7f34908569650e5a8b8c83e6bf89fea561218880
+    components: [mixer]
+  - source:
+      # https://github.com/esphome/esphome/pull/12256
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 9148832ea4e54907bad71a24d4ced1ce6c862433
+    components: [audio]
+  - source:
+      # https://github.com/esphome/esphome/pull/12258
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: bff22983a390352360796f8e1363127e0cd1f898
+    components: [media_player]
+  - source:
+      # https://github.com/esphome/esphome/pull/12284
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: a6c0a861a014e64c67d46115eba8e5370777b80a
+    components: [mdns, sendspin]
+  - source:
+      # https://github.com/esphome/esphome/pull/12429
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 928204066ce0082404573ea1c6a0b58aeebbd7c6
+    components: [file, http_request, media_source, speaker_source]
 
 
 logger:
   deassert_rts_dtr: true
-  hardware_uart : USB_SERIAL_JTAG
+  hardware_uart: USB_SERIAL_JTAG
   level: debug
   logs:
     ltr_als_ps: WARN
-    
-
-
-
+    sendspin: DEBUG
+    sendspin_media_source: DEBUG
+    speaker_source_media_player: DEBUG
+    i2s_audio.speaker: DEBUG

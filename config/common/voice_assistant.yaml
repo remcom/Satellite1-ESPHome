@@ -14,6 +14,22 @@ substitutions:
   voice_assist_not_ready_phase_id: '10'
   # The voice assistant encountered an error
   voice_assist_error_phase_id: '11'
+  jack_connected_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_connected.flac
+  jack_disconnected_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_disconnected.flac
+  mute_switch_on_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/mute_switch_on.flac
+  mute_switch_off_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/mute_switch_off.flac
+  timer_finished_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/timer_finished.flac
+  wake_word_triggered_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/wake_word_triggered.flac
+  center_button_press_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_press.flac
+  center_button_double_press_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_double_press.flac
+  center_button_triple_press_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_triple_press.flac
+  center_button_long_press_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_long_press.flac
+  factory_reset_initiated_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_initiated.mp3
+  factory_reset_cancelled_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_cancelled.mp3
+  factory_reset_confirmed_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_confirmed.mp3
+  easter_egg_tick_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/easter_egg_tick.mp3
+  easter_egg_tada_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/easter_egg_tada.mp3
+  error_cloud_expired_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/error_cloud_expired.mp3
 
 globals:
   # Global variable tracking the phase of the voice assistant (defined above). Initialized to not_ready
@@ -22,9 +38,51 @@ globals:
     restore_value: no
     # initial_value: ${voice_assist_not_ready_phase_id}
 
+select:
+  # Wake word sensitivity control - adjusts detection threshold for wake word models
+  # Higher sensitivity = more responsive but more false triggers
+  - platform: template
+    name: "Wake word sensitivity"
+    id: wake_word_sensitivity
+    optimistic: true
+    initial_option: "Moderately sensitive"
+    restore_value: true
+    entity_category: config
+    icon: "mdi:ear-hearing"
+    options:
+      - "Slightly sensitive"
+      - "Moderately sensitive"
+      - "Very sensitive"
+    on_value:
+      then:
+        - lambda: |-
+            // Probability cutoff values from Home Assistant Voice PE
+            // FAPH = False Accepts Per Hour (measured against Dinner Party Corpus)
+            // Lower cutoff = more sensitive but more false triggers
+            auto index = id(wake_word_sensitivity).active_index();
+            if (!index.has_value()) return;
+
+            switch (index.value()) {
+              case 0:  // Slightly sensitive (lowest false accepts)
+                id(okay_nabu).set_probability_cutoff(217);   // 0.85 threshold, ~0.000 FAPH
+                id(hey_jarvis).set_probability_cutoff(247);  // 0.97 threshold, ~0.563 FAPH
+                id(hey_mycroft).set_probability_cutoff(253); // 0.99 threshold, ~0.567 FAPH
+                break;
+              case 1:  // Moderately sensitive (balanced)
+                id(okay_nabu).set_probability_cutoff(176);   // 0.69 threshold, ~0.376 FAPH
+                id(hey_jarvis).set_probability_cutoff(235);  // 0.92 threshold, ~0.939 FAPH
+                id(hey_mycroft).set_probability_cutoff(242); // 0.95 threshold, ~1.502 FAPH
+                break;
+              case 2:  // Very sensitive (highest detection rate)
+                id(okay_nabu).set_probability_cutoff(143);   // 0.56 threshold, ~0.751 FAPH
+                id(hey_jarvis).set_probability_cutoff(212);  // 0.83 threshold, ~1.502 FAPH
+                id(hey_mycroft).set_probability_cutoff(237); // 0.93 threshold, ~1.878 FAPH
+                break;
+            }
+
 microphone:
   - platform: satellite1
-    id: sat1_mics
+    id: sat1_mics_raw
     sample_rate: 48000
     i2s_din_pin: GPIO15
     bits_per_sample: 32bit
@@ -33,23 +91,32 @@ microphone:
     adc_type: external
     i2s_audio_id: i2s_shared
 
+  - platform: resampler
+    id: sat1_mics
+    microphone:
+      microphone: sat1_mics_raw
+      channels: [0]
+    sample_rate: 16000
+    buffer_duration: 100ms
 
 micro_wake_word:
   id: mww
+  microphone:
+    microphone: sat1_mics
+    channels: 0
+    gain_factor: 6
+  stop_after_detection: false
   models:
+    - model: https://github.com/kahrendt/microWakeWord/releases/download/okay_nabu_20241226.3/okay_nabu.json
+      id: okay_nabu
     - model: hey_jarvis
       id: hey_jarvis
-    - model: okay_nabu
-      id: okay_nabu    
+    - model: hey_mycroft
+      id: hey_mycroft
     - model: https://github.com/kahrendt/microWakeWord/releases/download/stop/stop.json
       id: stop
       internal: true
   vad:
-  microphone:
-    microphone: sat1_mics
-    channels: 1
-    gain_factor: 6
-  stop_after_detection: false
   on_wake_word_detected:
     # If the wake word is detected when the device is muted (Possible with the software mute switch): Do nothing
     - if:
@@ -62,32 +129,36 @@ micro_wake_word:
                 switch.is_on: timer_ringing
               then:
                 - switch.turn_off: timer_ringing
-              # Start voice assistant, stop current announcement.
+              # Stop voice assistant if running
               else:
                 - if:
                     condition:
-                      lambda: return id(external_media_player)->state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING;
+                      voice_assistant.is_running:
                     then:
-                      lambda: |-
-                        id(external_media_player)
-                          ->make_call()
-                          .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
-                          .set_announcement(true)
-                          .perform();
+                      voice_assistant.stop:
+                    # Stop any other media player announcement
                     else:
                       - if:
                           condition:
-                            switch.is_on: wake_sound
+                            media_player.is_announcing:
+                              id: external_media_player
                           then:
-                            - script.execute:
-                                id: play_sound
-                                priority: true
-                                sound_file: !lambda return id(wake_word_triggered_sound);
-                            - delay: 300ms
-                      - voice_assistant.start:
-                          wake_word: !lambda return wake_word;
-
-
+                            - media_player.stop:
+                                announcement: true
+                                id: external_media_player
+                          # Start the voice assistant and play the wake sound, if enabled
+                          else:
+                            - if:
+                                condition:
+                                  switch.is_on: wake_sound
+                                then:
+                                  - script.execute:
+                                      id: play_sound
+                                      priority: true
+                                      sound_file: "wake_word_triggered_sound"
+                                  - delay: 300ms
+                            - voice_assistant.start:
+                                wake_word: !lambda return wake_word;
 
 voice_assistant:
   id: va
@@ -119,18 +190,14 @@ voice_assistant:
         then:
           - lambda: id(voice_assistant_phase) = ${voice_assist_error_phase_id};
           - script.execute: control_leds
-    # Stop ducking audio.
-    - mixer_speaker.apply_ducking:
-        id: media_mixing_input
-        decibel_reduction: 0   # 0 dB means no reduction
-        duration: 1.0s
-  
-  # When the voice assistant starts: Play a wake up sound, duck audio.
+
+  # When the voice assistant starts
   on_start:
+    # Apply audio ducking to reduce media volume during voice interaction
     - mixer_speaker.apply_ducking:
         id: media_mixing_input
-        decibel_reduction: 20   # Number of dB quieter; higher implies more quiet, 0 implies full volume
-        duration: 0.0s          # The duration of the transition (default is 0)
+        decibel_reduction: 20
+        duration: 0.0s
   on_listening:
     - lambda: id(voice_assistant_phase) = ${voice_assist_waiting_for_command_phase_id};
     - script.execute: control_leds
@@ -140,21 +207,43 @@ voice_assistant:
   on_stt_vad_end:
     - lambda: id(voice_assistant_phase) = ${voice_assist_thinking_phase_id};
     - script.execute: control_leds
+  on_intent_progress:
+    - if:
+        condition:
+          # A nonempty x variable means a streaming TTS url was sent to the media player
+          lambda: 'return !x.empty();'
+        then:
+          - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+          - script.execute: control_leds
+          # Start a script that would potentially enable the stop word if the response is longer than a second
+          - script.execute: activate_stop_word_once
   on_tts_start:
-    - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
-    - script.execute: control_leds
-    # Start a script that would potentially enable the stop word if the response is longer than a second
-    - script.execute: activate_stop_word_if_tts_step_is_long
+    - if:
+        condition:
+          # The intent_progress trigger didn't start the TTS Reponse
+          lambda: 'return id(voice_assistant_phase) != ${voice_assist_replying_phase_id};'
+        then:
+          - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+          - script.execute: control_leds
+          # Start a script that would potentially enable the stop word if the response is longer than a second
+          - script.execute: activate_stop_word_once
   # When the voice assistant ends ...
   on_end:
     - wait_until:
         not:
           voice_assistant.is_running:
-    # Stop ducking audio.
-    - mixer_speaker.apply_ducking:
-        id: media_mixing_input
-        decibel_reduction: 0   # 0 dB means no reduction
-        duration: 1.0s
+    # Restore audio ducking (unless timer is ringing or announcement is playing)
+    - if:
+        condition:
+          and:
+            - switch.is_off: timer_ringing
+            - not:
+                media_player.is_announcing: external_media_player
+        then:
+          - mixer_speaker.apply_ducking:
+              id: media_mixing_input
+              decibel_reduction: 0
+              duration: 1.0s
     # Stop the script that would potentially enable the stop word if the response is longer than a second
     - script.stop: activate_stop_word_if_tts_step_is_long
     # Disable the stop word (If the tiemr is not ringing)
@@ -195,3 +284,21 @@ script:
       - delay: 1s
       # Enable stop wake word
       # - lambda: id(stop).enable();
+
+  - id: activate_stop_word_once
+    then:
+      - delay: 1s
+      # Enable stop wake word
+      - if:
+          condition:
+            switch.is_off: timer_ringing
+          then:
+            - micro_wake_word.enable_model: stop
+            - wait_until:
+                not:
+                  media_player.is_announcing: external_media_player
+            - if:
+                condition:
+                  switch.is_off: timer_ringing
+                then:
+                  - micro_wake_word.disable_model: stop

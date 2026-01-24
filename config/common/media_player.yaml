@@ -20,6 +20,7 @@ audio_dac:
     
     on_state_change:
       - media_player.volume_set:
+          id: external_media_player
           volume: !lambda return id(dac_proxy).volume();
       - lambda: |
            if( id(dac_proxy).is_muted() ){
@@ -27,6 +28,16 @@ audio_dac:
                 .set_command(MEDIA_PLAYER_COMMAND_MUTE)
                 .perform();
            }
+
+api:
+  actions:
+    - action: activate_speaker_dac
+      then:
+        - dac_proxy.activate_speaker:
+
+    - action: activate_lineout_dac
+      then:
+        - dac_proxy.activate_line_out:
 
 select:
   - platform: template
@@ -73,7 +84,7 @@ binary_sensor:
       - script.execute:
           id: play_sound
           priority: false
-          sound_file: !lambda return id(jack_connected_sound);
+          sound_file: "jack_connected_sound"
       - delay: 800ms
       - lambda: id(jack_plugged_recently) = false;
       - script.execute: control_leds
@@ -87,7 +98,7 @@ binary_sensor:
       - script.execute:
           id: play_sound
           priority: false
-          sound_file: !lambda return id(jack_disconnected_sound);
+          sound_file: "jack_disconnected_sound"
       - delay: 800ms
       - lambda: id(jack_unplugged_recently) = false;
       - script.execute: control_leds
@@ -126,22 +137,22 @@ speaker:
     dac_type: external
     channel: stereo
     timeout: never
+    buffer_duration: 100ms
     audio_dac: dac_proxy
-    #buffer_duration: 100ms
 
-# Virtual speakers to combine the announcement and media streams together into one output
+  # Virtual speakers to combine the announcement and media streams together into one output
   - platform: mixer
     id: mixing_speaker
     output_speaker: i2s_audio_speaker
     num_channels: 2
+    task_stack_in_psram: true
     source_speakers:
       - id: announcement_mixing_input
         timeout: never
       - id: media_mixing_input
         timeout: never
-        buffer_duration: 100ms
 
-  # Vritual speakers to resample each pipelines' audio, if necessary, as the mixer speaker requires the same sample rate
+  # Virtual speakers to resample each pipelines' audio, if necessary, as the mixer speaker requires the same sample rate
   - platform: resampler
     id: announcement_resampling_speaker
     output_speaker: announcement_mixing_input
@@ -153,25 +164,73 @@ speaker:
     sample_rate: 48000
     bits_per_sample: 16
 
-snapcast:
-  id: snapcast_client
+sendspin:
+  id: sendspin_hub
+  task_stack_in_psram: true
+  kalman_process_error: 0.01
+
+media_source:
+  - platform: sendspin
+    id: sendspin_source
+  - platform: http_request
+    id: http_source
+    buffer_size: 500000
+  - platform: file
+    id: file_source
+    files:
+      - id: center_button_press_sound
+        file: ${center_button_press_sound_file}
+      - id: center_button_double_press_sound
+        file: ${center_button_double_press_sound_file}
+      - id: center_button_triple_press_sound
+        file: ${center_button_triple_press_sound_file}
+      - id: center_button_long_press_sound
+        file: ${center_button_long_press_sound_file}
+      - id: factory_reset_initiated_sound
+        file: ${factory_reset_initiated_sound_file}
+      - id: factory_reset_cancelled_sound
+        file: ${factory_reset_cancelled_sound_file}
+      - id: factory_reset_confirmed_sound
+        file: ${factory_reset_confirmed_sound_file}
+      - id: jack_connected_sound
+        file: ${jack_connected_sound_file}
+      - id: jack_disconnected_sound
+        file: ${jack_disconnected_sound_file}
+      - id: mute_switch_on_sound
+        file: ${mute_switch_on_sound_file}
+      - id: mute_switch_off_sound
+        file: ${mute_switch_off_sound_file}
+      - id: timer_finished_sound
+        file: ${timer_finished_sound_file}
+      - id: wake_word_triggered_sound
+        file: ${wake_word_triggered_sound_file}
+      - id: easter_egg_tick_sound
+        file: ${easter_egg_tick_sound_file}
+      - id: easter_egg_tada_sound
+        file: ${easter_egg_tada_sound_file}
+      - id: error_cloud_expired
+        file: ${error_cloud_expired_sound_file}
 
 media_player:
-  - platform: speaker
+  - platform: sendspin
+    id: sendspin_group_media_player
+  - platform: speaker_source
     id: external_media_player
-    name: Sat1 Media Player
-    internal: false
+    name: Media Player
     volume_increment: 0.05
     volume_min: 0.1
     volume_max: 1.
-    snapcast: snapcast_client
+    sources:
+      - file_source
+      - http_source
+      - sendspin_source
+    announcement_speaker: announcement_resampling_speaker
+    media_speaker: media_resampling_speaker
     announcement_pipeline:
-      speaker: announcement_resampling_speaker
       format: FLAC     # FLAC is the least processor intensive codec
       num_channels: 1  # Stereo audio is unnecessary for announcements
       sample_rate: 48000
     media_pipeline:
-      speaker: media_resampling_speaker
       format: FLAC     # FLAC is the least processor intensive codec
       num_channels: 2
       sample_rate: 48000
@@ -182,53 +241,27 @@ media_player:
       - script.execute: control_leds
     on_volume:
       - script.execute: control_leds
-    
+    # Apply audio ducking when an announcement starts
     on_announcement:
       - mixer_speaker.apply_ducking:
           id: media_mixing_input
           decibel_reduction: 20
           duration: 0.0s
-    
+    # Restore audio ducking when not actively playing announcements or running voice assistant
     on_state:
-      if:
-        condition:
-          and:
-            - switch.is_off: timer_ringing
-            - not:
-                voice_assistant.is_running:
-            - not:
-                media_player.is_announcing:
-        then:
-          - mixer_speaker.apply_ducking:
-              id: media_mixing_input
-              decibel_reduction: 0
-              duration: 1.0s
-
-    files:
-      - id: center_button_press_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_press.flac
-      - id: center_button_double_press_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_double_press.flac
-      - id: center_button_triple_press_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_triple_press.flac
-      - id: center_button_long_press_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/center_button_long_press.flac
-      - id: factory_reset_initiated_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_initiated.mp3
-      - id: factory_reset_cancelled_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_cancelled.mp3
-      - id: mute_switch_on_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/mute_switch_on.flac
-      - id: mute_switch_off_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/mute_switch_off.flac
-      - id: timer_finished_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/timer_finished.flac
-      - id: wake_word_triggered_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/wake_word_triggered.flac
-      - id: jack_connected_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_connected.flac
-      - id: jack_disconnected_sound
-        file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/jack_disconnected.flac    
+      - if:
+          condition:
+            and:
+              - switch.is_off: timer_ringing
+              - not:
+                  voice_assistant.is_running:
+              - not:
+                  media_player.is_announcing: external_media_player
+          then:
+            - mixer_speaker.apply_ducking:
+                id: media_mixing_input
+                decibel_reduction: 0
+                duration: 1.0s    
 
 
 script:
@@ -236,19 +269,22 @@ script:
   - id: play_sound
     parameters:
       priority: bool
-      sound_file: "audio::AudioFile*"
+      sound_file: string
     then:
+      - if:
+          condition:
+            lambda: return priority;
+          then:
+            - media_player.stop:
+                id: external_media_player
+                announcement: true
       - lambda: |-
-          if (priority) {
-            id(external_media_player)
-              ->make_call()
-              .set_command(media_player::MediaPlayerCommand::MEDIA_PLAYER_COMMAND_STOP)
-              .set_announcement(true)
-              .perform();
-          }
           if ( (id(external_media_player).state != media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING ) || priority) {
             id(external_media_player)
-              ->play_file(sound_file, true, false);
+              ->make_call()
+              .set_media_url("file://" + sound_file)
+              .set_announcement(true)
+              .perform();
           }
   
   # Script to increased/decreased volume  
@@ -263,9 +299,42 @@ script:
             lambda: return increase_volume;
           then:
             - media_player.volume_up:
+                id: external_media_player
           else:
             - media_player.volume_down:
+                id: external_media_player
       - script.execute: control_leds
       - delay: 2s
       - lambda: id(volume_buttons_touched) = false;
       - script.execute: control_leds
+
+sensor:
+  - platform: sendspin
+    type: kalman_error
+    name: "Kalman Error"  # Time sync filter uncertainty estimate
+  
+  - platform: sendspin
+    type: audible_syncs
+    name: "Audible Syncs"  # Major sync events that are audible
+
+# Sendspin: only needed for text metadata
+text_sensor:
+  - platform: sendspin
+    type: title
+    name: Track Title
+  
+  - platform: sendspin
+    type: artist
+    name: Artist
+  
+  - platform: sendspin
+    type: album
+    name: Album
+  
+  - platform: sendspin
+    type: year
+    name: Year
+  
+  - platform: sendspin
+    type: track
+    name: Track Number
