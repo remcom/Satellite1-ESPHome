@@ -59,7 +59,7 @@ jobs:
       - name: Upload versioned release
         uses: softprops/action-gh-release@v2
         with:
-          files: "release-artifacts/${{ matrix.device }}/**/*"
+          files: "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${{ env.SAFE_VERSION }}/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -71,7 +71,7 @@ jobs:
       - name: Upload latest alias
         uses: softprops/action-gh-release@v2
         with:
-          files: "release-artifacts/latest/${{ matrix.device }}/**/*"
+          files: "release-artifacts/latest/${{ matrix.device }}/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
