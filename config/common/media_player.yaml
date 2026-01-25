@@ -204,10 +204,6 @@ media_source:
         file: ${timer_finished_sound_file}
       - id: wake_word_triggered_sound
         file: ${wake_word_triggered_sound_file}
-      - id: easter_egg_tick_sound
-        file: ${easter_egg_tick_sound_file}
-      - id: easter_egg_tada_sound
-        file: ${easter_egg_tada_sound_file}
       - id: error_cloud_expired
         file: ${error_cloud_expired_sound_file}
 

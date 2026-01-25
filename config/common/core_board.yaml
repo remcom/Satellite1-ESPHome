@@ -50,3 +50,50 @@ i2s_audio:
     access_mode: duplex
     i2s_mode: secondary
     use_legacy: false
+
+sensor:
+  - platform: wifi_signal 
+    name: Wi-Fi Signal RSSI
+    id: wifi_signal_db
+    update_interval: 60s
+    state_class: measurement
+    entity_category: "diagnostic"
+    disabled_by_default: True
+  - platform: uptime
+    name: Uptime Seconds
+    id: uptime_seconds
+    internal: true
+    update_interval: 60s
+    entity_category: diagnostic
+  - platform: internal_temperature
+    name: Internal Temperature
+    update_interval: 60s
+    state_class: measurement
+    device_class: temperature
+    disabled_by_default: True
+
+text_sensor:
+  - platform: template
+    name: Uptime
+    icon: mdi:clock-start
+    entity_category: diagnostic
+    update_interval: 60s
+    disabled_by_default: True
+    lambda: |-
+      // Check if uptime sensor has valid data
+      if (isnan(id(uptime_seconds).state) || id(uptime_seconds).state < 0) {
+        return {"Starting..."};
+      }
+      
+      int seconds = (int)id(uptime_seconds).state;
+      int days = seconds / 86400;
+      int hours = (seconds % 86400) / 3600;
+      int minutes = (seconds % 3600) / 60;
+      
+      if (days > 0) {
+        return to_string(days) + "d " + to_string(hours) + "h";
+      } else if (hours > 0) {
+        return to_string(hours) + "h " + to_string(minutes) + "m";
+      } else {
+        return to_string(minutes) + "m";
+      }
