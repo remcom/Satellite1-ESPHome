@@ -83,7 +83,6 @@ external_components:
       path: ../components
     components:
         - i2s_audio
-        - resampler
   # ESPHome PRs for sendspin and related features
   - source:
       # https://github.com/esphome/esphome/pull/12253
@@ -97,6 +96,12 @@ external_components:
       url: https://github.com/esphome/esphome
       ref: 9148832ea4e54907bad71a24d4ced1ce6c862433
     components: [audio]
+  - source:
+      # https://github.com/esphome/esphome/pull/12254
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 6006b896a691ad38d8045ac67564c168973d1a1d
+    components: [resampler]
   - source:
       # https://github.com/esphome/esphome/pull/12258
       type: git

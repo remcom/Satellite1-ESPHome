@@ -80,7 +80,7 @@ select:
 
 microphone:
   - platform: satellite1
-    id: sat1_mics_raw
+    id: sat1_mics
     sample_rate: 48000
     i2s_din_pin: GPIO15
     bits_per_sample: 32bit
@@ -89,13 +89,13 @@ microphone:
     adc_type: external
     i2s_audio_id: i2s_shared
 
-  - platform: resampler
-    id: sat1_mics
-    microphone:
-      microphone: sat1_mics_raw
-      channels: [0]
-    sample_rate: 16000
-    buffer_duration: 100ms
+  # - platform: resampler
+  #   id: sat1_mics
+  #   microphone:
+  #     microphone: sat1_mics_raw
+  #     channels: [0]
+  #   sample_rate: 16000
+  #   buffer_duration: 100ms
 
 micro_wake_word:
   id: mww
