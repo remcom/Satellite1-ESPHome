@@ -2,7 +2,7 @@ name: Build ESPHome firmware on release
 
 on:
   release:
-    types: [created]
+    types: [published, prereleased]
 
 jobs:
   build:
