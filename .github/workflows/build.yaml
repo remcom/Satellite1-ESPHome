@@ -1,0 +1,57 @@
+name: Build ESPHome firmware on release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        device:
+          - satellite1
+          - satellite1.ld2450
+          - satellite1.ld2410
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build ESPHome firmware
+        uses: esphome/build-action@v4
+        with:
+          yaml-file: config/${{ matrix.device }}.yaml
+          output-name: ${{ matrix.device }}-${{ github.ref_name }}
+          complete-manifest: true
+
+      - name: Prepare release artifacts
+        run: |
+          VERSION=${{ github.ref_name }}
+          mkdir -p release-artifacts/${{ matrix.device }}
+          cp -r ${{ matrix.device }}-${VERSION}/* release-artifacts/${{ matrix.device }}/
+
+      - name: Upload versioned release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/${{ matrix.device }}/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create latest alias
+        run: |
+          mkdir -p release-artifacts/latest/${{ matrix.device }}
+          cp -r release-artifacts/${{ matrix.device }}/* release-artifacts/latest/${{ matrix.device }}/
+
+      - name: Upload latest alias
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-artifacts/latest/${{ matrix.device }}/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
