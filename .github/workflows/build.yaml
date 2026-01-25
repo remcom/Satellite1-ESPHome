@@ -38,38 +38,37 @@ jobs:
       - name: Prepare versioned release artifacts
         run: |
           SAFE_VERSION="${{ env.SAFE_VERSION }}"
-      
-          # Find the latest build output folder by looking for any build artifacts
-          OUTDIR=$(find . -maxdepth 1 -type d -print0 | \
-            while IFS= read -r -d '' dir; do
-              if ls "$dir"/*.bin "$dir"/*.ota.bin "$dir"/manifest.json 1> /dev/null 2>&1; then
-                echo "$dir"
-              fi
-            done | sort | tail -n1)
-      
+
+          # Find the output folder that contains build artifacts
+          OUTDIR=$(find . -maxdepth 1 -type d -exec bash -c \
+            'ls "$0"/*.bin "$0"/*.ota.bin "$0"/manifest.json 1> /dev/null 2>&1 && echo "$0"' {} \; | sort | tail -n1)
           if [ -z "$OUTDIR" ]; then
-            echo "Could not find build output directory for ${{ matrix.device }}"; exit 1;
+            echo "Could not find build output for ${{ matrix.device }}"; exit 1;
           fi
-      
-          echo "Using build output folder: $OUTDIR"
-      
-          mkdir -p "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}"
-          cp -r "$OUTDIR"/* "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}/"
+          mkdir -p "release-artifacts/${{ matrix.device }}"
+
+          # Rename files to include device + version
+          for f in "$OUTDIR"/*; do
+            base=$(basename "$f")
+            ext="${base##*.}"
+            mv "$f" "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}.${ext}"
+          done
 
       - name: Upload versioned artifacts to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.VERSION }}
           files: |
-            release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${{ env.SAFE_VERSION }}/*
+            release-artifacts/${{ matrix.device }}/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Copy to latest alias folder
+      - name: Prepare latest artifacts
         run: |
           mkdir -p "release-artifacts/latest/${{ matrix.device }}"
-          cp -r "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${{ env.SAFE_VERSION }}"/* "release-artifacts/latest/${{ matrix.device }}/"
+          cp release-artifacts/${{ matrix.device }}/* "release-artifacts/latest/${{ matrix.device }}/"
 
-      - name: Upload latest files to latest release
+      - name: Upload latest artifacts to latest release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
@@ -86,7 +85,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate single landing manifest
+      - name: Generate landing manifest
         run: |
           VERSION="${GITHUB_REF_NAME}"
           REPO="${GITHUB_REPOSITORY}"
@@ -96,13 +95,13 @@ jobs:
             "version": "${VERSION}",
             "devices": {
               "satellite1": {
-                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1/manifest.json"
+                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1-manifest.json"
               },
               "satellite1.ld2450": {
-                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1.ld2450/manifest.json"
+                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1.ld2450-manifest.json"
               },
               "satellite1.ld2410": {
-                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1.ld2410/manifest.json"
+                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1.ld2410-manifest.json"
               }
             }
           }
