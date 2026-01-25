@@ -39,15 +39,15 @@ jobs:
         run: |
           SAFE_VERSION="${{ env.SAFE_VERSION }}"
 
-          # Find the output folder that contains build artifacts
           OUTDIR=$(find . -maxdepth 1 -type d -exec bash -c \
             'ls "$0"/*.bin "$0"/*.ota.bin "$0"/manifest.json 1> /dev/null 2>&1 && echo "$0"' {} \; | sort | tail -n1)
+
           if [ -z "$OUTDIR" ]; then
             echo "Could not find build output for ${{ matrix.device }}"; exit 1;
           fi
+
           mkdir -p "release-artifacts/${{ matrix.device }}"
 
-          # Rename files to include device + version
           for f in "$OUTDIR"/*; do
             base=$(basename "$f")
             ext="${base##*.}"
@@ -63,17 +63,37 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare latest artifacts
+      # Stable release: upload into "latest"
+      - name: Prepare stable latest artifacts
+        if: github.event.release.prerelease == false
         run: |
           mkdir -p "release-artifacts/latest/${{ matrix.device }}"
           cp release-artifacts/${{ matrix.device }}/* "release-artifacts/latest/${{ matrix.device }}/"
 
-      - name: Upload latest artifacts to latest release
+      - name: Upload latest artifacts (stable only)
+        if: github.event.release.prerelease == false
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           files: |
             release-artifacts/latest/${{ matrix.device }}/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Prerelease: upload into "beta"
+      - name: Prepare prerelease beta artifacts
+        if: github.event.release.prerelease == true
+        run: |
+          mkdir -p "release-artifacts/beta/${{ matrix.device }}"
+          cp release-artifacts/${{ matrix.device }}/* "release-artifacts/beta/${{ matrix.device }}/"
+
+      - name: Upload beta artifacts (for prerelease only)
+        if: github.event.release.prerelease == true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta
+          files: |
+            release-artifacts/beta/${{ matrix.device }}/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -90,19 +110,14 @@ jobs:
           VERSION="${GITHUB_REF_NAME}"
           REPO="${GITHUB_REPOSITORY}"
           mkdir -p release-artifacts
+
           cat <<EOF > release-artifacts/landing-manifest.json
           {
             "version": "${VERSION}",
             "devices": {
-              "satellite1": {
-                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1-manifest.json"
-              },
-              "satellite1.ld2450": {
-                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1.ld2450-manifest.json"
-              },
-              "satellite1.ld2410": {
-                "manifest_url": "https://github.com/${REPO}/releases/download/latest/satellite1.ld2410-manifest.json"
-              }
+              "satellite1": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1-manifest.json" },
+              "satellite1.ld2450": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2450-manifest.json" },
+              "satellite1.ld2410": { "manifest_url": "https://github.github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2410-manifest.json" }
             }
           }
           EOF
@@ -110,7 +125,7 @@ jobs:
       - name: Upload landing manifest
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
+          tag_name: ${{ github.event.release.prerelease && 'beta' || 'latest' }}
           files: release-artifacts/landing-manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
