@@ -9,14 +9,6 @@ external_components:
 debug:
   update_interval: 5s
 
-# # OPTIONAL Persist logs to a an MQTT broker so you can go back in time and inspect them.  Read more here: https://esphome.io/components/mqtt.html
-# mqtt:
-#   broker: homeassistant.local
-#   port: 1883
-#   username: <mqtt_username_here>
-#   password: <mqtt_password_here>
-#   # topic_prefix: <set_this_if_you_are_logging_multiple_satellite1_devices>
-
 text_sensor:
   - platform: debug
     device:
@@ -45,15 +37,6 @@ sensor:
     psram:
       name: "Free PSRAM"
       entity_category: "diagnostic"
-  - platform: wifi_signal
-    name: "Wi-Fi Signal Strength"
-    entity_category: "diagnostic"
-    update_interval: 60s
-
-  - platform: internal_temperature
-    name: "Internal ESP Temperature"
-    entity_category: "diagnostic"
-    update_interval: 60s
 
 button:
   # Restarts Sat1 to safe mode
