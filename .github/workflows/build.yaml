@@ -41,11 +41,20 @@ jobs:
       - name: Prepare versioned release artifacts
         run: |
           SAFE_VERSION="${{ env.SAFE_VERSION }}"
+          # The esphome/build-action output folder is named after the output 'name' (e.g., satellite1-esp32)
+          # We must detect the correct folder name. For ESP32, it's usually <device>-esp32
+          # Try to find the output folder matching 'satellite1-*' (or matrix.device-*)
+          OUTDIR=$(find . -maxdepth 1 -type d -name "${{ matrix.device }}-*" | head -n1)
+          if [ -z "$OUTDIR" ]; then
+            echo "Could not find build output folder for ${{ matrix.device }}!"; exit 1;
+          fi
+          echo "Found build output folder: $OUTDIR"
           mkdir -p "release-artifacts/${{ matrix.device }}"
-          BUILD_DIR=".esphome/build/${{ matrix.device }}"
           DEST_DIR="release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}"
           mkdir -p "$DEST_DIR"
-          cp -r "$BUILD_DIR/"* "$DEST_DIR/"
+          echo "Listing build output folder contents for debugging:"
+          ls -l "$OUTDIR"
+          cp -r "$OUTDIR"/* "$DEST_DIR/"
 
       - name: Upload versioned release
         uses: softprops/action-gh-release@v2
