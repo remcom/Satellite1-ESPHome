@@ -38,10 +38,21 @@ jobs:
       - name: Prepare versioned release artifacts
         run: |
           SAFE_VERSION="${{ env.SAFE_VERSION }}"
-          OUTDIR=$(find . -maxdepth 1 -type d -name "${{ matrix.device }}-*" | head -n1)
+      
+          # Find the latest build output folder by looking for any build artifacts
+          OUTDIR=$(find . -maxdepth 1 -type d -print0 | \
+            while IFS= read -r -d '' dir; do
+              if ls "$dir"/*.bin "$dir"/*.ota.bin "$dir"/manifest.json 1> /dev/null 2>&1; then
+                echo "$dir"
+              fi
+            done | sort | tail -n1)
+      
           if [ -z "$OUTDIR" ]; then
-            echo "Could not find build output for ${{ matrix.device }}"; exit 1;
+            echo "Could not find build output directory for ${{ matrix.device }}"; exit 1;
           fi
+      
+          echo "Using build output folder: $OUTDIR"
+      
           mkdir -p "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}"
           cp -r "$OUTDIR"/* "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}/"
 
