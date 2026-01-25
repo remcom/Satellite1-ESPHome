@@ -42,11 +42,10 @@ jobs:
         run: |
           SAFE_VERSION="${{ env.SAFE_VERSION }}"
           mkdir -p "release-artifacts/${{ matrix.device }}"
-          # Copy and rename folder to include version
-          cp -r "config/${{ matrix.device }}" "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}"
-          # Copy build outputs into versioned folder
           BUILD_DIR=".esphome/build/${{ matrix.device }}"
-          cp -r "$BUILD_DIR/"* "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}/"
+          DEST_DIR="release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}"
+          mkdir -p "$DEST_DIR"
+          cp -r "$BUILD_DIR/"* "$DEST_DIR/"
 
       - name: Upload versioned release
         uses: softprops/action-gh-release@v2
