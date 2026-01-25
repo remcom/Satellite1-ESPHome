@@ -2,7 +2,7 @@ name: Build ESPHome firmware on release
 
 on:
   release:
-    types: [published, prereleased]
+    types: [published]
 
 jobs:
   build:
@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build ESPHome firmware
-        uses: esphome/build-action@v4
+        uses: esphome/build-action@v7.1.0
         with:
           yaml-file: config/${{ matrix.device }}.yaml
           output-name: ${{ matrix.device }}-${{ github.ref_name }}
