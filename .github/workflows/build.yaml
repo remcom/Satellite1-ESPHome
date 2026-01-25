@@ -59,14 +59,14 @@ jobs:
       - name: Upload versioned release
         uses: softprops/action-gh-release@v2
         with:
-          files: "release-artifacts/${{ matrix.device }}/*"
+          files: "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${{ env.SAFE_VERSION }}/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create latest alias
         run: |
           mkdir -p "release-artifacts/latest/${{ matrix.device }}"
-          cp -r "release-artifacts/${{ matrix.device }}/"* "release-artifacts/latest/${{ matrix.device }}/"
+          cp -r "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${{ env.SAFE_VERSION }}"/* "release-artifacts/latest/${{ matrix.device }}/"
 
       - name: Upload latest alias
         uses: softprops/action-gh-release@v2
