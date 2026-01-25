@@ -50,7 +50,16 @@ jobs:
 
           for f in "$OUTDIR"/*; do
             base=$(basename "$f")
-            ext="${base##*.}"
+            # Handle double extensions like .ota.bin
+            if [[ "$base" == *.ota.bin ]]; then
+              ext="ota.bin"
+            elif [[ "$base" == *.bin ]]; then
+              ext="bin"
+            elif [[ "$base" == manifest.json ]]; then
+              ext="manifest.json"
+            else
+              ext="${base##*.}"
+            fi
             mv "$f" "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}.${ext}"
           done
 
@@ -68,7 +77,20 @@ jobs:
         if: github.event.release.prerelease == false
         run: |
           mkdir -p "release-artifacts/latest/${{ matrix.device }}"
-          cp release-artifacts/${{ matrix.device }}/* "release-artifacts/latest/${{ matrix.device }}/"
+          for f in release-artifacts/${{ matrix.device }}/*; do
+            base=$(basename "$f")
+            # Remove version from filename for latest release
+            if [[ "$base" == *".ota.bin" ]]; then
+              newname="${{ matrix.device }}.ota.bin"
+            elif [[ "$base" == *".bin" ]]; then
+              newname="${{ matrix.device }}.bin"
+            elif [[ "$base" == *".manifest.json" ]]; then
+              newname="${{ matrix.device }}-manifest.json"
+            else
+              newname="$base"
+            fi
+            cp "$f" "release-artifacts/latest/${{ matrix.device }}/$newname"
+          done
 
       - name: Upload latest artifacts (stable only)
         if: github.event.release.prerelease == false
@@ -85,7 +107,20 @@ jobs:
         if: github.event.release.prerelease == true
         run: |
           mkdir -p "release-artifacts/beta/${{ matrix.device }}"
-          cp release-artifacts/${{ matrix.device }}/* "release-artifacts/beta/${{ matrix.device }}/"
+          for f in release-artifacts/${{ matrix.device }}/*; do
+            base=$(basename "$f")
+            # Remove version from filename for beta release
+            if [[ "$base" == *".ota.bin" ]]; then
+              newname="${{ matrix.device }}.ota.bin"
+            elif [[ "$base" == *".bin" ]]; then
+              newname="${{ matrix.device }}.bin"
+            elif [[ "$base" == *".manifest.json" ]]; then
+              newname="${{ matrix.device }}-manifest.json"
+            else
+              newname="$base"
+            fi
+            cp "$f" "release-artifacts/beta/${{ matrix.device }}/$newname"
+          done
 
       - name: Upload beta artifacts (for prerelease only)
         if: github.event.release.prerelease == true
@@ -117,7 +152,7 @@ jobs:
             "devices": {
               "satellite1": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1-manifest.json" },
               "satellite1.ld2450": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2450-manifest.json" },
-              "satellite1.ld2410": { "manifest_url": "https://github.github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2410-manifest.json" }
+              "satellite1.ld2410": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2410-manifest.json" }
             }
           }
           EOF
