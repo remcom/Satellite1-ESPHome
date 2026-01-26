@@ -50,6 +50,14 @@ void DACProxy::setup(){
   this->defer([this]() { this->state_callback_.call(); });
 }
 
+void DACProxy::loop(){
+  if (this->has_pending_volume_ &&
+      (millis() - this->last_volume_request_time_ >= VOLUME_DEBOUNCE_MS)) {
+    this->apply_volume_(this->pending_volume_);
+    this->has_pending_volume_ = false;
+  }
+}
+
 void DACProxy::dump_config(){
     if( this->tas2780_){
         esph_log_config(TAG, "SPEAKER-DAC, volume: %4.2f, muted: %s %s", 
@@ -188,7 +196,15 @@ bool DACProxy::set_volume(float volume){
         ESP_LOGD(TAG, "DACProxy::set_volume() called before setup()");
         return false;
     }
-    ESP_LOGD(TAG, "DACProxy::set_volume called: volume=%.3f, active_dac=%d", volume, this->active_dac);
+    // Debounce volume changes to prevent I2C race conditions
+    this->pending_volume_ = volume;
+    this->has_pending_volume_ = true;
+    this->last_volume_request_time_ = millis();
+    return true;
+}
+
+bool DACProxy::apply_volume_(float volume){
+    ESP_LOGD(TAG, "DACProxy::apply_volume_ called: volume=%.3f, active_dac=%d", volume, this->active_dac);
     bool has_changed = false;
     bool ret = false;
     if( this->active_dac == LINE_OUT && this->pcm5122_ && this->pcm5122_->volume() != volume){
@@ -202,7 +218,7 @@ bool DACProxy::set_volume(float volume){
     }
     if( has_changed ){
         this->save_volume_restore_state_();
-    }    
+    }
     return ret;
 }
 

@@ -34,6 +34,7 @@ class DACProxy : public audio_dac::AudioDac,
  
  public:
   void setup() override;
+  void loop() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::AFTER_WIFI; }
 
@@ -54,10 +55,18 @@ class DACProxy : public audio_dac::AudioDac,
 
   DacOutput active_dac{SPEAKER};
 protected:
+  static const uint32_t VOLUME_DEBOUNCE_MS = 50;
+
   bool setup_was_called_{false};
   ESPPreferenceObject pref_;
   DACProxyRestoreState restore_state_;
+
+  uint32_t last_volume_request_time_{0};
+  float pending_volume_{0};
+  bool has_pending_volume_{false};
+
   void save_volume_restore_state_();
+  bool apply_volume_(float volume);
   
   void send_selected_dac_(){}
   
