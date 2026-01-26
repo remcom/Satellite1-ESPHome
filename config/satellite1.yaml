@@ -64,6 +64,9 @@ esp32_improv:
     - script.execute: control_leds
 
 http_request:
+  buffer_size_rx: 2048
+  buffer_size_tx: 1024
+  timeout: 30s
 
 external_components:
     # FPH Custom Components
@@ -127,3 +130,30 @@ logger:
     sendspin_media_source: DEBUG
     speaker_source_media_player: DEBUG
     i2s_audio.speaker: DEBUG
+
+ota:
+  - platform: http_request
+    id: ota_http_request
+
+update:
+  - platform: http_request
+    name: None
+    id: update_http_request
+    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json
+
+switch:
+  - platform: template
+    id: beta_firmware
+    name: Beta firmware
+    icon: "mdi:test-tube"
+    entity_category: diagnostic
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - logger.log: "OTA updates set to use Beta firmware"
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/satellite1-manifest.json");
+      - component.update: update_http_request
+    on_turn_off:
+      - logger.log: "OTA updates set to use Production firmware"
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json");
+      - component.update: update_http_request
