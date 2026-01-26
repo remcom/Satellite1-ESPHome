@@ -123,6 +123,16 @@ jobs:
             cp "$f" "release-artifacts/beta/${{ matrix.device }}/$newname"
           done
 
+      - name: Delete old beta assets for this device
+        if: github.event.release.prerelease == true
+        run: |
+          gh release view beta --json assets -q '.assets[].name' 2>/dev/null | grep "^${{ matrix.device }}" | while read asset; do
+            echo "Deleting old asset: $asset"
+            gh release delete-asset beta "$asset" -y || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload beta artifacts (for prerelease only)
         if: github.event.release.prerelease == true
         uses: softprops/action-gh-release@v2
