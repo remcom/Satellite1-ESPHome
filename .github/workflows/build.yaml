@@ -28,13 +28,16 @@ jobs:
           SAFE_VERSION="${GITHUB_REF_NAME//-/_}"
           echo "SAFE_VERSION=${SAFE_VERSION}" >> $GITHUB_ENV
 
+      - name: Set firmware version in config
+        run: |
+          sed -i 's/esp32_fw_version: dev/esp32_fw_version: ${{ env.VERSION }}/' config/satellite1.base.yaml
+
       - name: Build ESPHome firmware
         uses: esphome/build-action@v7.1.0
         with:
           yaml-file: "config/${{ matrix.device }}.yaml"
           complete-manifest: true
           sign-ota: true
-          substitutions: "esp32_fw_version: ${{ env.VERSION }}"
 
       - name: Prepare versioned release artifacts
         run: |
@@ -92,6 +95,22 @@ jobs:
             fi
             cp "$f" "release-artifacts/latest/${{ matrix.device }}/$newname"
           done
+          # Fix paths in manifest to match renamed files
+          MANIFEST="release-artifacts/latest/${{ matrix.device }}/${{ matrix.device }}-manifest.json"
+          if [ -f "$MANIFEST" ]; then
+            sed -i 's/-esp32s3\.ota\.bin/.ota.bin/g' "$MANIFEST"
+            sed -i 's/-esp32s3\.factory\.bin/.bin/g' "$MANIFEST"
+          fi
+
+      - name: Delete old latest assets for this device
+        if: github.event.release.prerelease == false
+        run: |
+          gh release view latest --json assets -q '.assets[].name' 2>/dev/null | grep "^${{ matrix.device }}" | while read asset; do
+            echo "Deleting old asset: $asset"
+            gh release delete-asset latest "$asset" -y || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload latest artifacts (stable only)
         if: github.event.release.prerelease == false
@@ -122,6 +141,12 @@ jobs:
             fi
             cp "$f" "release-artifacts/beta/${{ matrix.device }}/$newname"
           done
+          # Fix paths in manifest to match renamed files
+          MANIFEST="release-artifacts/beta/${{ matrix.device }}/${{ matrix.device }}-manifest.json"
+          if [ -f "$MANIFEST" ]; then
+            sed -i 's/-esp32s3\.ota\.bin/.ota.bin/g' "$MANIFEST"
+            sed -i 's/-esp32s3\.factory\.bin/.bin/g' "$MANIFEST"
+          fi
 
       - name: Delete old beta assets for this device
         if: github.event.release.prerelease == true
