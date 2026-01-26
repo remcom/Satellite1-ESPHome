@@ -188,12 +188,15 @@ bool DACProxy::set_volume(float volume){
         ESP_LOGD(TAG, "DACProxy::set_volume() called before setup()");
         return false;
     }
+    ESP_LOGD(TAG, "DACProxy::set_volume called: volume=%.3f, active_dac=%d", volume, this->active_dac);
     bool has_changed = false;
     bool ret = false;
     if( this->active_dac == LINE_OUT && this->pcm5122_ && this->pcm5122_->volume() != volume){
+        ESP_LOGD(TAG, "Setting LINE_OUT volume from %.3f to %.3f", this->pcm5122_->volume(), volume);
         ret = this->pcm5122_->set_volume(volume);
         has_changed = true;
     } else if( this->active_dac == SPEAKER && this->tas2780_ && this->tas2780_->volume() != volume ){
+        ESP_LOGD(TAG, "Setting SPEAKER volume from %.3f to %.3f", this->tas2780_->volume(), volume);
         ret = this->tas2780_->set_volume(volume);
         has_changed = true;
     }

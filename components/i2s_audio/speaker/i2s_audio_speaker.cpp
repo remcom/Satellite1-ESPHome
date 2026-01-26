@@ -150,9 +150,11 @@ void I2SAudioSpeaker::loop() {
 }
 
 void I2SAudioSpeaker::set_volume(float volume) {
+  ESP_LOGD(TAG, "set_volume called: volume=%.3f", volume);
   this->volume_ = volume;
 #ifdef USE_AUDIO_DAC
   if (this->audio_dac_ != nullptr) {
+    ESP_LOGD(TAG, "set_volume: using audio_dac_ %p", this->audio_dac_);
     if (volume > 0.0) {
       this->audio_dac_->set_mute_off();
     }
@@ -163,6 +165,7 @@ void I2SAudioSpeaker::set_volume(float volume) {
     // Fallback to software volume control by using a Q15 fixed point scaling factor
     ssize_t decibel_index = remap<ssize_t, float>(volume, 0.0f, 1.0f, 0, Q15_VOLUME_SCALING_FACTORS.size() - 1);
     this->q15_volume_factor_ = Q15_VOLUME_SCALING_FACTORS[decibel_index];
+    ESP_LOGD(TAG, "set_volume: software volume, q15_factor=%d", this->q15_volume_factor_);
   }
 }
 
