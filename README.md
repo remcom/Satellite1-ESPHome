@@ -6,6 +6,22 @@
 
 This fork is actively being developed and is **not yet ready for production use**. Expect breaking changes, incomplete features, and experimental code.
 
+> **Snapcast is NOT supported.** This fork uses [Sendspin](https://github.com/esphome/esphome/pull/12284) for multi-room audio instead of Snapcast. If you need Snapcast support, use the official FutureProofHomes firmware.
+
+---
+
+## Install Firmware
+
+Install the firmware directly from your browser (Chrome/Edge required):
+
+**[Install Firmware](https://remcom.github.io/Satellite1-ESPHome/)**
+
+Available variants:
+
+- **Default** - Base firmware without radar sensor
+- **LD2410** - With HLK-LD2410 presence detection
+- **LD2450** - With HLK-LD2450 zone tracking
+
 ---
 
 ## Purpose
@@ -16,18 +32,25 @@ The primary goals of this fork are:
 Enable [Sendspin](https://github.com/esphome/esphome/pull/12284) synchronized multi-room audio playback on the Satellite1 hardware. Sendspin allows multiple ESPHome devices to play audio in perfect sync across rooms.
 
 ### 2. Upstream ESPHome Integration
-Work towards getting the Satellite1's custom components merged into ESPHome's mainstream codebase. This includes:
+Work towards getting the Satellite1's custom components merged into ESPHome's mainstream codebase.
 
 ### 3. Voice PE Feature Parity
-Bring features from [Home Assistant Voice PE](https://github.com/esphome/home-assistant-voice-pe) to the Satellite1
+Bring features from [Home Assistant Voice PE](https://github.com/esphome/home-assistant-voice-pe) to the Satellite1.
 
 ---
 
 ## What's Different from Upstream
 
+| Feature          | This Fork    | Official FPH |
+| ---------------- | ------------ | ------------ |
+| Multi-room audio | Sendspin     | Snapcast     |
+| Snapcast support | No           | Yes          |
+| Status           | Experimental | Stable       |
+
 This fork includes experimental features not yet in the main FutureProofHomes repository:
 
 - **Sendspin integration** for multi-room synchronized audio
+- **No Snapcast support** - removed in favor of Sendspin
 
 ---
 
@@ -39,7 +62,7 @@ This fork includes experimental features not yet in the main FutureProofHomes re
 
 ---
 
-## Building
+## Building from Source
 
 ```bash
 # Set up the build environment
@@ -55,14 +78,20 @@ esphome upload config/satellite1.yaml
 esphome logs config/satellite1.yaml
 ```
 
+Firmware variants:
+
+- `config/satellite1.yaml` - Default (no radar)
+- `config/satellite1.ld2410.yaml` - With LD2410 radar
+- `config/satellite1.ld2450.yaml` - With LD2450 radar
+
 ---
 
 ## Contributing
 
 This is an experimental fork. If you're interested in:
-- **Stable firmware**: Use the official [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
+
+- **Stable firmware with Snapcast**: Use the official [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
 - **Sendspin testing**: Issues and PRs welcome here
-- **Upstream contributions**: Consider contributing directly to the ESPHome PRs listed above
 
 ---
 
@@ -82,7 +111,9 @@ Same as the original project - see [LICENSE](LICENSE) for details.
 
 ## Links
 
-- Original project: [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
+- **Firmware installer**: [remcom.github.io/Satellite1-ESPHome](https://remcom.github.io/Satellite1-ESPHome/)
+- Official firmware: [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
 - FutureProofHomes docs: [docs.futureproofhomes.net](https://docs.futureproofhomes.net)
+- Sendspin PR: [esphome/esphome#12284](https://github.com/esphome/esphome/pull/12284)
 - Home Assistant Voice PE: [esphome/home-assistant-voice-pe](https://github.com/esphome/home-assistant-voice-pe)
 - ESPHome: [esphome.io](https://esphome.io)
