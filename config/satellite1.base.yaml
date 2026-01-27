@@ -65,11 +65,6 @@ ota:
   - platform: esphome
     id: ota_esphome
 
-dashboard_import:
-  package_import_url: github://futureproofhomes/satellite1-esphome/config/satellite1.dashboard.yaml@staging
-  import_full_config: true
-
-
 packages:
   core_board: !include common/core_board.yaml
   wifi: !include common/wifi_improv.yaml
