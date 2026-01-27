@@ -32,12 +32,18 @@ jobs:
         run: |
           sed -i 's/esp32_fw_version: dev/esp32_fw_version: ${{ env.VERSION }}/' config/satellite1.base.yaml
 
+      - name: Get ESPHome version from requirements.txt
+        run: |
+          ESPHOME_VERSION=$(grep -oP 'esphome==\K[0-9.]+' requirements.txt)
+          echo "ESPHOME_VERSION=${ESPHOME_VERSION}" >> $GITHUB_ENV
+
       - name: Build ESPHome firmware
         uses: esphome/build-action@v7.1.0
         with:
           yaml-file: "config/${{ matrix.device }}.yaml"
           complete-manifest: true
           sign-ota: true
+          version: ${{ env.ESPHOME_VERSION }}
 
       - name: Prepare versioned release artifacts
         run: |
