@@ -1,0 +1,17 @@
+{
+  "name": "Satellite1",
+  "version": "latest",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 20,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

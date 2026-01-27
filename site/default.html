@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Satellite1 Default - Install Firmware</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#03a9f4',
+            dark: {
+              900: '#1a1a2e',
+              800: '#16213e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    esp-web-install-button button {
+      font-size: 1.2rem;
+      padding: 15px 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #03a9f4;
+      color: white;
+      border: none;
+    }
+    esp-web-install-button button:hover {
+      background: #0288d1;
+    }
+  </style>
+</head>
+<body class="bg-dark-900 text-gray-100 min-h-screen p-5">
+  <div class="max-w-2xl mx-auto">
+    <a href="index.html" class="text-primary hover:underline inline-flex items-center gap-1 mb-5">&larr; Back to overview</a>
+
+    <header class="text-center py-5 pb-10">
+      <h1 class="text-3xl font-bold text-primary mb-2">Satellite1 Default</h1>
+      <p class="text-gray-400">Base firmware without radar sensor</p>
+    </header>
+
+    <div class="bg-dark-800 rounded-xl p-10 text-center">
+      <h2 class="text-xl font-semibold mb-4">Install Firmware</h2>
+      <p class="text-gray-400 mb-6">Connect your Satellite1 via USB and click the button below to install.</p>
+
+      <esp-web-install-button
+        manifest="manifests/satellite1.json"
+      >
+        <button slot="activate">Install Satellite1</button>
+        <span slot="unsupported" class="text-amber-500 block p-5">
+          Your browser does not support Web Serial.<br>
+          Please use Google Chrome or Microsoft Edge.
+        </span>
+      </esp-web-install-button>
+    </div>
+
+    <div class="bg-dark-800 rounded-xl p-8 mt-8">
+      <h3 class="text-lg font-semibold text-primary mb-4">About Default Firmware</h3>
+      <p class="text-gray-400 mb-4">The default firmware includes all core Satellite1 features without radar-based presence detection. Use this if your device doesn't have an mmWave sensor installed.</p>
+
+      <h3 class="text-lg font-semibold text-primary mb-4 mt-6">Features</h3>
+      <ul class="text-gray-400 space-y-2 list-disc list-inside">
+        <li>Voice assistant integration with Home Assistant</li>
+        <li>Wake word detection</li>
+        <li>LED ring visual feedback</li>
+        <li>Media player capabilities</li>
+        <li>WiFi Improv for easy setup</li>
+        <li>OTA updates</li>
+      </ul>
+    </div>
+
+    <div class="bg-dark-800 rounded-xl p-8 mt-8">
+      <h3 class="text-lg font-semibold text-primary mb-4">Installation Steps</h3>
+      <ol class="text-gray-400 space-y-2 list-decimal list-inside">
+        <li>Connect your Satellite1 to your computer via USB</li>
+        <li>Click the "Install Satellite1" button above</li>
+        <li>Select the correct serial port when prompted</li>
+        <li>Wait for the installation to complete</li>
+        <li>Connect to the "satellite1" WiFi network</li>
+        <li>Configure your home WiFi credentials</li>
+        <li>Add the device to Home Assistant</li>
+      </ol>
+
+      <div class="bg-amber-500/10 border-l-4 border-amber-500 p-4 mt-6 rounded-r-lg">
+        <p class="text-gray-100"><strong>Note:</strong> First-time installation will erase the device. Existing ESPHome devices can be updated via OTA from Home Assistant.</p>
+      </div>
+    </div>
+
+    <footer class="text-center py-10 text-gray-500">
+      <p class="space-x-3">
+        <a href="https://github.com/remcom/Satellite1-ESPHome" target="_blank" class="text-primary hover:underline">GitHub Repository</a>
+        <span>|</span>
+        <a href="https://docs.futureproofhomes.net" target="_blank" class="text-primary hover:underline">Documentation</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>
