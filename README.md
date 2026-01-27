@@ -14,7 +14,7 @@ This fork is actively being developed and is **not yet ready for production use*
 
 Install the firmware directly from your browser (Chrome/Edge required):
 
-**[Install Firmware](https://remcom.github.io/Satellite1-ESPHome/)**
+**[Install Firmware](https://remcom.github.io/Satellite1-ESPHome/site/)**
 
 Available variants:
 
