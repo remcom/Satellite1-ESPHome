@@ -11,7 +11,8 @@ from esphome.const import (
     CONF_NUMBER,
     CONF_SAMPLE_RATE,
 )
-from esphome.components.i2s_audio import (
+
+from .. import (
     CONF_I2S_DIN_PIN,
     CONF_LEFT,
     CONF_MONO,
@@ -23,8 +24,9 @@ from esphome.components.i2s_audio import (
     register_i2s_audio_component,
     use_legacy,
     validate_mclk_divisible_by_3,
-) 
+)
 
+AUTO_LOAD = ["audio"]
 CODEOWNERS = ["@gnumpi"]
 DEPENDENCIES = ["i2s_audio"]
 
@@ -34,10 +36,13 @@ CONF_CORRECT_DC_OFFSET = "correct_dc_offset"
 CONF_PDM = "pdm"
 
 
-Sat1Microphone = i2s_audio_ns.class_("Sat1Microphone", I2SAudioIn, microphone.Microphone, cg.Component)
+I2SAudioMicrophone = i2s_audio_ns.class_(
+    "I2SAudioMicrophone", I2SAudioIn, microphone.Microphone, cg.Component
+)
 
 INTERNAL_ADC_VARIANTS = [esp32.const.VARIANT_ESP32]
 PDM_VARIANTS = [esp32.const.VARIANT_ESP32, esp32.const.VARIANT_ESP32S3]
+
 
 def _validate_esp32_variant(config):
     variant = esp32.get_esp32_variant()
@@ -81,21 +86,29 @@ def _set_stream_limits(config):
     return config
 
 
-def _supported_satellite1_settings(config):
+def _validate_settings(config):
     if config[CONF_ADC_TYPE] == "internal":
-        raise cv.Invalid("Internal adc_type is not supported for the Satellite1 microphone integration.")
-    if config[CONF_PDM] :
-        raise cv.Invalid("PDM is not supported for the Satellite1 microphone integration.")
+        raise cv.Invalid(
+            "Internal adc_type is not supported for the I2S audio microphone integration."
+        )
+    if config[CONF_PDM]:
+        raise cv.Invalid(
+            "PDM is not supported for the I2S audio microphone integration."
+        )
     if config[CONF_BITS_PER_SAMPLE] != 32:
-        raise cv.Invalid("I2S needs to be set to 32bit for the satellite1 microphone integration.")
+        raise cv.Invalid(
+            "I2S needs to be set to 32bit for the I2S audio microphone integration."
+        )
     if config[CONF_SAMPLE_RATE] != 48000:
-        raise cv.Invalid("I2S needs to be set to 48kHz, downsampling to 16kHz is hard coded.")
+        raise cv.Invalid(
+            "I2S needs to be set to 48kHz, downsampling to 16kHz is hard coded."
+        )
     return config
 
 
 BASE_SCHEMA = microphone.MICROPHONE_SCHEMA.extend(
     i2s_audio_component_schema(
-        Sat1Microphone,
+        I2SAudioMicrophone,
         default_sample_rate=48000,
         default_channel=CONF_STEREO,
         default_bits_per_sample="32bit",
@@ -124,7 +137,7 @@ CONFIG_SCHEMA = cv.All(
         },
         key=CONF_ADC_TYPE,
     ),
-    _supported_satellite1_settings,
+    _validate_settings,
     _validate_esp32_variant,
     _validate_channel,
     _set_num_channels_from_config,

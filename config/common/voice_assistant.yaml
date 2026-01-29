@@ -79,7 +79,7 @@ select:
             }
 
 microphone:
-  - platform: satellite1
+  - platform: i2s_audio
     id: sat1_mics_raw
     sample_rate: 48000
     i2s_din_pin: GPIO15
