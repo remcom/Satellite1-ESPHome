@@ -1,7 +1,6 @@
-#include "sat1_microphone.h"
+#include "i2s_audio_microphone.h"
 
 #ifdef USE_ESP32
-
 
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
@@ -22,7 +21,7 @@ static const ssize_t TASK_PRIORITY = 17;
 // Use an exponential moving average to correct a DC offset with weight factor 1/1000
 static const int32_t DC_OFFSET_MOVING_AVERAGE_COEFFICIENT_DENOMINATOR = 1000;
 
-static const char *const TAG = "i2s_audio.sat1_microphone";
+static const char *const TAG = "i2s_audio.microphone";
 
 enum MicrophoneEventGroupBits : uint32_t {
   COMMAND_STOP = (1 << 0),  // stops the microphone task, set and cleared by ``loop``
@@ -34,15 +33,14 @@ enum MicrophoneEventGroupBits : uint32_t {
   ALL_BITS = 0x00FFFFFF,  // All valid FreeRTOS event group bits
 };
 
-
-void Sat1Microphone::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up (SAT1) I2S Audio Microphone...");
+void I2SAudioMicrophone::setup() {
+  ESP_LOGCONFIG(TAG, "Setting up I2S Audio Microphone...");
   if (this->pdm_) {
-      ESP_LOGE(TAG, "PDM not supported for SAT1 integration!");
-      this->mark_failed();
-      return;
+    ESP_LOGE(TAG, "PDM not supported for I2S Audio Microphone!");
+    this->mark_failed();
+    return;
   }
-  
+
   this->active_listeners_semaphore_ = xSemaphoreCreateCounting(MAX_LISTENERS, MAX_LISTENERS);
   if (this->active_listeners_semaphore_ == nullptr) {
     ESP_LOGE(TAG, "Failed to create semaphore");
@@ -60,21 +58,21 @@ void Sat1Microphone::setup() {
   this->configure_stream_settings_();
 }
 
-void Sat1Microphone::start() {
+void I2SAudioMicrophone::start() {
   if (this->is_failed())
     return;
 
   xSemaphoreTake(this->active_listeners_semaphore_, 0);
 }
 
-void Sat1Microphone::stop() {
+void I2SAudioMicrophone::stop() {
   if (this->state_ == microphone::STATE_STOPPED || this->is_failed())
     return;
 
   xSemaphoreGive(this->active_listeners_semaphore_);
 }
 
-void Sat1Microphone::loop() {
+void I2SAudioMicrophone::loop() {
   uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
 
   if (event_group_bits & MicrophoneEventGroupBits::TASK_STARTING) {
@@ -126,7 +124,7 @@ void Sat1Microphone::loop() {
       }
 
       if (this->task_handle_ == nullptr) {
-        xTaskCreate(Sat1Microphone::mic_task, "mic_task", TASK_STACK_SIZE, (void *) this, TASK_PRIORITY,
+        xTaskCreate(I2SAudioMicrophone::mic_task, "mic_task", TASK_STACK_SIZE, (void *) this, TASK_PRIORITY,
                     &this->task_handle_);
 
         if (this->task_handle_ == nullptr) {
@@ -146,10 +144,7 @@ void Sat1Microphone::loop() {
   }
 }
 
-
-
-
-void Sat1Microphone::configure_stream_settings_() {
+void I2SAudioMicrophone::configure_stream_settings_() {
   uint8_t channel_count = this->num_of_channels();
   uint8_t bits_per_sample = 32;
 #ifndef USE_I2S_LEGACY
@@ -161,14 +156,12 @@ void Sat1Microphone::configure_stream_settings_() {
     channel_count = 2;
   }
 #endif
-  //report 16kHz sample rate, as the 48kHz i2s samples will be subsampled to 16kHz
+  // report 16kHz sample rate, as the 48kHz i2s samples will be subsampled to 16kHz
   this->audio_stream_info_ = audio::AudioStreamInfo(bits_per_sample, channel_count, 16000);
 }
 
-
-
-bool Sat1Microphone::start_driver_() {
-  if( !this->start_i2s_channel_() ) {
+bool I2SAudioMicrophone::start_driver_() {
+  if (!this->start_i2s_channel_()) {
     ESP_LOGE(TAG, "Failed to start I2S channel");
     return false;
   }
@@ -176,11 +169,9 @@ bool Sat1Microphone::start_driver_() {
   return true;
 }
 
-bool Sat1Microphone::stop_driver_() {
-  return this->stop_i2s_channel_();
-}
+bool I2SAudioMicrophone::stop_driver_() { return this->stop_i2s_channel_(); }
 
-size_t Sat1Microphone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_wait) {
+size_t I2SAudioMicrophone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_wait) {
   size_t bytes_read = 0;
 #ifdef USE_I2S_LEGACY
   esp_err_t err = i2s_read(this->parent_->get_port(), buf, len, &bytes_read, ticks_to_wait);
@@ -202,11 +193,11 @@ size_t Sat1Microphone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_wait)
     return 0;
   }
   this->status_clear_warning();
-  
+
   return bytes_read;
 }
 
-void Sat1Microphone::fix_dc_offset_(std::vector<uint8_t> &data) {
+void I2SAudioMicrophone::fix_dc_offset_(std::vector<uint8_t> &data) {
   const size_t bytes_per_sample = this->audio_stream_info_.samples_to_bytes(1);
   const uint32_t total_samples = this->audio_stream_info_.bytes_to_samples(data.size());
 
@@ -229,11 +220,10 @@ void Sat1Microphone::fix_dc_offset_(std::vector<uint8_t> &data) {
                          DC_OFFSET_MOVING_AVERAGE_COEFFICIENT_DENOMINATOR;
 }
 
-
-void Sat1Microphone::mic_task(void *params) {
-  Sat1Microphone *this_microphone = (Sat1Microphone *) params;
+void I2SAudioMicrophone::mic_task(void *params) {
+  I2SAudioMicrophone *this_microphone = (I2SAudioMicrophone *) params;
   xEventGroupSetBits(this_microphone->event_group_, MicrophoneEventGroupBits::TASK_STARTING);
-  
+
   {  // Ensures the samples vector is freed when the task stops
     // read 3 times the amount of bytes as we need to subsample from 48 kHz to 16 kHz
     const size_t bytes_to_read = 3 * this_microphone->audio_stream_info_.ms_to_bytes(READ_DURATION_MS);
@@ -246,7 +236,7 @@ void Sat1Microphone::mic_task(void *params) {
         samples.resize(bytes_to_read);
         size_t bytes_read = this_microphone->read_(samples.data(), bytes_to_read, 2 * pdMS_TO_TICKS(READ_DURATION_MS));
         size_t samples_read = bytes_read / sizeof(int32_t);
-        int32_t* samples_32 = reinterpret_cast<int32_t*>(samples.data());
+        int32_t *samples_32 = reinterpret_cast<int32_t *>(samples.data());
         for (size_t i = 0; i < samples_read; i += 3) {
           samples_32[i / 3] = samples_32[i];
         }
@@ -259,16 +249,14 @@ void Sat1Microphone::mic_task(void *params) {
         vTaskDelay(pdMS_TO_TICKS(READ_DURATION_MS));
       }
     }
-  }  
-  
+  }
+
   xEventGroupSetBits(this_microphone->event_group_, MicrophoneEventGroupBits::TASK_STOPPED);
   while (true) {
     // Continuously delay until the loop method deletes the task
     vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
-
-
 
 }  // namespace i2s_audio
 }  // namespace esphome

@@ -13,8 +13,12 @@
 namespace esphome {
 namespace i2s_audio {
 
+static const uint32_t DMA_BUFFER_DURATION_MS = 15;
+static const size_t DMA_BUFFERS_COUNT = 4;
+static const size_t I2S_EVENT_QUEUE_COUNT = DMA_BUFFERS_COUNT + 1;
+
 static const size_t TASK_STACK_SIZE = 4096;
-static const ssize_t TASK_PRIORITY = 17;
+static const ssize_t TASK_PRIORITY = 19;
 
 static const char *const TAG = "i2s_audio.speaker";
 
@@ -278,7 +282,7 @@ void I2SAudioSpeaker::speaker_task(void *params) {
   const size_t ring_buffer_size = std::max(duration_settings_bytes, read_buffer_size);
 
   if (this_speaker->i2s_sent_time_queue_ == nullptr) {
-    this_speaker->i2s_sent_time_queue_ = xQueueCreate(dma_buffers_count + 1, sizeof(int64_t));
+    this_speaker->i2s_sent_time_queue_ = xQueueCreate(I2S_EVENT_QUEUE_COUNT, sizeof(int64_t));
   }
 
 #ifndef USE_I2S_LEGACY
