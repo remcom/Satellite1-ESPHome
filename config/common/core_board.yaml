@@ -28,6 +28,9 @@ psram:
   speed: 80MHz
   ignore_not_found: false
 
+network:
+  enable_ipv6: true
+
 i2c:
   - id: i2c_0
     sda: GPIO5
