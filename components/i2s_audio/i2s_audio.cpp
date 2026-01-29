@@ -427,20 +427,26 @@ bool I2SAudioIn::stop_i2s_channel_() {
     this->parent_->release_access_(I2SAccess::RX);
     return false;
   }
+  this->parent_->release_access_(I2SAccess::RX);
 #else
-  if( this->parent_->rx_handle_ == nullptr ){
+  if (this->parent_->rx_handle_ == nullptr) {
     ESP_LOGE(TAG, "Trying to stop I2S-RX channel, but handle is nullptr.");
     return false;
   }
-  if( this->parent_->rx_handle_ == nullptr ){
-    return false;
-  }
 
-  esp_err_t err = i2s_channel_disable(this->parent_->tx_handle_);
+  esp_err_t err = i2s_channel_disable(this->parent_->rx_handle_);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to disable RX channel: %s", esp_err_to_name(err));
     return false;
   }
+
+  // Delete channel and reset state for clean restart (matches TX behavior and upstream)
+  err = i2s_del_channel(this->parent_->rx_handle_);
+  if (err != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to delete RX channel: %s", esp_err_to_name(err));
+    return false;
+  }
+  this->parent_->rx_handle_ = nullptr;
 #endif
   return true;
 }
