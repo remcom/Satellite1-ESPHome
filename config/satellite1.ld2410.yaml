@@ -1,6 +1,6 @@
 packages:
   base_image: !include satellite1.yaml
-  mmwave_ld2450: !include common/mmwave_ld2410.yaml
+  mmwave_ld2410: !include common/mmwave_ld2410.yaml
 
 esphome:
   name: ${node_name}
