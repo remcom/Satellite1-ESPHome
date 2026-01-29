@@ -1,6 +1,7 @@
 __pycache__
 *.pyc
 .venv/
+esphome-env/
 *.egg-info/
 
 .esphome_repo

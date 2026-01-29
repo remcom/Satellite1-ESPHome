@@ -141,7 +141,7 @@ I2S_MCLK_MULTIPLE = {
 }
 
 i2s_comm_format_t = cg.global_ns.enum("i2s_comm_format_t")
-I2C_COMM_FMT_OPTIONS = {
+I2S_COMM_FMT_OPTIONS = {
     "stand_i2s": i2s_comm_format_t.I2S_COMM_FORMAT_STAND_I2S,
     "stand_msb": i2s_comm_format_t.I2S_COMM_FORMAT_STAND_MSB,
     "stand_pcm_short": i2s_comm_format_t.I2S_COMM_FORMAT_STAND_PCM_SHORT,
@@ -194,7 +194,7 @@ def i2s_audio_component_schema(
             ),
             cv.Optional(CONF_MCLK_MULTIPLE, default=256): cv.one_of(*I2S_MCLK_MULTIPLE),
             cv.Optional(CONF_I2S_COMM_FMT, default="stand_i2s"): cv.one_of(
-                        *I2C_COMM_FMT_OPTIONS, lower=True
+                        *I2S_COMM_FMT_OPTIONS, lower=True
             ),
         }
     )
@@ -222,7 +222,7 @@ async def register_i2s_audio_component(var, config):
             )
         )
         cg.add(
-                var.set_i2s_comm_fmt(I2C_COMM_FMT_OPTIONS[config[CONF_I2S_COMM_FMT]])
+                var.set_i2s_comm_fmt(I2S_COMM_FMT_OPTIONS[config[CONF_I2S_COMM_FMT]])
             )
     else:
         #cg.add(var.set_i2s_role(I2S_ROLE_OPTIONS[config[CONF_I2S_MODE]]))

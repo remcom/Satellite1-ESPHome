@@ -270,16 +270,6 @@ voice_assistant:
 
 
 script:
-  # Script used activate the stop word if the TTS step is long.
-  # Why is this wrapped on a script?
-  #   Becasue we want to stop the sequence if the TTS step is faster than that.
-  #   This allows us to prevent having the deactivation of the stop word before its own activation.
-  - id: activate_stop_word_if_tts_step_is_long
-    then:
-      - delay: 1s
-      # Enable stop wake word
-      # - lambda: id(stop).enable();
-
   - id: activate_stop_word_once
     then:
       - delay: 1s
