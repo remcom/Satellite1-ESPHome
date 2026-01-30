@@ -354,7 +354,7 @@ void TAS2780::activate(uint8_t power_mode){
 }
 
 void TAS2780::deactivate(){
-  ESP_LOGD(TAG, "Dectivating TAS2780");
+  ESP_LOGD(TAG, "Deactivating TAS2780");
   //set to software shutdown
   this->reg(TAS2780_MODE_CTRL) = (TAS2780_MODE_CTRL_BOP_SRC__PVDD_UVLO & ~TAS2780_MODE_CTRL_MODE_MASK) | TAS2780_MODE_CTRL_MODE__SFTW_SHTDWN;
 }
@@ -473,21 +473,22 @@ void TAS2780::log_error_states(){
 }
 
 void TAS2780::loop() {
-  static uint32_t last_call = millis();
-  if( millis() - last_call > 1000 ){
-    last_call = millis();
-    uint8_t curr_mode = this->reg(TAS2780_MODE_CTRL).get() & 7;
-    if( curr_mode == 2 ){
-      ESP_LOGD(TAG, "Current Mode: SOFTWARE_SHUTDOWN (PWR_MODE: %d)", this->power_mode_);
-      this->log_error_states();
-    }
-  }
+  // Intentionally empty - mode changes are logged in activate()/deactivate()
 }
 
-
-
-void TAS2780::dump_config(){
-
+void TAS2780::dump_config() {
+  ESP_LOGCONFIG(TAG, "TAS2780 Audio Amplifier:");
+  LOG_I2C_DEVICE(this);
+  ESP_LOGCONFIG(TAG, "  Power Mode: %u", this->power_mode_);
+  ESP_LOGCONFIG(TAG, "  Amp Level: %u", this->amp_level_);
+  ESP_LOGCONFIG(TAG, "  Volume Range: %.2f - %.2f", this->vol_range_min_, this->vol_range_max_);
+  const char *channel_str = "Mono Downmix";
+  if (this->selected_channel_ == LEFT_CHANNEL) {
+    channel_str = "Left";
+  } else if (this->selected_channel_ == RIGHT_CHANNEL) {
+    channel_str = "Right";
+  }
+  ESP_LOGCONFIG(TAG, "  Channel: %s", channel_str);
 }
 
 bool TAS2780::set_mute_off(){
@@ -558,9 +559,8 @@ void TAS2780::update_register(){
       get_channel_select_reg_val(this->selected_channel_) |
       TAS2780_TDM_CFG2_RX_WLEN__32BIT |
       TAS2780_TDM_CFG2_RX_SLEN__32BIT
-  );  
+  );
 }
 
-
-}
-}
+}  // namespace tas2780
+}  // namespace esphome
