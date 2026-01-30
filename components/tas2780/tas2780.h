@@ -37,10 +37,11 @@ class TAS2780 : public audio_dac::AudioDac, public Component, public i2c::I2CDev
   bool is_muted() override;
   float volume() override;  
 
-  void set_amp_level(uint8_t amp_level){this->amp_level_ = amp_level;}
-  void set_vol_range_min(float min_val){this->vol_range_min_ = min_val;}
-  void set_vol_range_max(float max_val){this->vol_range_max_ = max_val;}
-  void set_selected_channel(ChannelSelect channel) {this->selected_channel_ = channel;}
+  void set_amp_level(uint8_t amp_level) { this->amp_level_ = amp_level; }
+  void set_power_mode(uint8_t power_mode) { this->power_mode_ = power_mode; }
+  void set_vol_range_min(float min_val) { this->vol_range_min_ = min_val; }
+  void set_vol_range_max(float max_val) { this->vol_range_max_ = max_val; }
+  void set_selected_channel(uint8_t channel) { this->selected_channel_ = static_cast<ChannelSelect>(channel); }
 
  protected:
   void set_power_mode_(const uint8_t power_mode);
@@ -56,5 +57,5 @@ class TAS2780 : public audio_dac::AudioDac, public Component, public i2c::I2CDev
 
 };
 
-}
-}
+}  // namespace tas2780
+}  // namespace esphome
