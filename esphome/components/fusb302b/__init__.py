@@ -15,7 +15,7 @@ from esphome.const import (
     CONF_TRIGGER_ID
 )
 
-CODEOWNERS = ["@remcom"]
+CODEOWNERS = ["@gnumpi"]
 DEPENDENCIES = ["i2c"]
 
 pd_ns = cg.esphome_ns.namespace("power_delivery")
@@ -90,18 +90,14 @@ async def power_delivery_request_voltage_action(config, action_id, template_arg,
 @automation.register_condition(
     "power_delivery.is_connected", IsConnectedCondition, PD_ACTION_SCHEMA
 )
-async def power_delivery_is_connected_condition(config, condition_id, template_arg, args):
-    var = cg.new_Pvariable(condition_id, template_arg)
-    await cg.register_parented(var, config[CONF_ID])
-    return var
 
 
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await i2c.register_i2c_device(var, config)
-    cg.add(var.set_request_voltage(config[CONF_REQUEST_VOLTAGE]))
-    cg.add(var.set_irq_pin(config[CONF_IRQ_PIN]))
+    cg.add( var.set_request_voltage(config[CONF_REQUEST_VOLTAGE]))
+    cg.add( var.set_irq_pin(config[CONF_IRQ_PIN]))
     for conf in config.get(CONF_ON_CONNECT, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [], conf)

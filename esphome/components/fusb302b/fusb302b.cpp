@@ -169,11 +169,7 @@ void FUSB302B::setup(){
 }
 
 
-void FUSB302B::dump_config() {
-  ESP_LOGCONFIG(TAG, "FUSB302B USB-PD Controller:");
-  LOG_I2C_DEVICE(this);
-  ESP_LOGCONFIG(TAG, "  IRQ Pin: %d", this->irq_pin_);
-  ESP_LOGCONFIG(TAG, "  Request Voltage: %dV", this->request_voltage_);
+void FUSB302B::dump_config(){
 }
 
 void FUSB302B::loop(){
@@ -515,10 +511,14 @@ bool FUSB302B::send_message_(const PDMsg &msg){
   //    printf("Sent Message (%d) id: %d. [%d] \n", (int) msg.type, msg.id, millis() );
   // }
   
-  //msg.debug_log();
+  //msg.debug_log();  
   xSemaphoreGive(this->i2c_lock_);
-  return true;
+	return true;
 }
 
-}  // namespace power_delivery
-}  // namespace esphome
+
+  
+
+
+}
+}
