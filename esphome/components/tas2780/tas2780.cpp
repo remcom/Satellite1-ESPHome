@@ -486,8 +486,19 @@ void TAS2780::loop() {
 
 
 
-void TAS2780::dump_config(){
-
+void TAS2780::dump_config() {
+  ESP_LOGCONFIG(TAG, "TAS2780 Audio Amplifier:");
+  LOG_I2C_DEVICE(this);
+  ESP_LOGCONFIG(TAG, "  Power Mode: %u", this->power_mode_);
+  ESP_LOGCONFIG(TAG, "  Amp Level: %u", this->amp_level_);
+  ESP_LOGCONFIG(TAG, "  Volume Range: %.2f - %.2f", this->vol_range_min_, this->vol_range_max_);
+  const char *channel_str = "Mono Downmix";
+  if (this->selected_channel_ == LEFT_CHANNEL) {
+    channel_str = "Left";
+  } else if (this->selected_channel_ == RIGHT_CHANNEL) {
+    channel_str = "Right";
+  }
+  ESP_LOGCONFIG(TAG, "  Channel: %s", channel_str);
 }
 
 bool TAS2780::set_mute_off(){
@@ -558,9 +569,8 @@ void TAS2780::update_register(){
       get_channel_select_reg_val(this->selected_channel_) |
       TAS2780_TDM_CFG2_RX_WLEN__32BIT |
       TAS2780_TDM_CFG2_RX_SLEN__32BIT
-  );  
+  );
 }
 
-
-}
-}
+}  // namespace tas2780
+}  // namespace esphome
