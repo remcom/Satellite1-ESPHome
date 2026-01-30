@@ -1,3 +1,14 @@
+globals:
+  # Stores the power mode from USB-PD contract (0 for <9V, 2 for >=9V)
+  - id: tas2780_power_mode
+    type: uint8_t
+    restore_value: no
+    initial_value: '0'
+  # Tracks whether TAS2780 is currently active
+  - id: tas2780_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
 audio_dac:
   - platform: pcm5122
@@ -103,7 +114,6 @@ binary_sensor:
       - lambda: id(jack_unplugged_recently) = false;
       - script.execute: control_leds
 
-
 fusb302b:
   id: pd_fusb302b
   irq_pin: GPIO1
@@ -117,16 +127,17 @@ fusb302b:
       - text_sensor.template.publish:
           id: pd_state_text
           state: !lambda 'return id(pd_fusb302b).contract;'
-      - if:
-          condition:
-            lambda: |-
-              return id(pd_fusb302b).contract_voltage >= 9;
-          then:
-            - tas2780.activate:
-                mode: 2
-          else:
-            - tas2780.activate:
-                mode: 0
+      - lambda: |-
+          // Store power mode based on USB-PD contract voltage
+          if (id(pd_fusb302b).contract_voltage >= 9) {
+            id(tas2780_power_mode) = 2;
+          } else {
+            id(tas2780_power_mode) = 0;
+          }
+      - tas2780.activate:
+          mode: !lambda return id(tas2780_power_mode);
+      - lambda: id(tas2780_active) = true;
+
 speaker:
   - platform: i2s_audio
     id: i2s_audio_speaker
@@ -245,6 +256,14 @@ media_player:
           duration: 0.0s
     # Restore audio ducking when not actively playing announcements or running voice assistant
     on_state:
+      # Ensure TAS2780 is active when audio is playing
+      - if:
+          condition:
+            or:
+              - media_player.is_playing: external_media_player
+              - media_player.is_announcing: external_media_player
+          then:
+            - script.execute: tas2780_ensure_active
       - if:
           condition:
             and:
@@ -257,7 +276,7 @@ media_player:
             - mixer_speaker.apply_ducking:
                 id: media_mixing_input
                 decibel_reduction: 0
-                duration: 1.0s    
+                duration: 1.0s
 
 
 script:
@@ -304,6 +323,21 @@ script:
       - lambda: id(volume_buttons_touched) = false;
       - script.execute: control_leds
 
+  # Script to activate TAS2780 when audio playback starts
+  - id: tas2780_ensure_active
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: return !id(tas2780_active);
+          then:
+            - logger.log:
+                format: "Activating TAS2780 with power mode %d"
+                args: [ 'id(tas2780_power_mode)' ]
+            - tas2780.activate:
+                mode: !lambda return id(tas2780_power_mode);
+            - lambda: id(tas2780_active) = true;
+
 sensor:
   - platform: sendspin
     type: kalman_error
@@ -334,3 +368,20 @@ text_sensor:
   - platform: sendspin
     type: track
     name: Track Number
+
+interval:
+  - interval: 30s
+    then:
+      - if:
+          condition:
+            - lambda: return id(tas2780_active);
+            - for:
+                time: 60s
+                condition:
+                  or:
+                    - media_player.is_idle: external_media_player
+                    - media_player.is_paused: external_media_player
+          then:
+            - logger.log: "Deactivating TAS2780 due to 10 minutes of idle"
+            - tas2780.deactivate:
+            - lambda: id(tas2780_active) = false;

@@ -137,16 +137,9 @@ memory_flasher:
         - lambda: id(xmos_flashing_state) = 2;
         - script.execute: control_leds
         - lambda: id(xmos_flashing_state) = 0;
-        - if:
-            condition:
-              lambda: |-
-                return id(pd_fusb302b).contract_voltage >= 9;
-            then:
-              - tas2780.activate:
-                  mode: 2
-            else:
-              - tas2780.activate:
-                  mode: 0
+        - tas2780.activate:
+            mode: !lambda return id(tas2780_power_mode);
+        - lambda: id(tas2780_active) = true;
 
     on_flashing_failed:
       then:
