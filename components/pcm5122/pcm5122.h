@@ -28,8 +28,8 @@ class PCM5122 : public audio_dac::AudioDac,
   bool write_mute_();
   bool write_volume_();
 
-  float volume_{0};
+  float volume_{0.0f};
 };
 
-} // namespace pcm5122
-} // namespace esphome
+}  // namespace pcm5122
+}  // namespace esphome

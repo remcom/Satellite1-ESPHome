@@ -76,7 +76,6 @@ external_components:
     components:
         - fusb302b
         - memory_flasher
-        - pcm5122
         - satellite1
     # i2s_audio from esphome with shared i2s bus support
     # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
@@ -87,6 +86,7 @@ external_components:
         - i2s_audio
         - resampler
         - tas2780
+        - pcm5122
   # ESPHome PRs for sendspin and related features
   - source:
       # https://github.com/esphome/esphome/pull/12253
