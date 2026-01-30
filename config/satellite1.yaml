@@ -74,7 +74,6 @@ external_components:
       type: local
       path: ../esphome/components
     components:
-        - fusb302b
         - memory_flasher
         - satellite1
     # i2s_audio from esphome with shared i2s bus support
@@ -87,6 +86,7 @@ external_components:
         - resampler
         - tas2780
         - pcm5122
+        - fusb302b
   # ESPHome PRs for sendspin and related features
   - source:
       # https://github.com/esphome/esphome/pull/12253
