@@ -13,7 +13,7 @@ from esphome.const import (
 )
 from esphome import pins
 
-CODEOWNERS = ["@gnumpi"]
+CODEOWNERS = ["@remcom"]
 DEPENDENCIES = ["i2c"]
 
 pcm5122_ns = cg.esphome_ns.namespace("pcm5122")

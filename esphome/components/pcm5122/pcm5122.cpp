@@ -50,8 +50,10 @@ void PCM5122::setup(){
   this->set_mute_on();
 }
 
-void PCM5122::dump_config(){
-
+void PCM5122::dump_config() {
+  ESP_LOGCONFIG(TAG, "PCM5122 Audio DAC:");
+  LOG_I2C_DEVICE(this);
+  ESP_LOGCONFIG(TAG, "  Muted: %s", this->is_muted_ ? "Yes" : "No");
 }
 
 bool PCM5122::set_mute_off(){
@@ -104,5 +106,5 @@ bool PCM5122::write_volume_() {
   return true;
 }
 
-} // namespace pcm5122
-} // namespace esphome
+}  // namespace pcm5122
+}  // namespace esphome
