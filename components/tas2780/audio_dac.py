@@ -5,7 +5,7 @@ from esphome import automation
 from esphome.components.audio_dac import AudioDac, audio_dac_ns
 from esphome.const import CONF_ID, CONF_MODE, CONF_CHANNEL
 
-CODEOWNERS = ["@gnumpi"]
+CODEOWNERS = ["@remcom"]
 DEPENDENCIES = ["i2c"]
 
 tas2780_ns = cg.esphome_ns.namespace("tas2780")
@@ -51,7 +51,7 @@ CONFIG_SCHEMA = (
 TAS2780_ACTION_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.use_id(TAS2780),
-        cv.Optional(CONF_MODE, default=2): cv.int_range(min=0, max=3),
+        cv.Optional(CONF_MODE, default=2): cv.templatable(cv.int_range(min=0, max=3)),
     }
 )
 

@@ -354,7 +354,7 @@ void TAS2780::activate(uint8_t power_mode){
 }
 
 void TAS2780::deactivate(){
-  ESP_LOGD(TAG, "Dectivating TAS2780");
+  ESP_LOGD(TAG, "Deactivating TAS2780");
   //set to software shutdown
   this->reg(TAS2780_MODE_CTRL) = (TAS2780_MODE_CTRL_BOP_SRC__PVDD_UVLO & ~TAS2780_MODE_CTRL_MODE_MASK) | TAS2780_MODE_CTRL_MODE__SFTW_SHTDWN;
 }
@@ -473,18 +473,8 @@ void TAS2780::log_error_states(){
 }
 
 void TAS2780::loop() {
-  static uint32_t last_call = millis();
-  if( millis() - last_call > 1000 ){
-    last_call = millis();
-    uint8_t curr_mode = this->reg(TAS2780_MODE_CTRL).get() & 7;
-    if( curr_mode == 2 ){
-      ESP_LOGD(TAG, "Current Mode: SOFTWARE_SHUTDOWN (PWR_MODE: %d)", this->power_mode_);
-      this->log_error_states();
-    }
-  }
+  // Intentionally empty - mode changes are logged in activate()/deactivate()
 }
-
-
 
 void TAS2780::dump_config() {
   ESP_LOGCONFIG(TAG, "TAS2780 Audio Amplifier:");
