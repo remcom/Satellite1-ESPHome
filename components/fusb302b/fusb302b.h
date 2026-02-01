@@ -10,27 +10,20 @@
 namespace esphome {
 namespace power_delivery {
 
-
-enum FUSB302_state_t {
-    FUSB302_STATE_UNATTACHED = 0,
-    FUSB302_STATE_ATTACHED,
-    FUSB302_STATE_FAILED
-};
+enum FUSB302_state_t { FUSB302_STATE_UNATTACHED = 0, FUSB302_STATE_ATTACHED, FUSB302_STATE_FAILED };
 
 typedef union {
-    uint8_t bytes[7];
-    struct {
-      uint8_t status0a;
-      uint8_t status1a;
-      uint8_t interrupta;
-      uint8_t interruptb;
-      uint8_t status0;
-      uint8_t status1;
-      uint8_t interrupt;
-    };
-  } fusb_status;
-
-
+  uint8_t bytes[7];
+  struct {
+    uint8_t status0a;
+    uint8_t status1a;
+    uint8_t interrupta;
+    uint8_t interruptb;
+    uint8_t status0;
+    uint8_t status1;
+    uint8_t interrupt;
+  };
+} fusb_status;
 
 class FUSB302B : public PowerDelivery, public Component, protected i2c::I2CDevice {
  public:

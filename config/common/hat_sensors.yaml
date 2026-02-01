@@ -4,18 +4,17 @@ sensor:
     address: 0x38
     variant: AHT20
     temperature:
-          name: Temperature
-          id: temperature_sensor
-          filters:
-            - offset: ${temp_offset}
-            - lambda: "return x + id(temp_offset_ui).state;"
+      name: Temperature
+      id: temperature_sensor
+      filters:
+        - offset: ${temp_offset}
+        - lambda: "return x + id(temp_offset_ui).state;"
     humidity:
       name: Humidity
       id: humidity_sensor
       filters:
         - offset: ${humidity_offset}
         - lambda: "return x + id(humidity_offset_ui).state;"
-  
 
   - platform: ltr_als_ps
     address: 0x29
@@ -24,10 +23,9 @@ sensor:
 
     # short variant of sensor definition:
     ambient_light: "Ambient Light"
- 
 
 number:
-  #Dynamically adjust the temperature and humidity offset.  Credit goes to Lewis over @ EverythingSmartHome.  I admire your work and hope to meet someday.  Beers on me.
+  # Dynamically adjust the temperature and humidity offset.  Credit goes to Lewis over @ EverythingSmartHome.  I admire your work and hope to meet someday.  Beers on me.
   - platform: template
     name: "Offset Temperature"
     id: temp_offset_ui

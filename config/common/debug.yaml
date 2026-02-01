@@ -1,10 +1,10 @@
-external_components:  
+external_components:
   - source:
       type: git
       url: https://github.com/FutureProofHomes/Satellite1-ESPHome
       ref: develop
     refresh: 1s
-    components: [ version ]
+    components: [version]
 
 debug:
   update_interval: 5s
@@ -21,7 +21,6 @@ text_sensor:
   - platform: version
     name: "Firmware Version"
     hide_timestamp: true
-
 
 sensor:
   - platform: debug
@@ -43,7 +42,7 @@ button:
   - platform: safe_mode
     name: "Restart Sat1 (Safe Mode)"
     entity_category: diagnostic
-  
+
   - platform: template
     id: xmos_hardware_reset
     name: "XMOS Hardware Reset"

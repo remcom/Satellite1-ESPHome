@@ -163,7 +163,7 @@ voice_assistant:
   microphone:
     microphone: sat1_mics
     channels: 0
-  
+
   media_player: external_media_player
   micro_wake_word: mww
   use_wake_word: false
@@ -256,7 +256,7 @@ voice_assistant:
     # Reset the voice assistant phase id and reset the LED animations.
     - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
     - script.execute: control_leds
-    
+
   on_timer_finished:
     - switch.turn_on: timer_ringing
   on_timer_started:
@@ -267,7 +267,6 @@ voice_assistant:
     - script.execute: control_leds
   on_timer_tick:
     - script.execute: control_leds
-
 
 script:
   - id: activate_stop_word_once

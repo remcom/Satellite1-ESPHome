@@ -389,13 +389,13 @@ void I2SAudioSpeaker::speaker_task(void *params) {
         const uint32_t len = bytes_read / bytes_per_sample;
 
         // Use Q16 for samples with 1 or 2 bytes: shifted_sample * gain_factor is Q16 * Q15 -> Q31
-        int32_t shift = 15;                                    // Q31 -> Q16
+        int32_t shift = 15;                                      // Q31 -> Q16
         int32_t gain_factor = this_speaker->q15_volume_factor_;  // Q15
 
         if (bytes_per_sample >= 3) {
           // Use Q23 for samples with 3 or 4 bytes: shifted_sample * gain_factor is Q23 * Q8 -> Q31
-          shift = 8;           // Q31 -> Q23
-          gain_factor >>= 7;   // Q15 -> Q8
+          shift = 8;          // Q31 -> Q23
+          gain_factor >>= 7;  // Q15 -> Q8
         }
 
         for (uint32_t i = 0; i < len; ++i) {
@@ -409,8 +409,7 @@ void I2SAudioSpeaker::speaker_task(void *params) {
 
 #ifdef USE_ESP32_VARIANT_ESP32
       // For ESP32 8/16 bit mono mode samples need to be switched (from upstream)
-      if (bytes_read > 0 && audio_stream_info.get_channels() == 1 &&
-          audio_stream_info.get_bits_per_sample() <= 16) {
+      if (bytes_read > 0 && audio_stream_info.get_channels() == 1 && audio_stream_info.get_bits_per_sample() <= 16) {
         size_t len = bytes_read / sizeof(int16_t);
         int16_t *tmp_buf = (int16_t *) this_speaker->data_buffer_;
         for (size_t i = 0; i < len; i += 2) {
@@ -451,9 +450,9 @@ void I2SAudioSpeaker::speaker_task(void *params) {
           for (size_t s = 0; s < samples; ++s) {
             output[s] = static_cast<int32_t>(input[s]) << 16;
           }
-          esp_err_t err = i2s_channel_write(this_speaker->parent_->get_tx_handle(), scaling_buffer,
-                                            samples * sizeof(int32_t), &bytes_written,
-                                            pdMS_TO_TICKS(dma_buffer_duration_ms * 5));
+          esp_err_t err =
+              i2s_channel_write(this_speaker->parent_->get_tx_handle(), scaling_buffer, samples * sizeof(int32_t),
+                                &bytes_written, pdMS_TO_TICKS(dma_buffer_duration_ms * 5));
           bytes_written /= 2;
         }
 #endif
