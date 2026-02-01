@@ -5,8 +5,7 @@ api:
     - script.execute: control_leds
   on_client_disconnected:
     - script.execute: control_leds
-  encryption:   # Uses key set by Home Assistant
-
+  encryption:  # Uses key set by Home Assistant
 
 button:
   # Restarts Sat1 Device
@@ -20,10 +19,9 @@ button:
     name: "Factory Reset ESP32 FW"
     entity_category: diagnostic
     internal: true
-  
 
 switch:
-    # Wake Word Sound Switch.
+  # Wake Word Sound Switch.
   - platform: template
     id: wake_sound
     name: Wake sound
@@ -84,4 +82,4 @@ text_sensor:
     entity_category: "diagnostic"
     update_interval: never
     lambda: return id(satellite1_id).status_string();
-      
+

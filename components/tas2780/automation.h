@@ -6,14 +6,12 @@
 namespace esphome {
 namespace tas2780 {
 
-template<typename... Ts>
-class ResetAction : public Action<Ts...>, public Parented<TAS2780> {
+template<typename... Ts> class ResetAction : public Action<Ts...>, public Parented<TAS2780> {
  public:
   void play(const Ts &...x) override { this->parent_->reset(); }
 };
 
-template<typename... Ts>
-class ActivateAction : public Action<Ts...> {
+template<typename... Ts> class ActivateAction : public Action<Ts...> {
  public:
   explicit ActivateAction(TAS2780 *parent) : parent_(parent) {}
   TEMPLATABLE_VALUE(uint8_t, mode)
@@ -30,8 +28,7 @@ class ActivateAction : public Action<Ts...> {
   TAS2780 *parent_;
 };
 
-template<typename... Ts>
-class UpdateConfigAction : public Action<Ts...> {
+template<typename... Ts> class UpdateConfigAction : public Action<Ts...> {
  public:
   explicit UpdateConfigAction(TAS2780 *parent) : parent_(parent) {}
   TEMPLATABLE_VALUE(uint8_t, amp_level)
@@ -61,8 +58,7 @@ class UpdateConfigAction : public Action<Ts...> {
   TAS2780 *parent_;
 };
 
-template<typename... Ts>
-class DeactivateAction : public Action<Ts...>, public Parented<TAS2780> {
+template<typename... Ts> class DeactivateAction : public Action<Ts...>, public Parented<TAS2780> {
  public:
   void play(const Ts &...x) override { this->parent_->deactivate(); }
 };
