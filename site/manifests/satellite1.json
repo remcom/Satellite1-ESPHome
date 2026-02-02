@@ -8,7 +8,7 @@
       "chipFamily": "ESP32-S3",
       "parts": [
         {
-          "path": "https://github.com/remcom/Satellite1-ESPHome/releases/latest/download/satellite1.bin",
+          "path": "satellite1.bin",
           "offset": 0
         }
       ]
