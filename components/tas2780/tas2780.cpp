@@ -501,6 +501,11 @@ bool TAS2780::write_mute_() {
 }
 
 bool TAS2780::write_volume_() {
+  // Don't overwrite the DVC register while muted - the mute value (0xC9) would be lost.
+  // The correct volume will be applied when unmuting via write_mute_() -> write_volume_().
+  if (this->is_muted_) {
+    return true;
+  }
   /*
   V_{AMP} = INPUT + A_{DVC} + A_{AMP}
 
