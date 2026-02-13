@@ -89,12 +89,6 @@ external_components:
       - fusb302b
   # ESPHome PRs for sendspin and related features
   - source:
-      # https://github.com/esphome/esphome/pull/12253
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 7f34908569650e5a8b8c83e6bf89fea561218880
-    components: [mixer]
-  - source:
       # https://github.com/esphome/esphome/pull/12256
       type: git
       url: https://github.com/esphome/esphome
@@ -110,13 +104,13 @@ external_components:
       # https://github.com/esphome/esphome/pull/12284
       type: git
       url: https://github.com/esphome/esphome
-      ref: a6c0a861a014e64c67d46115eba8e5370777b80a
+      ref: 3cc894763b05ac8ffd9fdd15bcb549d47cadf6eb
     components: [mdns, sendspin]
   - source:
       # https://github.com/esphome/esphome/pull/12429
       type: git
       url: https://github.com/esphome/esphome
-      ref: 928204066ce0082404573ea1c6a0b58aeebbd7c6
+      ref: 32708a2ee74f5ea4107448f62755004ad3e879c5
     components: [file, http_request, media_source, speaker_source]
 
 logger:
