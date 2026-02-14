@@ -11,44 +11,33 @@ globals:
     initial_value: 'false'
 
 audio_dac:
-  - platform: pcm5122
-    id: line_out_dac
-    address: 0x4D
+  # Define both DACs
   - platform: tas2780
-    id: speaker_dac
+    id: speaker_dac_tas2780
     address: 0x3F
-  - platform: satellite1
-    id: dac_proxy
-    speaker_dac: speaker_dac
-    line_out_dac: line_out_dac
 
-    on_line_out_activated:
-      # if line_out was used previously but is not available try speaker
-      - lambda: |
-            if( !id(line_out_sensor).state ){
-              id(dac_proxy).activate_speaker();
-            }
+  - platform: pcm5122
+    id: speaker_dac_pcm5122
+    address: 0x4D
 
-    on_state_change:
-      - media_player.volume_set:
-          id: external_media_player
-          volume: !lambda return id(dac_proxy).volume();
-      - lambda: |
-           if( id(dac_proxy).is_muted() ){
-              id(external_media_player)->make_call()
-                .set_command(MEDIA_PLAYER_COMMAND_MUTE)
-                .perform();
-           }
+  # Define the DAC switcher
+  - platform: dac_switcher
+    id: dac_switcher_main
+    tas2780: speaker_dac_tas2780
+    pcm5122: speaker_dac_pcm5122
 
+# API actions for switching between DACs
 api:
   actions:
-    - action: activate_speaker_dac
+    - action: switch_to_speaker
       then:
-        - dac_proxy.activate_speaker:
+        - dac_switcher.select_tas2780:
+            id: dac_switcher_main
 
-    - action: activate_lineout_dac
+    - action: switch_to_lineout
       then:
-        - dac_proxy.activate_line_out:
+        - dac_switcher.select_pcm5122:
+            id: dac_switcher_main
 
 select:
   - platform: template
@@ -77,7 +66,7 @@ binary_sensor:
   - platform: gpio
     id: line_out_sensor
     pin:
-      pcm5122:
+      pcm5122: speaker_dac_pcm5122
       pin: 4
       inverted: false
     name: "Line-Out Connected"
@@ -87,7 +76,9 @@ binary_sensor:
       - delayed_off: 200ms
 
     on_press:
-      - dac_proxy.activate_line_out:
+      # Cable inserted - switch to line-out DAC
+      - dac_switcher.select_pcm5122:
+          id: dac_switcher_main
       - lambda: id(jack_plugged_recently) = true;
       - script.execute: control_leds
       - delay: 200ms
@@ -100,7 +91,9 @@ binary_sensor:
       - script.execute: control_leds
 
     on_release:
-      - dac_proxy.activate_speaker:
+      # Cable removed - switch back to speaker DAC
+      - dac_switcher.select_tas2780:
+          id: dac_switcher_main
       - lambda: id(jack_unplugged_recently) = true;
       - script.execute: control_leds
       - delay: 200ms
@@ -147,7 +140,7 @@ speaker:
     channel: stereo
     timeout: never
     buffer_duration: 100ms
-    audio_dac: dac_proxy
+    audio_dac: dac_switcher_main  # Using DAC switcher for TAS2780/PCM5122 selection
 
   # Virtual speakers to combine the announcement and media streams together into one output
   - platform: mixer

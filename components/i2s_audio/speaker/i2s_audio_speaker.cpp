@@ -96,6 +96,24 @@ void I2SAudioSpeaker::dump_config() {
 }
 
 void I2SAudioSpeaker::loop() {
+  // Process deferred volume/mute changes in main loop to avoid I2C conflicts with I2S task
+#ifdef USE_AUDIO_DAC
+  if (this->audio_dac_ != nullptr) {
+    if (this->has_pending_mute_) {
+      this->has_pending_mute_ = false;
+      if (this->pending_mute_state_) {
+        this->audio_dac_->set_mute_on();
+      } else {
+        this->audio_dac_->set_mute_off();
+      }
+    }
+    if (this->has_pending_volume_) {
+      this->has_pending_volume_ = false;
+      this->audio_dac_->set_volume(this->pending_volume_);
+    }
+  }
+#endif
+
   uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
 
   if (event_group_bits & SpeakerEventGroupBits::STATE_STARTING) {
@@ -154,22 +172,18 @@ void I2SAudioSpeaker::loop() {
 }
 
 void I2SAudioSpeaker::set_volume(float volume) {
-  ESP_LOGD(TAG, "set_volume called: volume=%.3f", volume);
   this->volume_ = volume;
 #ifdef USE_AUDIO_DAC
   if (this->audio_dac_ != nullptr) {
-    ESP_LOGD(TAG, "set_volume: using audio_dac_ %p", this->audio_dac_);
-    if (volume > 0.0) {
-      this->audio_dac_->set_mute_off();
-    }
-    this->audio_dac_->set_volume(volume);
+    // Defer I2C operations to loop() to avoid conflicts with I2S speaker task
+    this->pending_volume_ = volume;
+    this->has_pending_volume_ = true;
   } else
 #endif
   {
     // Fallback to software volume control by using a Q15 fixed point scaling factor
     ssize_t decibel_index = remap<ssize_t, float>(volume, 0.0f, 1.0f, 0, Q15_VOLUME_SCALING_FACTORS.size() - 1);
     this->q15_volume_factor_ = Q15_VOLUME_SCALING_FACTORS[decibel_index];
-    ESP_LOGD(TAG, "set_volume: software volume, q15_factor=%d", this->q15_volume_factor_);
   }
 }
 
@@ -177,11 +191,9 @@ void I2SAudioSpeaker::set_mute_state(bool mute_state) {
   this->mute_state_ = mute_state;
 #ifdef USE_AUDIO_DAC
   if (this->audio_dac_) {
-    if (mute_state) {
-      this->audio_dac_->set_mute_on();
-    } else {
-      this->audio_dac_->set_mute_off();
-    }
+    // Defer I2C operations to loop() to avoid conflicts with I2S speaker task
+    this->pending_mute_state_ = mute_state;
+    this->has_pending_mute_ = true;
   } else
 #endif
   {
