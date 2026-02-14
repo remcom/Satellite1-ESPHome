@@ -6,6 +6,10 @@ namespace satellite1 {
 static const char *TAG = "Satellite1-GPIOs";
 
 void Satellite1GPIOPin::digital_write(bool value) {
+  if (this->parent_ == nullptr) {
+    ESP_LOGE(TAG, "Parent not set for GPIO pin");
+    return;
+  }
   if (this->port_ != XMOSPort::OUTPUT_A) {
     ESP_LOGE(TAG, "Trying writing to read only port.");
     return;
@@ -15,6 +19,10 @@ void Satellite1GPIOPin::digital_write(bool value) {
 }
 
 bool Satellite1GPIOPin::digital_read() {
+  if (this->parent_ == nullptr) {
+    ESP_LOGE(TAG, "Parent not set for GPIO pin");
+    return false;
+  }
   DC_STATUS_REGISTER::register_id port_register;
   switch (this->port_) {
     case XMOSPort::INPUT_A:
@@ -33,7 +41,8 @@ bool Satellite1GPIOPin::digital_read() {
   }
   this->parent_->request_status_register_update();
   uint8_t port_value = this->parent_->get_dc_status(port_register);
-  return !!(port_value & (1 << this->pin_)) != this->inverted_;
+  bool bit_value = !!(port_value & (1 << this->pin_));
+  return bit_value ^ this->inverted_;
 }
 
 }  // namespace satellite1

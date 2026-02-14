@@ -88,7 +88,6 @@ std::string Satellite1::status_string() {
 
 bool Satellite1::request_status_register_update() {
   bool ret = this->transfer(0, 0, NULL, 0);
-  uint8_t *arr = this->dc_status_register_;
   return ret;
 }
 
@@ -97,7 +96,10 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
     return false;
   }
 
-  uint8_t send_recv_buf[256 + 3] = {0};
+  // Use class member buffer instead of stack allocation
+  uint8_t *send_recv_buf = this->spi_transfer_buffer_;
+  memset(send_recv_buf, 0, sizeof(this->spi_transfer_buffer_));
+
   int status_report_dummies = std::max<int>(0, DC_STATUS_REGISTER::REGISTER_LEN - payload_len - 1);
 
   int attempts = 3;
@@ -124,7 +126,6 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
   // Got status register report
   if (send_recv_buf[0] == DC_RESOURCE::CNTRL_ID && send_recv_buf[1] != DC_RET_STATUS::PAYLOAD_AVAILABLE) {
     memcpy(this->dc_status_register_, &send_recv_buf[2], DC_STATUS_REGISTER::REGISTER_LEN);
-    uint8_t *arr = this->dc_status_register_;
   }
 
   if (command & CONTROL_CMD_READ_BIT) {
