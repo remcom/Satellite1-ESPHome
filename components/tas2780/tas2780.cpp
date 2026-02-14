@@ -4,6 +4,10 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
+#ifdef USE_SENSOR
+#include "esphome/components/sensor/sensor.h"
+#endif
+
 namespace esphome {
 namespace tas2780 {
 
@@ -454,7 +458,14 @@ void TAS2780::log_error_states() {
 }
 
 void TAS2780::loop() {
-  // Intentionally empty - mode changes are logged in activate()/deactivate()
+#ifdef USE_SENSOR
+  // Update sensors periodically based on update_interval
+  uint32_t now = millis();
+  if (now - this->last_sensor_update_ >= this->sensor_update_interval_) {
+    this->update_sensors_();
+    this->last_sensor_update_ = now;
+  }
+#endif
 }
 
 void TAS2780::dump_config() {
@@ -539,6 +550,53 @@ void TAS2780::update_register() {
   this->reg(TAS2780_TDM_CFG2) = (get_channel_select_reg_val(this->selected_channel_) | TAS2780_TDM_CFG2_RX_WLEN__32BIT |
                                  TAS2780_TDM_CFG2_RX_SLEN__32BIT);
 }
+
+#ifdef USE_SENSOR
+uint16_t TAS2780::read_sar_adc_(uint8_t msb_reg, uint8_t lsb_reg) {
+  // Read MSB and LSB from ADC registers
+  uint8_t msb = this->reg(msb_reg).get();
+  uint8_t lsb = this->reg(lsb_reg).get();
+
+  // Combine into 16-bit value (10-bit ADC, MSB aligned)
+  uint16_t adc_value = (msb << 2) | (lsb >> 6);
+
+  return adc_value;
+}
+
+float TAS2780::get_pvdd_voltage() {
+  uint16_t adc_value = this->read_sar_adc_(TAS2780_PVDD_MSB, TAS2780_PVDD_LSB);
+
+  // TAS2780 PVDD ADC conversion formula:
+  // PVDD = ADC_VALUE * 22.8V / 1024
+  // This assumes 10-bit ADC with ~22.8V full scale for PVDD
+  float voltage = (adc_value * 22.8f) / 1024.0f;
+
+  return voltage;
+}
+
+float TAS2780::get_temperature() {
+  uint8_t temp_raw = this->reg(TAS2780_TEMP).get();
+
+  // TAS2780 temperature conversion formula:
+  // Temperature (°C) = (TEMP_VALUE - 93) * 1 + 25
+  // This formula may need adjustment based on datasheet
+  float temperature = ((float) temp_raw - 93.0f) + 25.0f;
+
+  return temperature;
+}
+
+void TAS2780::update_sensors_() {
+  if (this->pvdd_sensor_ != nullptr) {
+    float pvdd = this->get_pvdd_voltage();
+    this->pvdd_sensor_->publish_state(pvdd);
+  }
+
+  if (this->temperature_sensor_ != nullptr) {
+    float temp = this->get_temperature();
+    this->temperature_sensor_->publish_state(temp);
+  }
+}
+#endif
 
 }  // namespace tas2780
 }  // namespace esphome

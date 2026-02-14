@@ -15,6 +15,12 @@ audio_dac:
   - platform: tas2780
     id: speaker_dac_tas2780
     address: 0x3F
+    pvdd_sensor:
+      name: "Amplifier Supply Voltage"
+      disabled_by_default: true
+    temperature_sensor:
+      name: "Amplifier Temperature"
+      disabled_by_default: true
 
   - platform: pcm5122
     id: speaker_dac_pcm5122

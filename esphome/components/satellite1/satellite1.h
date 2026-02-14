@@ -163,6 +163,8 @@ class Satellite1 : public Component,
   uint8_t dc_status_register_[DC_STATUS_REGISTER::REGISTER_LEN];
   bool spi_flash_direct_access_enabled_{false};
 
+  uint8_t spi_transfer_buffer_[256 + 3];  // Reusable buffer for SPI transfers
+
   GPIOPin *xmos_rst_pin_{nullptr};
 };
 

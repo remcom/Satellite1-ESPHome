@@ -34,10 +34,10 @@ class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
   gpio::Flags get_flags() const { return this->flags_; }
 
  protected:
-  XMOSPort port_;
-  uint8_t pin_;
-  bool inverted_;
-  gpio::Flags flags_;
+  XMOSPort port_{XMOSPort::INPUT_A};
+  uint8_t pin_{0};
+  bool inverted_{false};
+  gpio::Flags flags_{};
 };
 
 }  // namespace satellite1
