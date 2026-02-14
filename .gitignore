@@ -28,3 +28,4 @@ sdkconfig.esp32-s3-idf
 *.tmp
 *.bak
 *.new
+.idea

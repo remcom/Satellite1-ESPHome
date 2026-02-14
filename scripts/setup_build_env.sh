@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 PYTHON_MIN_VERSION="3.11"
-PYTHON_MAX_VERSION="3.13"  # ESPHome requires <3.14
+PYTHON_MAX_VERSION="3.14"
 VENV_DIR=".venv"
 
 # Get script directory to find requirements.txt
@@ -62,7 +62,7 @@ find_python() {
     for cmd in "python3.13" "python3.12" "python3.11" "python3" "python"; do
         if command -v "$cmd" &> /dev/null; then
             version=$("$cmd" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
-            if [[ -n "$version" ]] && version_gte "$version" "$PYTHON_MIN_VERSION" && version_lt "$version" "3.14"; then
+            if [[ -n "$version" ]] && version_gte "$version" "$PYTHON_MIN_VERSION" && version_lt "$version" "$PYTHON_MAX_VERSION"; then
                 echo "$cmd"
                 return 0
             fi
@@ -71,7 +71,7 @@ find_python() {
     return 1
 }
 
-PYTHON=$(find_python) || error "Python >=$PYTHON_MIN_VERSION,<3.14 not found. Please install Python 3.11, 3.12, or 3.13"
+PYTHON=$(find_python) || error "Python >=$PYTHON_MIN_VERSION,<$PYTHON_MAX_VERSION not found. Please install Python 3.11, 3.12, or 3.13"
 info "Using Python: $PYTHON ($($PYTHON --version 2>&1))"
 
 # Change to project root

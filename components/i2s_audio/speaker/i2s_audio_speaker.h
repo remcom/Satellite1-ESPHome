@@ -143,6 +143,12 @@ class I2SAudioSpeaker : public I2SAudioOut, public speaker::Speaker, public Comp
 
   int16_t q15_volume_factor_{INT16_MAX};
 
+  // Deferred volume/mute operations to avoid I2C conflicts with I2S task
+  float pending_volume_{-1.0f};
+  bool pending_mute_state_{false};
+  bool has_pending_volume_{false};
+  bool has_pending_mute_{false};
+
   // Playout time tracking for sendspin synchronization
   int64_t last_dma_write_{0};
   size_t padded_zero_frames_{0};
