@@ -1,0 +1,52 @@
+# Satellite1 ESPHome Dashboard Adoption Config
+# This file allows easy adoption of Satellite1 devices via the ESPHome dashboard
+#
+# To use:
+# 1. Add this device to your ESPHome dashboard
+# 2. Create a secrets.yaml file with your WiFi credentials
+# 3. Customize the substitutions below as needed
+# 4. Compile and flash to your Satellite1 device
+
+substitutions:
+  # REQUIRED: Customize these for your device
+  friendly_name: "Satellite1"
+
+  # OPTIONAL: Sensor calibration (adjust based on your environment)
+  temp_offset: "-3"
+  humidity_offset: "5"
+
+# Pull the complete Satellite1 configuration from GitHub
+packages:
+  satellite1:
+    url: https://github.com/remcom/Satellite1-ESPHome
+    ref: main
+    files: [config/satellite1.yaml]
+    refresh: 1d  # Check for updates daily
+
+# WiFi Configuration
+# Add these to your secrets.yaml file:
+#   wifi_ssid: "YourNetworkName"
+#   wifi_password: "YourPassword"
+#   wifi_ap_password: "FallbackPassword"
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Fallback hotspot (if WiFi fails)
+  ap:
+    ssid: "${node_name}"
+    password: !secret wifi_ap_password
+
+# OPTIONAL: Uncomment to enable specific features
+# packages:
+#   # Enable LD2410 radar sensor
+#   # radar_ld2410:
+#   #   url: https://github.com/remcom/Satellite1-ESPHome
+#   #   ref: main
+#   #   files: [config/common/mmwave_ld2410.yaml]
+#
+#   # Enable LD2450 radar sensor
+#   # radar_ld2450:
+#   #   url: https://github.com/remcom/Satellite1-ESPHome
+#   #   ref: main
+#   #   files: [config/common/mmwave_ld2450.yaml]

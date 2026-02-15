@@ -44,7 +44,7 @@ jobs:
           complete-manifest: true
           version: ${{ env.ESPHOME_VERSION }}
           release-url: ${{ github.event.release.html_url }}
-          release-summary: ${{ github.event.release.name }}
+          release-summary: ${{ github.event.release.body }}
 
       - name: Prepare versioned release artifacts
         run: |

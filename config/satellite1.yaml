@@ -51,6 +51,11 @@ esphome:
     name: ${company_name}.${project_name}
     version: ${esp32_fw_version}
 
+# Dashboard import enables automatic updates from GitHub
+dashboard_import:
+  package_import_url: github://remcom/Satellite1-ESPHome/config/satellite1-dashboard.yaml@main
+  import_full_config: false
+
 esp32_improv:
   authorizer: btn_action
   on_start:
