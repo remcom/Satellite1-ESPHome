@@ -16,12 +16,12 @@ This firmware enables **synchronized multi-room audio** on the [FutureProofHomes
 
 ### Key Features
 
-✅ **Sendspin Multi-Room Audio** - Play music in perfect sync across multiple Satellite1 devices
-✅ **Home Assistant Voice Assistant** - Full integration with Home Assistant's local voice control
-✅ **ESPHome Dashboard Support** - Easy adoption and automatic updates
-✅ **Presence Detection** - Optional LD2410/LD2450 radar sensor support
-✅ **Power Optimized** - Smart DAC power management for reduced energy consumption
-✅ **Professional Hardware Drivers** - Optimized TAS2780, PCM5122, and FUSB302B drivers
+- ✅ **Sendspin Multi-Room Audio** - Play music in perfect sync across multiple Satellite1 devices
+- ✅ **Home Assistant Voice Assistant** - Full integration with Home Assistant's local voice control
+- ✅ **ESPHome Dashboard Support** - Easy adoption and automatic updates
+- ✅ **Presence Detection** - Optional LD2410/LD2450 radar sensor support
+- ✅ **Power Optimized** - Smart DAC power management for reduced energy consumption
+- ✅ **Professional Hardware Drivers** - Optimized TAS2780, PCM5122, and FUSB302B drivers
 
 ---
 
@@ -102,7 +102,7 @@ Beyond multi-room audio, this fork includes:
 ### Recommended Setup
 
 - Multiple Satellite1 devices for multi-room audio
-- Stable Wi-Fi network (2.4GHz or 5GHz)
+- Stable Wi-Fi network (2.4GHz)
 - Home Assistant OS or Supervised installation
 
 ---
