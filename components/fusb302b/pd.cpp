@@ -48,7 +48,7 @@ pd_contract_t pd_parse_power_info(const pd_pdo_t &pdo) {
   return power_info;
 }
 
-static PDMsg build_source_cap_response(pd_contract_t pwr_info, uint8_t pos) {
+static PDMsg build_source_cap_response(const PowerDelivery *pd, pd_contract_t pwr_info, uint8_t pos) {
   /* Reference: 6.4.2 Request Message */
   constexpr uint32_t templ = (
       //((uint32_t)   1 << 22)  |   /* B22 EPR Mode Capable */
@@ -71,7 +71,7 @@ static PDMsg build_source_cap_response(pd_contract_t pwr_info, uint8_t pos) {
   } else {
     ESP_LOGE(TAG, "Augmented PDO is not supported yet");
   }
-  return PDMsg(pd_data_msg_type::PD_DATA_REQUEST, &data, 1);
+  return PDMsg(pd, pd_data_msg_type::PD_DATA_REQUEST, &data, 1);
 }
 
 PDMsg PowerDelivery::create_fallback_request_message() const {
@@ -90,7 +90,7 @@ PDMsg PowerDelivery::create_fallback_request_message() const {
                               //((uint32_t)   1 << 27)  |   /* B27 GiveBack flag = 0 (depricated)*/
       ((uint32_t) 1 << 28)    /* B31...28   Object position (000b is Reserved and Shall Not be used) */
   };
-  return PDMsg(pd_data_msg_type::PD_DATA_REQUEST, data, 1);
+  return PDMsg(this, pd_data_msg_type::PD_DATA_REQUEST, data, 1);
 }
 
 bool PowerDelivery::respond_to_src_cap_msg_(const PDMsg &msg) {
@@ -122,7 +122,7 @@ bool PowerDelivery::respond_to_src_cap_msg_(const PDMsg &msg) {
   this->requested_contract_ = selected_info;
 
   // PDMsg response = create_fallback_request_message();
-  PDMsg response = build_source_cap_response(selected_info, selected + 1);
+  PDMsg response = build_source_cap_response(this, selected_info, selected + 1);
   this->send_message_(response);
 
   return true;
@@ -136,7 +136,7 @@ void PowerDelivery::set_ams(bool ams) {
 }
 
 bool PowerDelivery::check_ams() {
-  if (this->active_ams_ && (millis() - this->active_ams_timer_ > 2000)) {
+  if (this->active_ams_ && ((uint32_t) (millis() - this->active_ams_timer_) > 2000)) {
     this->active_ams_ = false;
   }
   return this->active_ams_;
@@ -170,9 +170,6 @@ bool PowerDelivery::request_voltage(int voltage) {
   return false;
 }
 
-pd_spec_revision_t PDMsg::spec_rev_ = pd_spec_revision_t::PD_SPEC_REV_2;
-uint8_t PDMsg::msg_cnter_ = 0;
-
 PDMsg::PDMsg(uint16_t header) { this->set_header(header); }
 
 bool PDMsg::set_header(uint16_t header) {
@@ -184,27 +181,27 @@ bool PDMsg::set_header(uint16_t header) {
   return true;
 }
 
-PDMsg::PDMsg(pd_control_msg_type cntrl_msg_type) {
+PDMsg::PDMsg(const PowerDelivery *pd, pd_control_msg_type cntrl_msg_type) {
   this->type = cntrl_msg_type;
-  this->spec_rev = this->spec_rev_;
-  this->id = (this->msg_cnter_) % 8;
+  this->spec_rev = pd->msg_spec_rev_;
+  this->id = (pd->msg_counter_) % 8;
   this->num_of_obj = 0;
   this->extended = false;
 }
 
-PDMsg::PDMsg(pd_control_msg_type cntrl_msg_type, uint8_t msg_id) {
+PDMsg::PDMsg(const PowerDelivery *pd, pd_control_msg_type cntrl_msg_type, uint8_t msg_id) {
   this->type = cntrl_msg_type;
-  this->spec_rev = this->spec_rev_;
+  this->spec_rev = pd->msg_spec_rev_;
   this->id = msg_id;
   this->num_of_obj = 0;
   this->extended = false;
 }
 
-PDMsg::PDMsg(pd_data_msg_type msg_type, const uint32_t *objects, uint8_t len) {
+PDMsg::PDMsg(const PowerDelivery *pd, pd_data_msg_type msg_type, const uint32_t *objects, uint8_t len) {
   assert(len > 0 && len < PD_MAX_NUM_DATA_OBJECTS);
   this->type = msg_type;
-  this->spec_rev = this->spec_rev_;
-  this->id = (this->msg_cnter_) % 8;
+  this->spec_rev = pd->msg_spec_rev_;
+  this->id = (pd->msg_counter_) % 8;
   this->num_of_obj = len;
   this->extended = false;
   memcpy(this->data_objects, objects, len * sizeof(uint32_t));
@@ -225,7 +222,6 @@ void PDMsg::debug_log() const {
   ESP_LOGD(TAG, "   #obj: %d", this->num_of_obj);
   ESP_LOGD(TAG, "    ext: %d", !!(this->extended));
   ESP_LOGD(TAG, "  coded: %d", this->get_coded_header());
-  ESP_LOGD(TAG, "Current Cnter: %d", this->msg_cnter_);
 }
 
 void PowerDelivery::add_on_state_callback(std::function<void()> &&callback) {

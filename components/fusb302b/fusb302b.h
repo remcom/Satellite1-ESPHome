@@ -26,11 +26,16 @@ typedef union {
 } fusb_status;
 
 class FUSB302B : public PowerDelivery, public Component, protected i2c::I2CDevice {
+  friend void msg_reader_task(void *params);
+  friend void trigger_task(void *params);
+  friend void fusb302b_isr_handler(void *arg);
+
  public:
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::HARDWARE; }
   void loop() override;
+  void on_shutdown() override;
 
   bool send_message_(const PDMsg &msg) override;
   bool read_message_(PDMsg &msg) override;
@@ -65,8 +70,12 @@ class FUSB302B : public PowerDelivery, public Component, protected i2c::I2CDevic
   }
 
   bool init_fusb_settings_();
+  void cleanup_();
 
   SemaphoreHandle_t i2c_lock_;
+  TaskHandle_t reader_task_handle_{nullptr};
+  TaskHandle_t process_task_handle_{nullptr};
+  QueueHandle_t message_queue_{nullptr};
 };
 
 }  // namespace power_delivery
