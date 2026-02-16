@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include "esphome/core/defines.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
@@ -8,6 +9,9 @@
 
 namespace esphome {
 namespace power_delivery {
+
+// Forward declaration
+class PowerDelivery;
 
 enum pd_spec_revision_t {
   PD_SPEC_REV_1 = 0,
@@ -101,9 +105,9 @@ class PDMsg {
  public:
   PDMsg() = default;
   PDMsg(uint16_t header);
-  PDMsg(pd_control_msg_type cntrl_msg_type);
-  PDMsg(pd_control_msg_type cntrl_msg_type, uint8_t msg_id);
-  PDMsg(pd_data_msg_type data_msg_type, const uint32_t *objects, uint8_t len);
+  PDMsg(const PowerDelivery *pd, pd_control_msg_type cntrl_msg_type);
+  PDMsg(const PowerDelivery *pd, pd_control_msg_type cntrl_msg_type, uint8_t msg_id);
+  PDMsg(const PowerDelivery *pd, pd_data_msg_type data_msg_type, const uint32_t *objects, uint8_t len);
 
   uint16_t get_coded_header() const;
   bool set_header(uint16_t header);
@@ -116,10 +120,6 @@ class PDMsg {
   uint32_t data_objects[PD_MAX_NUM_DATA_OBJECTS];
 
   void debug_log() const;
-
-  // protected:
-  static uint8_t msg_cnter_;
-  static pd_spec_revision_t spec_rev_;
 };
 
 class PDEventInfo {
@@ -131,6 +131,8 @@ class PDEventInfo {
 typedef uint32_t pd_pdo_t;
 
 class PowerDelivery {
+  friend class PDMsg;
+
  public:
   PowerDeliveryState state{PD_STATE_DISCONNECTED};
   int contract_voltage{5};
@@ -158,6 +160,8 @@ class PowerDelivery {
   void protocol_reset_();
 
   uint8_t last_received_msg_id_{255};
+  pd_spec_revision_t msg_spec_rev_{pd_spec_revision_t::PD_SPEC_REV_2};
+  std::atomic<uint8_t> msg_counter_{0};
 
   bool handle_data_message_(const PDMsg &msg);
   bool handle_cntrl_message_(const PDMsg &msg);
@@ -190,7 +194,7 @@ class PowerDelivery {
   CallbackManager<void()> state_callback_{};
 };
 
-inline PDMsg build_get_sink_cap_response() {
+inline PDMsg build_get_sink_cap_response(const PowerDelivery *pd) {
   /* Reference: 6.4.1.2.3 Sink Fixed Supply Power Data Object */
   constexpr uint32_t data =
       (((uint32_t) 500 << 0) |  /* B9...0     Operational Current in 10mA units */
@@ -202,13 +206,13 @@ inline PDMsg build_get_sink_cap_response() {
        //((uint32_t)  1 << 29) |                       /* B29        Dual Role Power */
        ((uint32_t) PD_PDO_TYPE_FIXED_SUPPLY << 30) /* B31...30   Fixed supply */
       );
-  return PDMsg(pd_data_msg_type::PD_DATA_SINK_CAP, &data, 1);
+  return PDMsg(pd, pd_data_msg_type::PD_DATA_SINK_CAP, &data, 1);
 }
 
 inline bool PowerDelivery::handle_message_(const PDMsg &msg) {
   if (msg.num_of_obj == 0) {
     if (msg.type == PD_CNTRL_GOODCRC) {
-      PDMsg::msg_cnter_++;
+      this->msg_counter_++;
       return true;
     }
     return this->handle_cntrl_message_(msg);
@@ -267,15 +271,15 @@ inline bool PowerDelivery::handle_cntrl_message_(const PDMsg &msg) {
       this->set_state_(PD_STATE_EXPLICIT_SPR_CONTRACT);
       break;
     case PD_CNTRL_SOFT_RESET:
-      this->send_message_(PDMsg(pd_control_msg_type::PD_CNTRL_ACCEPT, 0));
+      this->send_message_(PDMsg(this, pd_control_msg_type::PD_CNTRL_ACCEPT, 0));
       this->set_state_(PD_STATE_DEFAULT_CONTRACT);
-      PDMsg::msg_cnter_ = 0;
+      this->msg_counter_ = 0;
       break;
     case PD_CNTRL_GET_SINK_CAP:
-      this->send_message_(build_get_sink_cap_response());
+      this->send_message_(build_get_sink_cap_response(this));
       break;
     default:
-      this->send_message_(PDMsg(pd_control_msg_type::PD_CNTRL_NOT_SUPPORTED));
+      this->send_message_(PDMsg(this, pd_control_msg_type::PD_CNTRL_NOT_SUPPORTED));
       break;
   }
   return true;
