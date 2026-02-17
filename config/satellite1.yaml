@@ -95,12 +95,6 @@ external_components:
       - dac_switcher
   # ESPHome PRs for sendspin and related features
   - source:
-      # https://github.com/esphome/esphome/pull/12253 (merged into upstream ESPHome, will be available in ESPHome 2026.2.0)
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: c28c97fbaf15c4ce353317e873054fb00a1d7a6d  # ESPHome dev branch commit hash
-    components: [mixer]
-  - source:
       # https://github.com/esphome/esphome/pull/12256
       type: git
       url: https://github.com/esphome/esphome

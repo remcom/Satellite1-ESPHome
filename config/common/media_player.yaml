@@ -18,9 +18,11 @@ audio_dac:
     pvdd_sensor:
       name: "Amplifier Supply Voltage"
       disabled_by_default: true
+      entity_category: diagnostic
     temperature_sensor:
       name: "Amplifier Temperature"
       disabled_by_default: true
+      entity_category: diagnostic
 
   - platform: pcm5122
     id: speaker_dac_pcm5122
@@ -378,6 +380,6 @@ interval:
                     - media_player.is_idle: external_media_player
                     - media_player.is_paused: external_media_player
           then:
-            - logger.log: "Deactivating TAS2780 due to 10 minutes of idle"
+            - logger.log: "Deactivating TAS2780 due to 60 seconds of idle"
             - tas2780.deactivate:
             - lambda: id(tas2780_active) = false;

@@ -33,5 +33,5 @@ switch:
       - component.update: update_http_request
     on_turn_off:
       - logger.log: "OTA updates set to use Production firmware"
-      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json");
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1.ld2450-manifest.json");
       - component.update: update_http_request
