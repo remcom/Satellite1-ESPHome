@@ -74,8 +74,6 @@ script:
           for (const auto &timer : timers) {
             if (timer.is_active) {
               output = true;
-
-
             }
           }
           id(is_timer_active) = output;
