@@ -20,7 +20,7 @@ packages:
   satellite1:
     url: https://github.com/remcom/Satellite1-ESPHome
     ref: main
-    files: [config/satellite1.yaml]
+    files: [config/satellite1-remote.yaml]
     refresh: 1d  # Check for updates daily
 
 # WiFi Configuration
