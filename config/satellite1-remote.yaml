@@ -116,6 +116,8 @@ external_components:
     refresh: 0s
     components: [http_request]
 
+logger:
+
 ota:
   - platform: http_request
     id: ota_http_request
