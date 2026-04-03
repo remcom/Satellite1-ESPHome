@@ -4,7 +4,7 @@
 
 > **Beta Release** | Based on the original [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome) project
 
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.3.0-blue)](https://esphome.io)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.3.2-blue)](https://esphome.io)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -92,7 +92,7 @@ Beyond multi-room audio, this fork includes:
 
 ### Software
 
-- **ESPHome** 2026.3.0 or newer
+- **ESPHome** 2026.3.2 or newer
 - **Home Assistant** with Voice Assistant configured
 - **Chrome or Edge browser** (for web installer)
 

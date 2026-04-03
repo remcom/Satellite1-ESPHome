@@ -35,14 +35,16 @@ esphome logs config/satellite1.yaml
 
 **esphome/components/** - FutureProofHomes hardware drivers:
 - `satellite1/` - Main board component (SPI communication with XMOS, GPIO control, audio DAC)
+- `memory_flasher/` - XMOS firmware flasher
+- `audio_visualizer/` - Audio level visualizer for LED ring
+
+**components/** - Hardware drivers and audio pipeline (local overrides):
+- `i2s_audio/` - I2S audio with shared bus support, includes `speaker/` and `microphone/`
+- `resampler/` - Audio resampler
 - `fusb302b/` - USB-PD controller
 - `pcm5122/` - Audio DAC
 - `tas2780/` - Audio amplifier
-- `memory_flasher/` - XMOS firmware flasher
-
-**components/** - Audio pipeline components (local overrides):
-- `i2s_audio/` - I2S audio with shared bus support, includes `speaker/` and `microphone/`
-- `resampler/` - Audio resampler
+- `dac_switcher/` - DAC switching logic
 
 ### External Components (from ESPHome PRs)
 
@@ -85,9 +87,19 @@ python tests/mic_streaming/run_live_streaming.py
 
 Recordings saved to `testdata/mic_streaming/`.
 
+## Key Component IDs
+
+Important IDs used across YAML configs:
+- `external_media_player` — main media player entity
+- `sat1_mics_raw` — raw I2S microphone (48kHz stereo 32-bit)
+- `led_ring` — user-facing LED ring (24 LEDs, partition)
+- `voice_assistant_leds` — internal partition used for all VA LED effects
+- `speaker_dac_tas2780` — TAS2780 amplifier
+- `control_leds` — master LED dispatcher script (call whenever state changes)
+
 ## Key Conventions
 
-- ESPHome version pinned in `requirements.txt` (currently 2026.1.2)
+- ESPHome version pinned in `requirements.txt` (currently 2026.3.2)
 - Python 3.11-3.13 required (ESPHome constraint)
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - External components reference specific git commits for stability
