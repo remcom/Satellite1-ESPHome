@@ -19,7 +19,7 @@ audio_dac:
       name: "Amplifier Supply Voltage"
       disabled_by_default: true
       entity_category: diagnostic
-    temperature_sensor:
+    temperature:
       name: "Amplifier Temperature"
       disabled_by_default: true
       entity_category: diagnostic
