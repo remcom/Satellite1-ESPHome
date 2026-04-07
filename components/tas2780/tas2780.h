@@ -23,7 +23,6 @@ class TAS2780 : public audio_dac::AudioDac, public PollingComponent, public i2c:
   float get_setup_priority() const override { return setup_priority::DATA; }
   void update() override;
 
-  void init();
   void reset();
   void activate(uint8_t power_mode = 2);
   void deactivate();
@@ -51,6 +50,7 @@ class TAS2780 : public audio_dac::AudioDac, public PollingComponent, public i2c:
 #endif
 
  protected:
+  void init();
   void set_power_mode_(const uint8_t power_mode);
   bool write_mute_();
   bool write_volume_();
@@ -64,8 +64,8 @@ class TAS2780 : public audio_dac::AudioDac, public PollingComponent, public i2c:
   float volume_{0};
   uint8_t power_mode_{2};
   uint8_t amp_level_{8};
-  float vol_range_min_{.3};
-  float vol_range_max_{1.};
+  float vol_range_min_{0.3f};
+  float vol_range_max_{1.0f};
   ChannelSelect selected_channel_{MONO_DWN_MIX};
 
 #ifdef USE_SENSOR

@@ -142,6 +142,7 @@ static const uint8_t TAS2780_PVDD_UVLO = 0x71;    // UVLO Threshold
 static const uint8_t TAS2780_DMD = 0x73;          // DAC Modulator Dither
 static const uint8_t TAS2780_I2C_CKSUM = 0x7E;    // I2C Checksum
 static const uint8_t TAS2780_BOOK = 0x7F;         // Device Book
+static const uint8_t TAS2780_PAGE_FD_ACCESS = 0x0D;  // Page 0xFD access unlock/lock register
 
 /* PAGE 0x01*/
 static const uint8_t TAS2780_INIT_0 = 0x17;       // Initialization
@@ -275,11 +276,11 @@ void TAS2780::init() {
   this->reg(TAS2780_PAGE_SELECT) = 0x00;
 
   // software reset
-  this->reg(0x01) = 0x01;
+  this->reg(TAS2780_SW_RESET) = 0x01;
 
-  uint8_t chd1 = this->reg(0x05).get();
-  uint8_t chd2 = this->reg(0x68).get();
-  uint8_t chd3 = this->reg(0x02).get();
+  uint8_t chd1 = this->reg(TAS2780_DC_BLK1).get();
+  uint8_t chd2 = this->reg(TAS2780_CLK_CFG).get();
+  uint8_t chd3 = this->reg(TAS2780_MODE_CTRL).get();
 
   // DC_BLK1 (0x05) reads 0x41 after reset on TAS2780; used as chip presence check
   // since TAS2780 has no dedicated WHO_AM_I register
@@ -305,9 +306,9 @@ void TAS2780::init() {
   this->reg(TAS2780_INIT_2) = 0x74;  // Noise minimized
 
   this->reg(TAS2780_PAGE_SELECT) = 0xFD;
-  this->reg(0x0D) = 0x0D;            // Access Page 0xFD
-  this->reg(TAS2780_INIT_3) = 0x4a;  // Optimal Dmin
-  this->reg(0x0D) = 0x00;            // Remove access Page 0xFD
+  this->reg(TAS2780_PAGE_FD_ACCESS) = 0x0D;  // Access Page 0xFD
+  this->reg(TAS2780_INIT_3) = 0x4a;          // Optimal Dmin
+  this->reg(TAS2780_PAGE_FD_ACCESS) = 0x00;  // Remove access Page 0xFD
 
   this->reg(TAS2780_PAGE_SELECT) = 0x00;
   this->set_power_mode_(this->power_mode_);
@@ -399,7 +400,7 @@ void TAS2780::log_error_states_() {
   }
 
   if (latched_its & TAS2780_INT_LTCH0_IR_LIMA) {
-    ESP_LOGE(TAG, " limiter active error!");
+    ESP_LOGE(TAG, "Limiter active error!");
   }
 
   if (latched_its & TAS2780_INT_LTCH0_IR_PBIP) {

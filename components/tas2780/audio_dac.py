@@ -26,11 +26,11 @@ ResetAction = tas2780_ns.class_(
 )
 
 ActivateAction = tas2780_ns.class_(
-    "ActivateAction", automation.Action
+    "ActivateAction", automation.Action, cg.Parented.template(TAS2780)
 )
 
 UpdateConfigAction = tas2780_ns.class_(
-    "UpdateConfigAction", automation.Action
+    "UpdateConfigAction", automation.Action, cg.Parented.template(TAS2780)
 )
 
 DeactivateAction = tas2780_ns.class_(
@@ -71,7 +71,9 @@ CONFIG_SCHEMA = (
 )
 
 
-TAS2780_ACTION_SCHEMA = cv.Schema(
+TAS2780_BASE_ACTION_SCHEMA = cv.Schema({cv.GenerateID(): cv.use_id(TAS2780)})
+
+TAS2780_ACTIVATE_ACTION_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.use_id(TAS2780),
         cv.Optional(CONF_MODE, default=2): cv.templatable(cv.int_range(min=0, max=3)),
@@ -79,21 +81,21 @@ TAS2780_ACTION_SCHEMA = cv.Schema(
 )
 
 
-@automation.register_action("tas2780.deactivate", DeactivateAction, TAS2780_ACTION_SCHEMA, synchronous=True)
+@automation.register_action("tas2780.deactivate", DeactivateAction, TAS2780_BASE_ACTION_SCHEMA, synchronous=True)
 async def tas2780_deactivate_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     return var
 
 
-@automation.register_action("tas2780.reset", ResetAction, TAS2780_ACTION_SCHEMA, synchronous=True)
+@automation.register_action("tas2780.reset", ResetAction, TAS2780_BASE_ACTION_SCHEMA, synchronous=True)
 async def tas2780_reset_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
     return var
 
 
-@automation.register_action("tas2780.activate", ActivateAction, TAS2780_ACTION_SCHEMA, synchronous=True)
+@automation.register_action("tas2780.activate", ActivateAction, TAS2780_ACTIVATE_ACTION_SCHEMA, synchronous=True)
 async def tas2780_activate_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_ID])
