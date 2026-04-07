@@ -9,43 +9,36 @@ namespace pcm5122 {
 
 static const char *const TAG = "pcm5122";
 
-static const uint8_t PCM5122_REG00_PAGE_SELECT = 0x00;  // Page Select
-
 void PCM5122::setup() {
   ESP_LOGCONFIG(TAG, "Setting up PCM5122...");
-  // select page 0
-  this->reg(PCM5122_REG00_PAGE_SELECT) = 0x00;
 
-  uint8_t chd1 = this->reg(0x09).get();
-  uint8_t chd2 = this->reg(0x10).get();
-  if (chd1 == 0x00 && chd2 == 0x00) {
-    ESP_LOGD(TAG, "PCM5122 chip found.");
-  } else {
-    ESP_LOGD(TAG, "PCM5122 chip not found.");
+  // Select page 0 and verify chip presence via I2C ACK
+  if (!this->write_byte(PCM5122_REG_PAGE_SELECT, 0x00)) {
+    ESP_LOGE(TAG, "PCM5122 not found");
+    this->status_set_error(LOG_STR("PCM5122 not found"));
     this->mark_failed();
     return;
   }
 
-  // RESET
-  this->reg(0x01) = 0x10;
+  // Reset
+  this->reg(PCM5122_REG_RESET) = 0x10;
   delay(20);
-  this->reg(0x01) = 0x00;
+  this->reg(PCM5122_REG_RESET) = 0x00;
 
-  uint8_t err_detect = this->reg(0x25).get();
-  // set 'Ignore Clock Halt Detection'
-  err_detect |= (1 << 3);
-  // enable Clock Divider Autoset
-  err_detect &= ~(1 << 1);
-  this->reg(0x25) = err_detect;
+  // Ignore clock halt detection; enable clock divider autoset
+  uint8_t err_detect = this->reg(PCM5122_REG_ERROR_DETECT).get();
+  err_detect |= (1 << 3);   // ignore clock halt
+  err_detect &= ~(1 << 1);  // enable clock divider autoset
+  this->reg(PCM5122_REG_ERROR_DETECT) = err_detect;
 
-  // set 32bit - I2S
-  this->reg(0x28) = 3;  // 32bits
+  // 32-bit I2S
+  this->reg(PCM5122_REG_AUDIO_FORMAT) = 3;
 
-  // 001: The PLL reference clock is BCK
-  uint8_t pll_ref = this->reg(0x0D).get();
+  // PLL reference clock: BCK (001)
+  uint8_t pll_ref = this->reg(PCM5122_REG_PLL_REF).get();
   pll_ref &= ~(7 << 4);
   pll_ref |= (1 << 4);
-  this->reg(0x0D) = pll_ref;
+  this->reg(PCM5122_REG_PLL_REF) = pll_ref;
 
   this->set_mute_on();
 }
@@ -67,7 +60,7 @@ bool PCM5122::set_mute_on() {
 }
 
 bool PCM5122::set_volume(float volume) {
-  this->volume_ = clamp<float>(volume, 0.0, 1.0);
+  this->volume_ = clamp<float>(volume, 0.0f, 1.0f);
   return this->write_volume_();
 }
 
@@ -77,7 +70,7 @@ float PCM5122::volume() { return this->volume_; }
 
 bool PCM5122::write_mute_() {
   uint8_t mute_byte = this->is_muted() ? 0x11 : 0x00;
-  if (!this->write_byte(PCM5122_REG00_PAGE_SELECT, 0x00) || !this->write_byte(0x03, mute_byte)) {
+  if (!this->write_byte(PCM5122_REG_PAGE_SELECT, 0x00) || !this->write_byte(PCM5122_REG_MUTE, mute_byte)) {
     ESP_LOGE(TAG, "Writing mute failed");
     return false;
   }
@@ -85,15 +78,17 @@ bool PCM5122::write_mute_() {
 }
 
 bool PCM5122::write_volume_() {
-  const uint8_t dvc_min_byte = 0x44;  //   0x00: 24 dB ; 0x30:   0dB
-  const uint8_t dvc_max_byte = 0x99;  //   0xFF:  mute ; 0x94: -50dB
+  // DVOL register: 0x00 = +24 dB, 0x30 = 0 dB, 0xFF = mute (-0.5 dB/step)
+  const uint8_t dvol_max_volume = 0x44;  // -10 dB at full scale
+  const uint8_t dvol_min_volume = 0x99;  // -52.5 dB at minimum
 
-  const uint8_t volume_byte = dvc_min_byte + ((1. - this->volume_) * (dvc_max_byte - dvc_min_byte) + 0.5);
+  const uint8_t volume_byte =
+      dvol_max_volume + static_cast<uint8_t>((1.0f - this->volume_) * (dvol_min_volume - dvol_max_volume) + 0.5f);
 
-  ESP_LOGD(TAG, "Setting volume to 0x%.2x", volume_byte & 0xFF);
+  ESP_LOGD(TAG, "Setting volume to 0x%.2x", volume_byte);
 
-  if ((!this->write_byte(PCM5122_REG00_PAGE_SELECT, 0x00)) || (!this->write_byte(0x3D, volume_byte)) ||
-      (!this->write_byte(0x3E, volume_byte))) {
+  if (!this->write_byte(PCM5122_REG_PAGE_SELECT, 0x00) || !this->write_byte(PCM5122_REG_DVOL_LEFT, volume_byte) ||
+      !this->write_byte(PCM5122_REG_DVOL_RIGHT, volume_byte)) {
     ESP_LOGE(TAG, "Writing volume failed");
     return false;
   }
