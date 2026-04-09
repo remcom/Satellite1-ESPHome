@@ -23,9 +23,7 @@ void I2SAudioBase::dump_i2s_settings() const {
   ESP_LOGCONFIG(TAG, "  use_apll: %s", this->use_apll_ ? "yes" : "no");
 }
 
-void I2SPortComponent::setup() {
-  ESP_LOGCONFIG(TAG, "Setting up I2S Audio (port %d)...", (int)this->port_);
-}
+void I2SPortComponent::setup() { ESP_LOGCONFIG(TAG, "Setting up I2S Audio (port %d)...", (int) this->port_); }
 
 void I2SPortComponent::dump_config() {
   ESP_LOGCONFIG(TAG, "I2SController:");
