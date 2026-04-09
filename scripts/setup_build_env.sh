@@ -1,9 +1,9 @@
-#!/bin/bash
-set -e
+# #!/bin/bash
+# set -e
 
 # Configuration
 PYTHON_MIN_VERSION="3.11"
-PYTHON_MAX_VERSION="3.14"
+PYTHON_MAX_VERSION="3.15"
 VENV_DIR=".venv"
 
 # Get script directory to find requirements.txt
@@ -20,7 +20,7 @@ fi
 if [[ ! -f "$SCRIPT_DIR/setup_build_env.sh" ]]; then
     # Fallback: assume we're in the project root or use git to find it
     if [[ -f "scripts/setup_build_env.sh" ]]; then
-        SCRIPT_DIR="$(pwd)/scripts"
+        SCRIPT_DIR="$(pwd)/scripts" 
     elif command -v git &> /dev/null && git rev-parse --show-toplevel &> /dev/null; then
         SCRIPT_DIR="$(git rev-parse --show-toplevel)/scripts"
     fi
