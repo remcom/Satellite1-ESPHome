@@ -6,6 +6,10 @@ esp32:
   framework:
     type: esp-idf
     version: recommended
+    components:
+      # Pin esp-nn to 1.1.2 to avoid TFLite tensor arena size regression in 1.2.1
+      # esp-tflite-micro requires ^1.1.0 (any 1.x), but 1.2.1 needs larger arenas
+      - espressif/esp-nn==1.1.2
     sdkconfig_options:
       CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
       CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
@@ -50,9 +54,7 @@ i2s_audio:
     i2s_lrclk_pin: GPIO07
     i2s_bclk_pin: GPIO08
     i2s_mclk_pin: GPIO16
-    access_mode: duplex
     i2s_mode: secondary
-    use_legacy: false
 
 sensor:
   - platform: wifi_signal

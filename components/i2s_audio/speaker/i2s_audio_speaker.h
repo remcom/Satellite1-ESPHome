@@ -120,14 +120,12 @@ class I2SAudioSpeaker : public I2SAudioOut, public speaker::Speaker, public Comp
   /// @param buffer_size The allocated size of the data_buffer_.
   void delete_task_(size_t buffer_size);
 
-#ifndef USE_I2S_LEGACY
   /// @brief Callback function used to send playback timestamps the to the speaker task.
   /// @param handle (i2s_chan_handle_t)
   /// @param event (i2s_event_data_t)
   /// @param user_ctx (void*) User context pointer that the callback accesses
   /// @return True if a higher priority task was interrupted
   static bool IRAM_ATTR i2s_on_sent_cb(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx);
-#endif
 
   TaskHandle_t speaker_task_handle_{nullptr};
   EventGroupHandle_t event_group_{nullptr};
