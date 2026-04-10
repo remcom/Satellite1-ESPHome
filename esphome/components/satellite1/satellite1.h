@@ -63,10 +63,11 @@ class Satellite1 : public Component,
                    public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING,
                                          spi::DATA_RATE_1KHZ> {
  public:
-  Satellite1State state{SAT_DETACHED_STATE};
-  uint8_t xmos_fw_version[5];
   std::string status_string();
-  uint8_t connection_attempts{0};
+
+  Satellite1State get_state() const { return this->state_; }
+  uint8_t get_connection_attempts() const { return this->connection_attempts_; }
+  const uint8_t *get_xmos_fw_version() const { return this->xmos_fw_version_; }
 
   void setup() override;
   void dump_config() override;
@@ -149,7 +150,7 @@ class Satellite1 : public Component,
 
   void set_xmos_rst_pin(GPIOPin *xmos_rst_pin) { this->xmos_rst_pin_ = xmos_rst_pin; }
 
-  void add_on_state_callback(std::function<void()> &&callback) { this->state_callback_.add(std::move(callback)); }
+  template<typename F> void add_on_state_callback(F &&callback) { this->state_callback_.add(std::forward<F>(callback)); }
 
   void xmos_hardware_reset();
 
@@ -157,6 +158,10 @@ class Satellite1 : public Component,
   bool dfu_get_fw_version_();
   bool check_for_xmos_();
   CallbackManager<void()> state_callback_{};
+
+  Satellite1State state_{SAT_DETACHED_STATE};
+  uint8_t xmos_fw_version_[5]{};
+  uint8_t connection_attempts_{0};
 
   uint32_t last_attempt_timestamp_{0};
 

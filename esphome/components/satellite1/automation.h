@@ -15,7 +15,7 @@ template<Satellite1State State> class Satellite1StateTrigger : public Trigger<> 
  public:
   explicit Satellite1StateTrigger(Satellite1 *sat1) {
     sat1->add_on_state_callback([this, sat1]() {
-      if (sat1->state == State)
+      if (sat1->get_state() == State)
         this->trigger();
     });
   }
@@ -28,7 +28,7 @@ class XMOSNoResponseStateTrigger : public Trigger<> {
  public:
   explicit XMOSNoResponseStateTrigger(Satellite1 *sat1) {
     sat1->add_on_state_callback([this, sat1]() {
-      if (sat1->state == SAT_DETACHED_STATE && sat1->connection_attempts == MAX_CONNECTION_ATTEMPTS)
+      if (sat1->get_state() == SAT_DETACHED_STATE && sat1->get_connection_attempts() == MAX_CONNECTION_ATTEMPTS)
         this->trigger();
     });
   }

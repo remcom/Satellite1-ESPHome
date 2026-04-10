@@ -5,7 +5,7 @@
 namespace esphome {
 namespace satellite1 {
 
-static const char *TAG = "Satellite1";
+static const char *const TAG = "Satellite1";
 
 void Satellite1::setup() {
   this->spi_setup();
@@ -17,7 +17,7 @@ void Satellite1::setup() {
     this->xmos_rst_pin_->setup();
   }
 
-  memset(this->xmos_fw_version, 0, 5);
+  memset(this->xmos_fw_version_, 0, 5);
   this->dfu_get_fw_version_();
 }
 
@@ -33,18 +33,18 @@ void Satellite1::dump_config() {
 }
 
 void Satellite1::loop() {
-  switch (this->state) {
+  switch (this->state_) {
     case SAT_DETACHED_STATE:
-      if (this->connection_attempts <= MAX_CONNECTION_ATTEMPTS && (millis() - this->last_attempt_timestamp_) > 1000) {
-        if (this->connection_attempts == MAX_CONNECTION_ATTEMPTS) {
+      if (this->connection_attempts_ <= MAX_CONNECTION_ATTEMPTS && (millis() - this->last_attempt_timestamp_) > 1000) {
+        if (this->connection_attempts_ == MAX_CONNECTION_ATTEMPTS) {
           this->state_callback_.call();
         } else if (this->check_for_xmos_()) {
-          this->state = SAT_XMOS_CONNECTED_STATE;
-          this->connection_attempts = 0;
+          this->state_ = SAT_XMOS_CONNECTED_STATE;
+          this->connection_attempts_ = 0;
           this->state_callback_.call();
         }
         this->last_attempt_timestamp_ = millis();
-        this->connection_attempts++;
+        this->connection_attempts_++;
       }
       break;
     case SAT_XMOS_CONNECTED_STATE:
@@ -70,15 +70,15 @@ static std::string prerelease_str(uint8_t pre_idx) {
 }
 
 std::string Satellite1::status_string() {
-  switch (this->state) {
+  switch (this->state_) {
     case SAT_DETACHED_STATE:
       return "XMOS not responding";
 
     case SAT_XMOS_CONNECTED_STATE:
-      return ("v" + std::to_string(this->xmos_fw_version[0]) + "." + std::to_string(this->xmos_fw_version[1]) + "." +
-              std::to_string(this->xmos_fw_version[2]) +
-              (this->xmos_fw_version[3] ? "-" + prerelease_str(this->xmos_fw_version[3]) : "") +
-              (this->xmos_fw_version[4] ? "." + std::to_string(this->xmos_fw_version[4]) : ""));
+      return ("v" + std::to_string(this->xmos_fw_version_[0]) + "." + std::to_string(this->xmos_fw_version_[1]) + "." +
+              std::to_string(this->xmos_fw_version_[2]) +
+              (this->xmos_fw_version_[3] ? "-" + prerelease_str(this->xmos_fw_version_[3]) : "") +
+              (this->xmos_fw_version_[4] ? "." + std::to_string(this->xmos_fw_version_[4]) : ""));
     case SAT_FLASH_CONNECTED_STATE:
       return "Flashing Mode";
     default:
@@ -87,7 +87,7 @@ std::string Satellite1::status_string() {
 }
 
 bool Satellite1::request_status_register_update() {
-  bool ret = this->transfer(0, 0, NULL, 0);
+  bool ret = this->transfer(0, 0, nullptr, 0);
   return ret;
 }
 
@@ -151,10 +151,10 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
 void Satellite1::set_spi_flash_direct_access_mode(bool enable) {
   this->xmos_rst_pin_->digital_write(enable);
   if (enable) {
-    this->state = SAT_FLASH_CONNECTED_STATE;
+    this->state_ = SAT_FLASH_CONNECTED_STATE;
   } else if (this->spi_flash_direct_access_enabled_) {
-    this->state = SAT_DETACHED_STATE;
-    this->connection_attempts = 0;
+    this->state_ = SAT_DETACHED_STATE;
+    this->connection_attempts_ = 0;
   }
   this->spi_flash_direct_access_enabled_ = enable;
   this->state_callback_.call();
@@ -167,7 +167,7 @@ bool Satellite1::dfu_get_fw_version_() {
     return false;
   }
 
-  memcpy(this->xmos_fw_version, version_resp, 5);
+  memcpy(this->xmos_fw_version_, version_resp, 5);
   ESP_LOGI(TAG, "XMOS Firmware Version: %s ", this->status_string().c_str());
 
   return true;
@@ -178,7 +178,7 @@ bool Satellite1::check_for_xmos_() {
     return false;
   }
   const uint8_t compare_zeros[5] = {0};
-  return (memcmp(this->xmos_fw_version, compare_zeros, 5) != 0);
+  return (memcmp(this->xmos_fw_version_, compare_zeros, 5) != 0);
 }
 
 void Satellite1::xmos_hardware_reset() {
