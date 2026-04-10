@@ -45,7 +45,7 @@ class ConnectedTrigger : public Trigger<> {
  public:
   explicit ConnectedTrigger(PowerDelivery *pd) {
     pd->add_on_state_callback([this, pd]() {
-      if (pd->prev_state_ == PD_STATE_DISCONNECTED && pd->state == PD_STATE_DEFAULT_CONTRACT)
+      if (pd->get_prev_state() == PD_STATE_DISCONNECTED && pd->state == PD_STATE_DEFAULT_CONTRACT)
         this->trigger();
     });
   }
@@ -53,7 +53,6 @@ class ConnectedTrigger : public Trigger<> {
 
 using DisconnectedTrigger = PDStateTrigger<PowerDeliveryState::PD_STATE_DISCONNECTED>;
 using ErrorTrigger = PDStateTrigger<PowerDeliveryState::PD_STATE_ERROR>;
-using TransitionTrigger = PDStateTrigger<PowerDeliveryState::PD_STATE_TRANSITION>;
 
 template<typename... Ts> class IsConnectedCondition : public Condition<Ts...>, public Parented<PowerDelivery> {
  public:
