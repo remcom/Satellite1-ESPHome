@@ -8,7 +8,7 @@ namespace memory_flasher {
 
 template<typename... Ts> class FlashAction : public Action<Ts...> {
  public:
-  FlashAction(MemoryFlasher *parent) : parent_(parent) {}
+  explicit FlashAction(MemoryFlasher *parent) : parent_(parent) {}
   TEMPLATABLE_VALUE(std::string, md5_url)
   TEMPLATABLE_VALUE(std::string, md5)
   TEMPLATABLE_VALUE(std::string, url)
@@ -43,7 +43,7 @@ template<FlasherState State> class FlasherStateTrigger : public Trigger<> {
  public:
   explicit FlasherStateTrigger(MemoryFlasher *xflash) {
     xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->state == State)
+      if (xflash->get_state() == State)
         this->trigger();
     });
   }
@@ -53,11 +53,11 @@ class FlashingStartedTrigger : public Trigger<> {
  public:
   explicit FlashingStartedTrigger(MemoryFlasher *xflash) {
     xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->state == FLASHER_ERASING && this->last_reported_ != FLASHER_ERASING) {
+      if (xflash->get_state() == FLASHER_ERASING && this->last_reported_ != FLASHER_ERASING) {
         this->last_reported_ = FLASHER_ERASING;
         this->trigger();
       } else {
-        this->last_reported_ = xflash->state;
+        this->last_reported_ = xflash->get_state();
       }
     });
   }
@@ -70,7 +70,7 @@ class ErasingDoneTrigger : public Trigger<> {
  public:
   explicit ErasingDoneTrigger(MemoryFlasher *xflash) {
     xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->state == FLASHER_SUCCESS_STATE && xflash->requested_action == ACTION_FULL_ERASE) {
+      if (xflash->get_state() == FLASHER_SUCCESS_STATE && xflash->get_requested_action() == ACTION_FULL_ERASE) {
         this->trigger();
       }
     });
@@ -81,9 +81,10 @@ class FlashingProgressUpdateTrigger : public Trigger<> {
  public:
   explicit FlashingProgressUpdateTrigger(MemoryFlasher *xflash) {
     xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->state == FLASHER_FLASHING && xflash->flashing_progress != this->last_reported_)
-        this->last_reported_ = xflash->flashing_progress;
-      this->trigger();
+      if (xflash->get_state() == FLASHER_FLASHING && xflash->get_flashing_progress() != this->last_reported_) {
+        this->last_reported_ = xflash->get_flashing_progress();
+        this->trigger();
+      }
     });
   }
 
@@ -96,7 +97,7 @@ using FlasherFailedTrigger = FlasherStateTrigger<FLASHER_ERROR_STATE>;
 
 template<typename... Ts> class InProgressCondition : public Condition<Ts...>, public Parented<MemoryFlasher> {
  public:
-  bool check(Ts... x) override { return this->parent_->state != FLASHER_IDLE; }
+  bool check(Ts... x) override { return this->parent_->get_state() != FLASHER_IDLE; }
 };
 
 }  // namespace memory_flasher

@@ -9,10 +9,9 @@
 #include "esphome/components/satellite1/satellite1.h"
 
 namespace esphome {
-using namespace memory_flasher;
 namespace satellite1 {
 
-class XMOSFlasher : public MemoryFlasher, public Satellite1SPIService {
+class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPIService {
  public:
   void loop() override;
 
@@ -26,13 +25,13 @@ class XMOSFlasher : public MemoryFlasher, public Satellite1SPIService {
 
   bool flash_accessible() override {
     this->parent_->set_spi_flash_direct_access_mode(true);
-    bool got_id = this->read_JEDECID_();
+    bool got_id = this->read_jedec_id_();
     this->parent_->set_spi_flash_direct_access_mode(false);
     return got_id;
   }
 
  protected:
-  bool read_JEDECID_();
+  bool read_jedec_id_();
   bool enable_writing_();
   bool disable_writing_();
   bool chip_erase_();
@@ -41,9 +40,9 @@ class XMOSFlasher : public MemoryFlasher, public Satellite1SPIService {
   bool read_page_(uint32_t byte_addr, uint8_t *buffer);
   bool write_page_(uint32_t byte_addr, uint8_t *buffer);
 
-  uint8_t manufacturerID_;
-  uint8_t memoryTypeID_;
-  uint8_t capacityID_;
+  uint8_t manufacturer_id_;
+  uint8_t memory_type_id_;
+  uint8_t capacity_id_;
   int32_t capacity_;
   size_t total_number_of_sectors_;
 
@@ -55,7 +54,7 @@ class XMOSFlasher : public MemoryFlasher, public Satellite1SPIService {
 
   bool http_flash_{false};
   bool embedded_flash_{false};
-  FlashImageReader *reader_;
+  memory_flasher::FlashImageReader *reader_;
   md5::MD5Digest md5_receive_;
 
   uint32_t flashing_start_time_{0};
