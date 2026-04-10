@@ -56,7 +56,7 @@ CONFIG_SCHEMA = cv.All(
     )
     .extend(cv.COMPONENT_SCHEMA)
     .extend(i2c.i2c_device_schema(0x22)),
-    cv.only_with_esp_idf,
+    cv.only_on_esp32,
 )
 
 PD_ACTION_SCHEMA = automation.maybe_simple_id({cv.GenerateID(): cv.use_id(PowerDelivery)})
