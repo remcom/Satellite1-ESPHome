@@ -1,7 +1,8 @@
+from esphome import pins
 import esphome.codegen as cg
 from esphome.components import i2c
-import esphome.config_validation as cv
 from esphome.components.audio_dac import AudioDac
+import esphome.config_validation as cv
 from esphome.const import (
     CONF_ID,
     CONF_INPUT,
@@ -10,7 +11,6 @@ from esphome.const import (
     CONF_OUTPUT,
     CONF_PIN,
 )
-from esphome import pins
 
 CODEOWNERS = ["@remcom"]
 DEPENDENCIES = ["i2c"]
