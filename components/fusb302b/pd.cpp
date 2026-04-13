@@ -48,17 +48,15 @@ static pd_contract_t pd_parse_power_info(const pd_pdo_t &pdo) {
 
 static PDMsg build_source_cap_response(const PowerDelivery *pd, pd_contract_t pwr_info, uint8_t pos) {
   /* Reference: 6.4.2 Request Message */
-  constexpr uint32_t templ = (
-      ((uint32_t) 1 << 24) | /* B24 No USB Suspend */
-      ((uint32_t) 1 << 25)   /* B25 USB Communication Capable */
+  constexpr uint32_t templ = (((uint32_t) 1 << 24) | /* B24 No USB Suspend */
+                              ((uint32_t) 1 << 25)   /* B25 USB Communication Capable */
   );
   uint32_t data = templ;
   if (pwr_info.type != PD_PDO_TYPE_AUGMENTED_PDO) {
     uint32_t req = pwr_info.max_i ? pwr_info.max_i : pwr_info.max_p;
-    data |=
-        ((uint32_t) req << 0) |   /* B9...0   Max Operating Current 10mA / Max Operating Power 250mW units */
-        ((uint32_t) req << 10) |  /* B19...10 Operating Current 10mA / Operating Power 250mW units */
-        ((uint32_t) pos << 28);   /* B30...28 Object position (000b is Reserved) */
+    data |= ((uint32_t) req << 0) |  /* B9...0   Max Operating Current 10mA / Max Operating Power 250mW units */
+            ((uint32_t) req << 10) | /* B19...10 Operating Current 10mA / Operating Power 250mW units */
+            ((uint32_t) pos << 28);  /* B30...28 Object position (000b is Reserved) */
   } else {
     ESP_LOGE(TAG, "Augmented PDO is not supported yet");
   }
@@ -67,12 +65,11 @@ static PDMsg build_source_cap_response(const PowerDelivery *pd, pd_contract_t pw
 
 PDMsg build_get_sink_cap_response(const PowerDelivery *pd) {
   /* Reference: 6.4.1.2.3 Sink Fixed Supply Power Data Object */
-  constexpr uint32_t data =
-      (((uint32_t) 500 << 0) |  /* B9...0   Operational Current in 10mA units */
-       ((uint32_t) 100 << 10) | /* B19...10 Voltage in 50mV units (5V) */
-       ((uint32_t) 1 << 26) |   /* B26 USB Communications Capable */
-       ((uint32_t) PD_PDO_TYPE_FIXED_SUPPLY << 30) /* B31...30 Fixed supply */
-      );
+  constexpr uint32_t data = (((uint32_t) 500 << 0) |  /* B9...0   Operational Current in 10mA units */
+                             ((uint32_t) 100 << 10) | /* B19...10 Voltage in 50mV units (5V) */
+                             ((uint32_t) 1 << 26) |   /* B26 USB Communications Capable */
+                             ((uint32_t) PD_PDO_TYPE_FIXED_SUPPLY << 30) /* B31...30 Fixed supply */
+  );
   return PDMsg(pd, pd_data_msg_type::PD_DATA_SINK_CAP, &data, 1);
 }
 
@@ -143,12 +140,11 @@ bool PowerDelivery::handle_cntrl_message_(const PDMsg &msg) {
 
 PDMsg PowerDelivery::create_fallback_request_message() const {
   /* Request first PDO (always the 5V Fixed Supply), max current 500mA */
-  constexpr uint32_t data =
-      ((uint32_t) 30 << 0) |  /* B9...0   Max Operating Current 10mA units (300mA) */
-      ((uint32_t) 10 << 10) | /* B19...10 Operating Current 10mA units (100mA) */
-      ((uint32_t) 1 << 24) |  /* B24 No USB Suspend */
-      ((uint32_t) 1 << 25) |  /* B25 USB Communication Capable */
-      ((uint32_t) 1 << 28);   /* B31...28 Object position 1 */
+  constexpr uint32_t data = ((uint32_t) 30 << 0) |  /* B9...0   Max Operating Current 10mA units (300mA) */
+                            ((uint32_t) 10 << 10) | /* B19...10 Operating Current 10mA units (100mA) */
+                            ((uint32_t) 1 << 24) |  /* B24 No USB Suspend */
+                            ((uint32_t) 1 << 25) |  /* B25 USB Communication Capable */
+                            ((uint32_t) 1 << 28);   /* B31...28 Object position 1 */
   return PDMsg(this, pd_data_msg_type::PD_DATA_REQUEST, &data, 1);
 }
 
@@ -213,7 +209,7 @@ bool PowerDelivery::request_voltage(int voltage) {
 PDMsg::PDMsg(uint16_t header) { this->set_header(header); }
 
 bool PDMsg::set_header(uint16_t header) {
-  this->type = static_cast<pd_data_msg_type>((header >> 0) & 0x1F); /* 4...0  Message Type */
+  this->type = static_cast<pd_data_msg_type>((header >> 0) & 0x1F);      /* 4...0  Message Type */
   this->spec_rev = static_cast<pd_spec_revision_t>((header >> 6) & 0x3); /* 7...6  Specification Revision */
   this->id = (header >> 9) & 0x7;                                        /* 11...9  MessageID */
   this->num_of_obj = (header >> 12) & 0x7;                               /* 14...12 Number of Data Objects */
@@ -248,13 +244,9 @@ PDMsg::PDMsg(const PowerDelivery *pd, pd_data_msg_type msg_type, const uint32_t 
 }
 
 uint16_t PDMsg::get_coded_header() const {
-  return ((uint16_t) this->type << 0) |
-         ((uint16_t) 0x00 << 5) |           /* DataRole 0: UFP */
-         ((uint16_t) this->spec_rev << 6) |
-         ((uint16_t) 0x00 << 8) |           /* PowerRole 0: sink */
-         ((uint16_t) this->id << 9) |
-         ((uint16_t) this->num_of_obj << 12) |
-         ((uint16_t) !!(this->extended) << 15);
+  return ((uint16_t) this->type << 0) | ((uint16_t) 0x00 << 5) |     /* DataRole 0: UFP */
+         ((uint16_t) this->spec_rev << 6) | ((uint16_t) 0x00 << 8) | /* PowerRole 0: sink */
+         ((uint16_t) this->id << 9) | ((uint16_t) this->num_of_obj << 12) | ((uint16_t) !!(this->extended) << 15);
 }
 
 void PDMsg::debug_log() const {

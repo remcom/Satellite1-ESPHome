@@ -52,7 +52,9 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
   void fusb_reset_unlocked_();
   void fusb_reset_();
   void check_status_();
-  void publish_() override { this->defer([this]() { this->state_callback_.call(); }); }
+  void publish_() override {
+    this->defer([this]() { this->state_callback_.call(); });
+  }
   bool init_fusb_settings_();
   void cleanup_();
 

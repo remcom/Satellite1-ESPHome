@@ -94,8 +94,8 @@ void trigger_task(void *params) {
   gpio_install_isr_service(0);
   gpio_isr_handler_add(irq_gpio_pin, fusb302b_isr_handler, static_cast<void *>(fusb302b));
 
-  BaseType_t ret = xTaskCreatePinnedToCore(msg_reader_task, "fusb302b_read", 4096, fusb302b,
-                                           configMAX_PRIORITIES / 2, &fusb302b->reader_task_handle_, 1);
+  BaseType_t ret = xTaskCreatePinnedToCore(msg_reader_task, "fusb302b_read", 4096, fusb302b, configMAX_PRIORITIES / 2,
+                                           &fusb302b->reader_task_handle_, 1);
   if (ret != pdPASS) {
     ESP_LOGE(TAG, "Failed to create reader task");
     fusb302b->mark_failed();
@@ -265,8 +265,8 @@ void FUSB302B::check_status_() {
         ESP_LOGD(TAG, "Startup delay reached, spawning tasks");
         this->startup_delay_ = 0;
 
-        BaseType_t ret = xTaskCreatePinnedToCore(trigger_task, "fusb302b_trigger", 4096, this, 18,
-                                                 &this->process_task_handle_, 1);
+        BaseType_t ret =
+            xTaskCreatePinnedToCore(trigger_task, "fusb302b_trigger", 4096, this, 18, &this->process_task_handle_, 1);
         if (ret != pdPASS) {
           ESP_LOGE(TAG, "Failed to create process task");
           this->mark_failed();
