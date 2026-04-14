@@ -51,7 +51,7 @@ void msg_reader_task(void *params) {
     if (regs.interruptb & FUSB_INTERRUPTB_I_GCRCSENT) {
       event_info.event = PD_EVENT_RECEIVED_MSG;
       while (!(regs.status1 & FUSB_STATUS1_RX_EMPTY)) {
-        if (fusb302b->read_message_(msg)) {
+        if (fusb302b->read_message(msg)) {
           xQueueSend(fusb302b->message_queue_, &event_info, 0);
         } else {
           ESP_LOGV(TAG, "Reading message failed");
@@ -91,8 +91,19 @@ void trigger_task(void *params) {
   gpio_config(&io_conf);
 
   gpio_set_intr_type(irq_gpio_pin, GPIO_INTR_NEGEDGE);
-  gpio_install_isr_service(0);
-  gpio_isr_handler_add(irq_gpio_pin, fusb302b_isr_handler, static_cast<void *>(fusb302b));
+  esp_err_t err = gpio_install_isr_service(0);
+  if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+    ESP_LOGE(TAG, "Failed to install GPIO ISR service: %s", esp_err_to_name(err));
+    fusb302b->mark_failed();
+    vTaskDelete(nullptr);
+    return;
+  }
+  if (gpio_isr_handler_add(irq_gpio_pin, fusb302b_isr_handler, static_cast<void *>(fusb302b)) != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to add GPIO ISR handler");
+    fusb302b->mark_failed();
+    vTaskDelete(nullptr);
+    return;
+  }
 
   BaseType_t ret = xTaskCreatePinnedToCore(msg_reader_task, "fusb302b_read", 4096, fusb302b, configMAX_PRIORITIES / 2,
                                            &fusb302b->reader_task_handle_, 1);
@@ -109,7 +120,7 @@ void trigger_task(void *params) {
   while (true) {
     if (xQueueReceive(fusb302b->message_queue_, &event_info, portMAX_DELAY) == pdTRUE) {
       PDMsg &msg = event_info.msg;
-      fusb302b->handle_message_(msg);
+      fusb302b->handle_message(msg);
     }
   }
 }
@@ -169,7 +180,7 @@ void FUSB302B::on_shutdown() { this->cleanup_(); }
 void FUSB302B::loop() {
   this->check_status_();
   if (this->contract_timer_ && (uint32_t) (millis() - this->contract_timer_) > 1000) {
-    this->publish_();
+    this->publish();
     this->contract_timer_ = 0;
   }
 }
@@ -308,12 +319,12 @@ void FUSB302B::check_status_() {
           /* Clear interrupts, then request source capabilities */
           FusbStatus regs;
           this->read_status(regs);
-          this->send_message_(PDMsg(this, pd_control_msg_type::PD_CNTRL_GET_SOURCE_CAP));
+          this->send_message(PDMsg(this, PD_CNTRL_GET_SOURCE_CAP));
         } else {
           ESP_LOGD(TAG, "GET_SOURCE_CAP reached max retries");
           if (!this->tried_soft_reset_) {
             this->fusb_reset_();
-            this->send_message_(PDMsg(this, pd_control_msg_type::PD_CNTRL_SOFT_RESET));
+            this->send_message(PDMsg(this, PD_CNTRL_SOFT_RESET));
             this->get_src_cap_retry_count_ = 2;
             this->tried_soft_reset_ = true;
           } else {
@@ -321,7 +332,7 @@ void FUSB302B::check_status_() {
             this->wait_src_cap_ = false;
             this->active_ams_ = false;
             this->set_state_(PD_STATE_PD_TIMEOUT);
-            this->publish_();
+            this->publish();
           }
         }
       }
@@ -407,7 +418,7 @@ bool FUSB302B::init_fusb_settings_() {
   return true;
 }
 
-bool FUSB302B::read_message_(PDMsg &msg) {
+bool FUSB302B::read_message(PDMsg &msg) {
   if (xSemaphoreTake(this->i2c_lock_, pdMS_TO_TICKS(100)) != pdTRUE) {
     return false;
   }
@@ -436,7 +447,7 @@ bool FUSB302B::read_message_(PDMsg &msg) {
   return ok;
 }
 
-bool FUSB302B::send_message_(const PDMsg &msg) {
+bool FUSB302B::send_message(const PDMsg &msg) {
   if (xSemaphoreTake(this->i2c_lock_, pdMS_TO_TICKS(100)) != pdTRUE) {
     return false;
   }

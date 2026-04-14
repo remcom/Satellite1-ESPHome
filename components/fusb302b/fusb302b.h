@@ -36,8 +36,8 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
   void loop() override;
   void on_shutdown() override;
 
-  bool send_message_(const PDMsg &msg) override;
-  bool read_message_(PDMsg &msg) override;
+  bool send_message(const PDMsg &msg) override;
+  bool read_message(PDMsg &msg) override;
   bool read_status(FusbStatus &status);
   bool read_status_register(uint8_t reg, uint8_t &value);
 
@@ -52,8 +52,14 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
   void fusb_reset_unlocked_();
   void fusb_reset_();
   void check_status_();
-  void publish_() override {
-    this->defer([this]() { this->state_callback_.call(); });
+  void publish() override {
+    this->defer([this]() {
+      this->state_callback_.call();
+      if (this->contract_sensor_ != nullptr) {
+        std::string val = (this->state_ == PD_STATE_DISCONNECTED) ? "Detached" : this->contract_;
+        this->contract_sensor_->publish_state(val);
+      }
+    });
   }
   bool init_fusb_settings_();
   void cleanup_();

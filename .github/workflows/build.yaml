@@ -75,7 +75,7 @@ jobs:
           done
 
       - name: Upload versioned artifacts to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.VERSION }}
           files: |
@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload latest artifacts (stable only)
         if: github.event.release.prerelease == false
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: latest
           files: |
@@ -167,7 +167,7 @@ jobs:
 
       - name: Upload beta artifacts (for prerelease only)
         if: github.event.release.prerelease == true
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: beta
           files: |
@@ -201,7 +201,7 @@ jobs:
           EOF
 
       - name: Upload landing manifest
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.release.prerelease && 'beta' || 'latest' }}
           files: release-artifacts/landing-manifest.json

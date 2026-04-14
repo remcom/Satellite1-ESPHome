@@ -24,7 +24,7 @@ template<PowerDeliveryState State> class PDStateTrigger : public Trigger<> {
  public:
   explicit PDStateTrigger(PowerDelivery *pd) {
     pd->add_on_state_callback([this, pd]() {
-      if (pd->state == State)
+      if (pd->get_state() == State)
         this->trigger();
     });
   }
@@ -34,8 +34,8 @@ class PowerReadyTrigger : public Trigger<> {
  public:
   explicit PowerReadyTrigger(PowerDelivery *pd) {
     pd->add_on_state_callback([this, pd]() {
-      if (pd->state == PD_STATE_EXPLICIT_SPR_CONTRACT || pd->state == PD_STATE_EXPLICIT_EPR_CONTRACT ||
-          pd->state == PD_STATE_PD_TIMEOUT)
+      if (pd->get_state() == PD_STATE_EXPLICIT_SPR_CONTRACT || pd->get_state() == PD_STATE_EXPLICIT_EPR_CONTRACT ||
+          pd->get_state() == PD_STATE_PD_TIMEOUT)
         this->trigger();
     });
   }
@@ -45,7 +45,7 @@ class ConnectedTrigger : public Trigger<> {
  public:
   explicit ConnectedTrigger(PowerDelivery *pd) {
     pd->add_on_state_callback([this, pd]() {
-      if (pd->get_prev_state() == PD_STATE_DISCONNECTED && pd->state == PD_STATE_DEFAULT_CONTRACT)
+      if (pd->get_prev_state() == PD_STATE_DISCONNECTED && pd->get_state() == PD_STATE_DEFAULT_CONTRACT)
         this->trigger();
     });
   }
@@ -57,9 +57,9 @@ using ErrorTrigger = PDStateTrigger<PowerDeliveryState::PD_STATE_ERROR>;
 template<typename... Ts> class IsConnectedCondition : public Condition<Ts...>, public Parented<PowerDelivery> {
  public:
   bool check(const Ts &...x) override {
-    return this->parent_->state == PowerDeliveryState::PD_STATE_DEFAULT_CONTRACT ||
-           this->parent_->state == PowerDeliveryState::PD_STATE_EXPLICIT_SPR_CONTRACT ||
-           this->parent_->state == PowerDeliveryState::PD_STATE_EXPLICIT_EPR_CONTRACT;
+    return this->parent_->get_state() == PowerDeliveryState::PD_STATE_DEFAULT_CONTRACT ||
+           this->parent_->get_state() == PowerDeliveryState::PD_STATE_EXPLICIT_SPR_CONTRACT ||
+           this->parent_->get_state() == PowerDeliveryState::PD_STATE_EXPLICIT_EPR_CONTRACT;
   }
 };
 

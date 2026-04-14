@@ -1,7 +1,7 @@
 from esphome import automation
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import i2c
+from esphome.components import i2c, text_sensor
 from esphome.pins import internal_gpio_input_pin_number
 
 from esphome.const import (
@@ -24,15 +24,16 @@ RequestVoltageAction = pd_ns.class_(
     "PowerDeliveryRequestVoltage", automation.Action, cg.Parented.template(PowerDelivery)
 )
 
-ConnectedTrigger = pd_ns.class_("ConnectedTrigger", automation.Trigger)
+ConnectedTrigger = pd_ns.class_("ConnectedTrigger", automation.Trigger.template())
 DisconnectedTrigger = pd_ns.class_("DisconnectedTrigger", automation.Trigger.template())
 ErrorTrigger = pd_ns.class_("ErrorTrigger", automation.Trigger.template())
-PowerReadyTrigger = pd_ns.class_("PowerReadyTrigger", automation.Trigger)
+PowerReadyTrigger = pd_ns.class_("PowerReadyTrigger", automation.Trigger.template())
 
 IsConnectedCondition = pd_ns.class_("IsConnectedCondition", automation.Condition)
 
 CONF_REQUEST_VOLTAGE = "request_voltage"
 CONF_ON_PWR_RDY = "on_power_ready"
+CONF_CONTRACT_SENSOR = "contract_sensor"
 
 CONFIG_SCHEMA = cv.All(
     cv.Schema(
@@ -40,6 +41,7 @@ CONFIG_SCHEMA = cv.All(
             cv.GenerateID(): cv.declare_id(FUSB302B),
             cv.Required(CONF_IRQ_PIN): internal_gpio_input_pin_number,
             cv.Required(CONF_REQUEST_VOLTAGE): cv.int_range(min=5, max=20),
+            cv.Optional(CONF_CONTRACT_SENSOR): text_sensor.text_sensor_schema(),
             cv.Optional(CONF_ON_CONNECT): automation.validate_automation(
                 {cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ConnectedTrigger)}
             ),
@@ -97,6 +99,9 @@ async def to_code(config):
     await i2c.register_i2c_device(var, config)
     cg.add(var.set_request_voltage(config[CONF_REQUEST_VOLTAGE]))
     cg.add(var.set_irq_pin(config[CONF_IRQ_PIN]))
+    if contract_sensor_config := config.get(CONF_CONTRACT_SENSOR):
+        sens = await text_sensor.new_text_sensor(contract_sensor_config)
+        cg.add(var.set_contract_sensor(sens))
     for conf in config.get(CONF_ON_CONNECT, []):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [], conf)

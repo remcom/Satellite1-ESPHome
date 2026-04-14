@@ -121,18 +121,20 @@ fusb302b:
   id: pd_fusb302b
   irq_pin: GPIO1
   request_voltage: 20
+  contract_sensor:
+    id: pd_state_text
+    name: "USB-C Power Draw"
+    icon: "mdi:usb-c-port"
+    entity_category: "diagnostic"
   on_power_ready:
     then:
       - logger.log:
           format: "PD contract got accepted: %s"
-          args: ['id(pd_fusb302b).contract.c_str()']
+          args: ['id(pd_fusb302b).get_contract().c_str()']
 
-      - text_sensor.template.publish:
-          id: pd_state_text
-          state: !lambda 'return id(pd_fusb302b).contract;'
       - lambda: |-
           // Store power mode based on USB-PD contract voltage
-          if (id(pd_fusb302b).contract_voltage >= 9) {
+          if (id(pd_fusb302b).get_contract_voltage() >= 9) {
             id(tas2780_power_mode) = 2;
           } else {
             id(tas2780_power_mode) = 0;
