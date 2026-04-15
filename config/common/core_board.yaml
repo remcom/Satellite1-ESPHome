@@ -6,10 +6,6 @@ esp32:
   framework:
     type: esp-idf
     version: recommended
-    components:
-      # Pin esp-nn to 1.1.2 to avoid TFLite tensor arena size regression in 1.2.1
-      # esp-tflite-micro requires ^1.1.0 (any 1.x), but 1.2.1 needs larger arenas
-      - espressif/esp-nn==1.1.2
     sdkconfig_options:
       CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
       CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
