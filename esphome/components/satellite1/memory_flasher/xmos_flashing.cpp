@@ -4,6 +4,7 @@
 #include <endian.h>
 
 namespace esphome {
+using namespace memory_flasher;
 namespace satellite1 {
 
 static const char *const TAG = "xmos_flasher";
@@ -13,29 +14,29 @@ static const size_t FLASH_SECTOR_SIZE = 4096;
 constexpr size_t FLASH_TOTAL_NUMBER_OF_SECTORS = 8388608 / FLASH_SECTOR_SIZE;
 
 void XMOSFlasher::loop() {
-  switch (this->state) {
+  switch (this->state_) {
     case FLASHER_IDLE:
       break;
 
     case FLASHER_INITIALIZING:
       if (this->init_flashing_()) {
-        this->state = FLASHER_ERASING;
+        this->state_ = FLASHER_ERASING;
       } else {
         this->deinit_flashing_();
-        this->state = FLASHER_ERROR_STATE;
+        this->state_ = FLASHER_ERROR_STATE;
       }
       break;
 
     case FLASHER_ERASING: {
       int remaining = this->erasing_step_();
       this->publish_progress_();
-      if (remaining == 0 && this->requested_action == ACTION_FULL_ERASE) {
+      if (remaining == 0 && this->requested_action_ == ACTION_FULL_ERASE) {
         this->deinit_flashing_();
-        this->state = FLASHER_SUCCESS_STATE;
+        this->state_ = FLASHER_SUCCESS_STATE;
       } else if (remaining == 0) {
-        this->state = FLASHER_FLASHING;
+        this->state_ = FLASHER_FLASHING;
       } else if (remaining < 0) {
-        this->state = FLASHER_ERROR_STATE;
+        this->state_ = FLASHER_ERROR_STATE;
       }
       break;
     }
@@ -45,22 +46,22 @@ void XMOSFlasher::loop() {
       this->publish_progress_();
       if (remaining == 0) {
         this->deinit_flashing_();
-        this->state = FLASHER_SUCCESS_STATE;
+        this->state_ = FLASHER_SUCCESS_STATE;
       } else if (remaining < 0) {
         this->deinit_flashing_();
-        this->state = FLASHER_ERROR_STATE;
+        this->state_ = FLASHER_ERROR_STATE;
       }
       break;
     }
 
     case FLASHER_SUCCESS_STATE:
       this->publish();
-      this->state = FLASHER_IDLE;
+      this->state_ = FLASHER_IDLE;
       break;
 
     case FLASHER_ERROR_STATE:
       this->publish();
-      this->state = FLASHER_IDLE;
+      this->state_ = FLASHER_IDLE;
       break;
 
     default:
@@ -72,14 +73,14 @@ void XMOSFlasher::publish_progress_() {
   uint32_t now = millis();
 
   if ((now - this->last_published_) > 1000) {
-    if (this->requested_action == ACTION_FULL_ERASE) {
-      this->flashing_progress = this->current_sector_ * 100 / this->total_sectors_to_erase_;
+    if (this->requested_action_ == ACTION_FULL_ERASE) {
+      this->flashing_progress_ = this->current_sector_ * 100 / this->total_sectors_to_erase_;
     } else {
-      this->flashing_progress = ((this->current_sector_ + this->total_number_of_bytes_ - this->bytes_remaining_) * 100 /
-                                 (this->total_number_of_bytes_ + this->total_sectors_to_erase_));
+      this->flashing_progress_ = ((this->current_sector_ + this->total_number_of_bytes_ - this->bytes_remaining_) *
+                                  100 / (this->total_number_of_bytes_ + this->total_sectors_to_erase_));
     }
     this->last_published_ = now;
-    ESP_LOGD(TAG, "Progress: %d%%", this->flashing_progress);
+    ESP_LOGD(TAG, "Progress: %d%%", this->flashing_progress_);
     this->publish();
   }
 }
@@ -87,7 +88,7 @@ void XMOSFlasher::publish_progress_() {
 bool XMOSFlasher::init_flasher() {
   ESP_LOGD(TAG, "Setting up XMOS flasher...");
   this->parent_->set_spi_flash_direct_access_mode(true);
-  this->read_JEDECID_();
+  this->read_jedec_id_();
   this->dump_flash_info();
   this->total_number_of_sectors_ = FLASH_TOTAL_NUMBER_OF_SECTORS;
   return true;
@@ -101,66 +102,65 @@ bool XMOSFlasher::deinit_flasher() {
 
 void XMOSFlasher::dump_flash_info() {
   ESP_LOGCONFIG(TAG, "Satellite1-Flasher:");
-  ESP_LOGCONFIG(TAG, "	JEDEC-manufacturerID %hhu", this->manufacturerID_);
-  ESP_LOGCONFIG(TAG, "	JEDEC-memoryTypeID %hhu", this->memoryTypeID_);
-  ESP_LOGCONFIG(TAG, "	JEDEC-capacityID %hhu", this->capacityID_);
-  ESP_LOGCONFIG(TAG, "	JEDEC-capacityID %hhu", this->capacityID_);
-  ESP_LOGCONFIG(TAG, "	JEDEC-capacity: %hhu", 1 << this->capacityID_);
+  ESP_LOGCONFIG(TAG, "  JEDEC-manufacturer_id %hhu", this->manufacturer_id_);
+  ESP_LOGCONFIG(TAG, "  JEDEC-memory_type_id %hhu", this->memory_type_id_);
+  ESP_LOGCONFIG(TAG, "  JEDEC-capacity_id %hhu", this->capacity_id_);
+  ESP_LOGCONFIG(TAG, "  JEDEC-capacity: %hhu", 1 << this->capacity_id_);
 }
 
 void XMOSFlasher::erase_memory() {
-  if (this->state != FLASHER_IDLE) {
+  if (this->state_ != FLASHER_IDLE) {
     ESP_LOGE(TAG, "XMOS flasher is busy, can't inititate erasing");
     return;
   }
 
-  this->requested_action = ACTION_FULL_ERASE;
-  this->state = FLASHER_INITIALIZING;
+  this->requested_action_ = ACTION_FULL_ERASE;
+  this->state_ = FLASHER_INITIALIZING;
 }
 
 void XMOSFlasher::flash_remote_image() {
-  if (this->state != FLASHER_IDLE) {
+  if (this->state_ != FLASHER_IDLE) {
     ESP_LOGE(TAG, "XMOS flasher is busy, can't initiate new flash");
     return;
   }
 
   if (this->url_.empty()) {
     ESP_LOGE(TAG, "URL not set; cannot start flashing");
-    this->error_code = BAD_URL;
-    this->state = FLASHER_ERROR_STATE;
+    this->error_code_ = BAD_URL;
+    this->state_ = FLASHER_ERROR_STATE;
     return;
   }
 
   if (this->md5_expected_.empty() && !this->http_get_md5_()) {
     ESP_LOGE(TAG, "Couldn't receive expected md5 sum.");
-    this->error_code = MD5_INVALID;
-    this->state = FLASHER_ERROR_STATE;
+    this->error_code_ = MD5_INVALID;
+    this->state_ = FLASHER_ERROR_STATE;
     return;
   }
 
-  this->requested_action = ACTION_FLASH_REMOTE_IMAGE;
-  this->state = FLASHER_INITIALIZING;
+  this->requested_action_ = ACTION_FLASH_REMOTE_IMAGE;
+  this->state_ = FLASHER_INITIALIZING;
 }
 
 void XMOSFlasher::flash_embedded_image() {
-  if (this->state != FLASHER_IDLE) {
+  if (this->state_ != FLASHER_IDLE) {
     ESP_LOGE(TAG, "XMOS flasher is busy, can't inititate new flash");
     return;
   }
 
   if (this->embedded_image_.length == 0) {
     ESP_LOGE(TAG, "Didn't find embedded image!");
-    this->error_code = NO_EMBEDDED_IMAGE_ERROR;
-    this->state = FLASHER_ERROR_STATE;
+    this->error_code_ = NO_EMBEDDED_IMAGE_ERROR;
+    this->state_ = FLASHER_ERROR_STATE;
     return;
   }
 
   this->md5_expected_ = this->embedded_image_.md5;
-  this->requested_action = ACTION_FLASH_EMBEDDED_IMAGE;
-  this->state = FLASHER_INITIALIZING;
+  this->requested_action_ = ACTION_FLASH_EMBEDDED_IMAGE;
+  this->state_ = FLASHER_INITIALIZING;
 }
 
-bool XMOSFlasher::read_JEDECID_() {
+bool XMOSFlasher::read_jedec_id_() {
   uint8_t manufacturer = 0;
   uint8_t memoryType = 0;
   uint8_t capcacity = 0;
@@ -172,9 +172,9 @@ bool XMOSFlasher::read_JEDECID_() {
   this->disable();
 
   if (manufacturer && memoryType && capcacity) {
-    this->manufacturerID_ = manufacturer;
-    this->memoryTypeID_ = memoryType;
-    this->capacityID_ = capcacity;
+    this->manufacturer_id_ = manufacturer;
+    this->memory_type_id_ = memoryType;
+    this->capacity_id_ = capcacity;
     return true;
   }
   return false;
@@ -307,13 +307,13 @@ bool XMOSFlasher::read_page_(uint32_t byte_addr, uint8_t *buffer) {
 
 bool XMOSFlasher::init_flashing_() {
   if (!this->init_flasher()) {
-    this->error_code = INIT_FLASH_ERROR;
+    this->error_code_ = INIT_FLASH_ERROR;
     return false;
   }
 
   this->flashing_start_time_ = millis();
 
-  switch (this->requested_action) {
+  switch (this->requested_action_) {
     case ACTION_FLASH_EMBEDDED_IMAGE:
       this->reader_ = new EmbeddedImageReader(this->embedded_image_);
       break;
@@ -327,27 +327,27 @@ bool XMOSFlasher::init_flashing_() {
   };
 
   if (!this->reader_->init_reader()) {
-    this->error_code = INIT_READER_ERROR;
+    this->error_code_ = INIT_READER_ERROR;
     return false;
   }
 
   this->reader_buffer_ = (uint8_t *) malloc(FLASH_PAGE_SIZE);
   if (this->reader_buffer_ == nullptr) {
     ESP_LOGE(TAG, "Couldn't allocate memory");
-    this->error_code = INIT_FLASH_ERROR;
+    this->error_code_ = INIT_FLASH_ERROR;
     return false;
   }
 
   this->compare_buffer_ = (uint8_t *) malloc(FLASH_PAGE_SIZE);
   if (this->compare_buffer_ == nullptr) {
     ESP_LOGE(TAG, "Couldn't allocate memory");
-    this->error_code = INIT_FLASH_ERROR;
+    this->error_code_ = INIT_FLASH_ERROR;
     return false;
   }
 
   ESP_LOGD(TAG, "MD5 expected: %s", this->md5_expected_.c_str());
 
-  this->flashing_progress = 0;
+  this->flashing_progress_ = 0;
   this->md5_receive_.init();
 
   size_t size_in_bytes = this->reader_->get_image_size();
@@ -396,7 +396,7 @@ int XMOSFlasher::erasing_step_() {
   this->current_sector_++;
   if (this->current_sector_ < this->total_sectors_to_erase_) {
     if (!this->erase_sector_(this->current_sector_)) {
-      this->error_code = WRITE_TO_FLASH_ERROR;
+      this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
     }
   }
@@ -409,7 +409,7 @@ int XMOSFlasher::flashing_step_() {
   int bytes_read = this->reader_->read_image_block(this->reader_buffer_, FLASH_PAGE_SIZE);
   if (bytes_read < 0) {
     ESP_LOGE(TAG, "Stream closed");
-    this->error_code = CONNECTION_ERROR;
+    this->error_code_ = CONNECTION_ERROR;
     return -1;
   }
 
@@ -417,7 +417,7 @@ int XMOSFlasher::flashing_step_() {
   this->bytes_remaining_ -= bytes_read;
   if (bytes_read != FLASH_PAGE_SIZE) {
     if (this->bytes_remaining_ != 0) {
-      this->error_code = CONNECTION_ERROR;
+      this->error_code_ = CONNECTION_ERROR;
       return -1;
     }
     // it's the last page to flash
@@ -437,14 +437,14 @@ int XMOSFlasher::flashing_step_() {
     // not equal, give it a second try
     if (!this->write_page_(page_pos, this->reader_buffer_)) {
       ESP_LOGE(TAG, "Error while writing page %d, giving up...", page_pos);
-      this->error_code = WRITE_TO_FLASH_ERROR;
+      this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
     }
 
     this->read_page_(page_pos, this->compare_buffer_);
     if (memcmp(this->reader_buffer_, this->compare_buffer_, FLASH_PAGE_SIZE) != 0) {
       ESP_LOGE(TAG, "Read page mismatch, page addr: %d", page_pos);
-      this->error_code = WRITE_TO_FLASH_ERROR;
+      this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
     }
   }
@@ -459,7 +459,7 @@ int XMOSFlasher::flashing_step_() {
 
     if (strncmp(this->md5_computed_.c_str(), this->md5_expected_.c_str(), MD5_SIZE) != 0) {
       ESP_LOGE(TAG, "MD5 computed: %s - Aborting due to MD5 mismatch", this->md5_computed_.c_str());
-      this->error_code = MD5_MISMATCH_ERROR;
+      this->error_code_ = MD5_MISMATCH_ERROR;
       return -1;
     } else {
       ESP_LOGD(TAG, "MD5 computed: %s - Matches!", this->md5_computed_.c_str());

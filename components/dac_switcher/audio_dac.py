@@ -5,7 +5,6 @@ from esphome.components.audio_dac import AudioDac, audio_dac_ns
 from esphome.const import CONF_ID
 
 CODEOWNERS = ["@remcom"]
-DEPENDENCIES = []
 
 dac_switcher_ns = cg.esphome_ns.namespace("dac_switcher")
 DacSwitcher = dac_switcher_ns.class_("DacSwitcher", AudioDac, cg.Component)

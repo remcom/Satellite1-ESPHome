@@ -36,7 +36,7 @@ esphome:
   name: ${node_name}
   name_add_mac_suffix: true
   friendly_name: ${friendly_name}
-  min_version: 2026.3.2
+  min_version: 2026.4.0
 
   project:
     name: ${company_name}.${project_name}
@@ -125,7 +125,7 @@ memory_flasher:
 
     on_progress_update:
       then:
-        - lambda: id(global_led_animation_index) = id(xflash).flashing_progress * 24 / 100;
+        - lambda: id(global_led_animation_index) = id(xflash).get_flashing_progress() * 24 / 100;
         - script.execute: control_leds
 
     on_flashing_success:

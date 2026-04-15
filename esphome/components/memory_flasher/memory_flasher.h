@@ -113,10 +113,10 @@ enum FlasherState : uint8_t {
 
 class MemoryFlasher : public Component {
  public:
-  uint8_t flashing_progress{0};
-  FlasherState state{FLASHER_IDLE};
-  FlasherError error_code{FLASHER_OK};
-  FlasherAction requested_action;
+  FlasherState get_state() const { return this->state_; }
+  FlasherError get_error_code() const { return this->error_code_; }
+  FlasherAction get_requested_action() const { return this->requested_action_; }
+  uint8_t get_flashing_progress() const { return this->flashing_progress_; }
 
   virtual void dump_config() override;
 
@@ -131,7 +131,9 @@ class MemoryFlasher : public Component {
   virtual bool flash_accessible() { return false; }
   bool has_image_embedded() { return this->embedded_image_.length > 0; }
 
-  bool match_embedded(uint8_t to_compare[5]) { return memcmp(this->embedded_image_.version.bytes, to_compare, 5) == 0; }
+  bool match_embedded(const uint8_t *to_compare) {
+    return memcmp(this->embedded_image_.version.bytes, to_compare, 5) == 0;
+  }
 
   void set_embedded_image(const uint8_t *pgm_pointer, size_t length, std::string expected_md5,
                           const char version_bytes[5]) {
@@ -149,7 +151,9 @@ class MemoryFlasher : public Component {
   void set_md5(const std::string &md5) { this->md5_expected_ = md5; }
   void set_url(const std::string &url);
 
-  void add_on_state_callback(std::function<void()> &&callback) { this->state_callback_.add(std::move(callback)); }
+  template<typename F> void add_on_state_callback(F &&callback) {
+    this->state_callback_.add(std::forward<F>(callback));
+  }
   void publish() {
     // this->defer([this]() { this->state_callback_.call(); });
     this->state_callback_.call();
@@ -158,6 +162,11 @@ class MemoryFlasher : public Component {
  protected:
   virtual void publish_progress_() {}
   CallbackManager<void()> state_callback_{};
+
+  uint8_t flashing_progress_{0};
+  FlasherState state_{FLASHER_IDLE};
+  FlasherError error_code_{FLASHER_OK};
+  FlasherAction requested_action_{};
 
   /* flashing embedded image*/
   FlashImage embedded_image_;

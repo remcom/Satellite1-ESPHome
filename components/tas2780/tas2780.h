@@ -16,19 +16,17 @@ namespace tas2780 {
 
 enum ChannelSelect : uint8_t { MONO_DWN_MIX, LEFT_CHANNEL, RIGHT_CHANNEL };
 
-class TAS2780 : public audio_dac::AudioDac, public Component, public i2c::I2CDevice {
+class TAS2780 : public audio_dac::AudioDac, public PollingComponent, public i2c::I2CDevice {
  public:
   void setup() override;
   void dump_config() override;
   float get_setup_priority() const override { return setup_priority::DATA; }
-  void loop() override;
+  void update() override;
 
-  void init();
   void reset();
   void activate(uint8_t power_mode = 2);
   void deactivate();
   void update_register();
-  void log_error_states();
 
   bool set_mute_off() override;
   bool set_mute_on() override;
@@ -52,9 +50,11 @@ class TAS2780 : public audio_dac::AudioDac, public Component, public i2c::I2CDev
 #endif
 
  protected:
-  void set_power_mode_(const uint8_t power_mode);
+  void init_();
+  void set_power_mode_(uint8_t power_mode);
   bool write_mute_();
   bool write_volume_();
+  void log_error_states_();
 
 #ifdef USE_SENSOR
   uint16_t read_sar_adc_(uint8_t msb_reg, uint8_t lsb_reg);
@@ -64,15 +64,13 @@ class TAS2780 : public audio_dac::AudioDac, public Component, public i2c::I2CDev
   float volume_{0};
   uint8_t power_mode_{2};
   uint8_t amp_level_{8};
-  float vol_range_min_{.3};
-  float vol_range_max_{1.};
+  float vol_range_min_{0.3f};
+  float vol_range_max_{1.0f};
   ChannelSelect selected_channel_{MONO_DWN_MIX};
 
 #ifdef USE_SENSOR
   sensor::Sensor *pvdd_sensor_{nullptr};
   sensor::Sensor *temperature_sensor_{nullptr};
-  uint32_t last_sensor_update_{0};
-  uint32_t sensor_update_interval_{5000};  // Default 5 seconds
 #endif
 };
 

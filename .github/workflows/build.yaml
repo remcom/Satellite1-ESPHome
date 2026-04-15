@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set version variables
         run: |
@@ -34,11 +34,11 @@ jobs:
 
       - name: Get ESPHome version from requirements.txt
         run: |
-          ESPHOME_VERSION=$(grep -oP 'esphome==\K[0-9.]+' requirements.txt)
+          ESPHOME_VERSION=$(grep -oP 'esphome==\K[^\s]+' requirements.txt)
           echo "ESPHOME_VERSION=${ESPHOME_VERSION}" >> $GITHUB_ENV
 
       - name: Build ESPHome firmware
-        uses: esphome/build-action@v7.1.0
+        uses: esphome/build-action@v7.2.0
         with:
           yaml-file: "config/${{ matrix.device }}.yaml"
           complete-manifest: true
@@ -75,7 +75,7 @@ jobs:
           done
 
       - name: Upload versioned artifacts to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.VERSION }}
           files: |
@@ -121,7 +121,7 @@ jobs:
 
       - name: Upload latest artifacts (stable only)
         if: github.event.release.prerelease == false
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: latest
           files: |
@@ -167,7 +167,7 @@ jobs:
 
       - name: Upload beta artifacts (for prerelease only)
         if: github.event.release.prerelease == true
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: beta
           files: |
@@ -181,7 +181,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Generate landing manifest
         run: |
@@ -201,7 +201,7 @@ jobs:
           EOF
 
       - name: Upload landing manifest
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.release.prerelease && 'beta' || 'latest' }}
           files: release-artifacts/landing-manifest.json

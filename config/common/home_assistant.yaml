@@ -63,19 +63,6 @@ switch:
 
 text_sensor:
   - platform: template
-    id: pd_state_text
-    name: "USB-C Power Draw"
-    icon: "mdi:usb-c-port"
-    entity_category: "diagnostic"
-    update_interval: never
-    lambda: |-
-      if( id(pd_fusb302b).state == power_delivery::PD_STATE_DISCONNECTED){
-        return std::string("Detached");
-      } else {
-        return id(pd_fusb302b).contract;
-      }
-
-  - platform: template
     id: xmos_firmware_version_text
     name: "XMOS Firmware"
     icon: "mdi:memory"
