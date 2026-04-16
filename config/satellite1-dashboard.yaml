@@ -18,7 +18,7 @@ substitutions:
 # Pull the complete Satellite1 configuration from GitHub
 packages:
   satellite1:
-    url: https://github.com/remcom/Satellite1-ESPHome
+    url: https://github.com/artfix/Satellite1-ESPHome
     ref: main
     files: [config/satellite1-remote.yaml]
     refresh: 1d  # Check for updates daily
@@ -33,9 +33,9 @@ wifi:
   password: !secret wifi_password
 
   # Fallback hotspot (if WiFi fails)
-  ap:
-    ssid: "${node_name}"
-    password: !secret wifi_ap_password
+#  ap:
+#    ssid: "${node_name}"
+#    password: !secret wifi_ap_password
 
 # OPTIONAL: Uncomment to enable specific features
 # packages:
