@@ -36,47 +36,104 @@ globals:
     restore_value: no
     # initial_value: ${voice_assist_not_ready_phase_id}
 
+# ============================================
+# SENSITIVITY SELECTORS (SEPARATE BLOCK)
+# ============================================
 select:
-  # Wake word sensitivity control - adjusts detection threshold for wake word models
-  # Higher sensitivity = more responsive but more false triggers
+  # Remove the default sensitivity selector that came from the package
+  - id: !remove mww_sensitivity_select
+  
+  # Replacement selector for MWw_1
   - platform: template
-    name: "Wake word sensitivity"
-    id: wake_word_sensitivity
+    id: mww_sensitivity_select_1
+    name: "WakeWord-1 Sensitivity"
     optimistic: true
-    initial_option: "Moderately sensitive"
+    initial_option: "Moderately sensitive (210)"
     restore_value: true
     entity_category: config
-    icon: "mdi:ear-hearing"
     options:
-      - "Slightly sensitive"
-      - "Moderately sensitive"
-      - "Very sensitive"
+      - Ultra insensitive (250)
+      - Maximum insensitive (240)
+      - Less insensitive (235)
+      - Slightly insensitive (230)
+      - Least insensitive (225)
+      - Moderately sensitive (210)
+      - Slightly sensitive (200)
+      - Least sensitive (190)
+      - Very sensitive (180)
+      - Extremely sensitive (170)
+      - Maximum sensitive (160)
     on_value:
-      then:
-        - lambda: |-
-            // Probability cutoff values from Home Assistant Voice PE
-            // FAPH = False Accepts Per Hour (measured against Dinner Party Corpus)
-            // Lower cutoff = more sensitive but more false triggers
-            auto index = id(wake_word_sensitivity).active_index();
-            if (!index.has_value()) return;
+      lambda: |-
+        if (x == "Ultra insensitive (250)") {
+          id(kira).set_probability_cutoff(250);
+        } else if (x == "Maximum insensitive (240)") {
+          id(kira).set_probability_cutoff(240);
+        } else if (x == "Less insensitive (235)") {
+          id(kira).set_probability_cutoff(235);
+        } else if (x == "Slightly insensitive (230)") {
+          id(kira).set_probability_cutoff(230);
+        } else if (x == "Least insensitive (225)") {
+          id(kira).set_probability_cutoff(225);
+        } else if (x == "Moderately sensitive (210)") {
+          id(kira).set_probability_cutoff(210);
+        } else if (x == "Slightly sensitive (200)") {
+          id(kira).set_probability_cutoff(200);
+        } else if (x == "Least sensitive (190)") {
+          id(kira).set_probability_cutoff(190);
+        } else if (x == "Very sensitive (180)") {
+          id(kira).set_probability_cutoff(180);
+        } else if (x == "Extremely sensitive (170)") {
+          id(kira).set_probability_cutoff(170);
+        } else if (x == "Maximum sensitive (160)") {
+          id(kira).set_probability_cutoff(160);
+        }
 
-            switch (index.value()) {
-              case 0:  // Slightly sensitive (lowest false accepts)
-                id(okay_nabu).set_probability_cutoff(217);   // 0.85 threshold, ~0.000 FAPH
-                id(hey_jarvis).set_probability_cutoff(247);  // 0.97 threshold, ~0.563 FAPH
-                id(hey_mycroft).set_probability_cutoff(253); // 0.99 threshold, ~0.567 FAPH
-                break;
-              case 1:  // Moderately sensitive (balanced)
-                id(okay_nabu).set_probability_cutoff(176);   // 0.69 threshold, ~0.376 FAPH
-                id(hey_jarvis).set_probability_cutoff(235);  // 0.92 threshold, ~0.939 FAPH
-                id(hey_mycroft).set_probability_cutoff(242); // 0.95 threshold, ~1.502 FAPH
-                break;
-              case 2:  // Very sensitive (highest detection rate)
-                id(okay_nabu).set_probability_cutoff(143);   // 0.56 threshold, ~0.751 FAPH
-                id(hey_jarvis).set_probability_cutoff(212);  // 0.83 threshold, ~1.502 FAPH
-                id(hey_mycroft).set_probability_cutoff(237); // 0.93 threshold, ~1.878 FAPH
-                break;
-            }
+  # Replacement selector for MWw_2
+  - platform: template
+    id: mww_sensitivity_select_2
+    name: "WakeWord-2 Sensitivity"
+    optimistic: true
+    initial_option: "Moderately sensitive (210)"
+    restore_value: true
+    entity_category: config
+    options:
+      - Ultra insensitive (250)
+      - Maximum insensitive (240)
+      - Less insensitive (235)
+      - Slightly insensitive (230)
+      - Least insensitive (225)
+      - Moderately sensitive (210)
+      - Slightly sensitive (200)
+      - Least sensitive (190)
+      - Very sensitive (180)
+      - Extremely sensitive (170)
+      - Maximum sensitive (160)
+    on_value:
+      lambda: |-
+        if (x == "Ultra insensitive (250)") {
+          id(frenzy).set_probability_cutoff(250);
+        } else if (x == "Maximum insensitive (240)") {
+          id(frenzy).set_probability_cutoff(240);
+        } else if (x == "Less insensitive (235)") {
+          id(frenzy).set_probability_cutoff(235);
+        } else if (x == "Slightly insensitive (230)") {
+          id(frenzy).set_probability_cutoff(230);
+        } else if (x == "Least insensitive (225)") {
+          id(frenzy).set_probability_cutoff(225);
+        } else if (x == "Moderately sensitive (210)") {
+          id(frenzy).set_probability_cutoff(210);
+        } else if (x == "Slightly sensitive (200)") {
+          id(frenzy).set_probability_cutoff(200);
+        } else if (x == "Least sensitive (190)") {
+          id(frenzy).set_probability_cutoff(190);
+        } else if (x == "Very sensitive (180)") {
+          id(frenzy).set_probability_cutoff(180);
+        } else if (x == "Extremely sensitive (170)") {
+          id(frenzy).set_probability_cutoff(170);
+        } else if (x == "Maximum sensitive (160)") {
+          id(frenzy).set_probability_cutoff(160);
+        }
 
 microphone:
   - platform: i2s_audio
@@ -102,15 +159,15 @@ micro_wake_word:
   microphone:
     microphone: sat1_mics
     channels: 0
-    gain_factor: 6
+    gain_factor: 7
   stop_after_detection: false
   models:
-    - model: https://github.com/kahrendt/microWakeWord/releases/download/okay_nabu_20241226.3/okay_nabu.json
-      id: okay_nabu
-    - model: hey_jarvis
-      id: hey_jarvis
-    - model: hey_mycroft
-      id: hey_mycroft
+    - model: github://artfix/microWakeWords/microWakeWords/kira.json@main
+      id: kira
+    - model: github://artfix/microWakeWords/microWakeWordsV2/frenzy.json@main
+      id: frenzy
+#    - model: hey_mycroft
+#      id: hey_mycroft
     - model: https://github.com/kahrendt/microWakeWord/releases/download/stop/stop.json
       id: stop
       internal: true
