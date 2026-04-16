@@ -42,7 +42,7 @@ globals:
 select:
   # Remove the default sensitivity selector that came from the package
   # - id: !remove mww_sensitivity_select
-  
+
   # Replacement selector for MWw_1
   - platform: template
     id: mww_sensitivity_select_1
