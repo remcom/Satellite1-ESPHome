@@ -207,8 +207,7 @@ void I2SAudioSpeakerBase::stop_(bool wait_on_empty) {
   }
 }
 
-bool IRAM_ATTR I2SAudioSpeakerBase::i2s_on_sent_cb(i2s_chan_handle_t handle, i2s_event_data_t *event,
-                                                    void *user_ctx) {
+bool IRAM_ATTR I2SAudioSpeakerBase::i2s_on_sent_cb(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx) {
   int64_t now = esp_timer_get_time();
 
   BaseType_t need_yield1 = pdFALSE;

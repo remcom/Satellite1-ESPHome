@@ -142,8 +142,7 @@ void I2SAudioSpeaker::run_speaker_task() {
         continue;
       }
 
-      const uint32_t read_delay =
-          (this->current_stream_info_.frames_to_microseconds(frames_written) / 1000) / 2;
+      const uint32_t read_delay = (this->current_stream_info_.frames_to_microseconds(frames_written) / 1000) / 2;
 
       size_t bytes_read = transfer_buffer->transfer_data_from_source(pdMS_TO_TICKS(read_delay));
       uint8_t *new_data = transfer_buffer->get_buffer_end() - bytes_read;
