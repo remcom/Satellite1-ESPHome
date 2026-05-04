@@ -8,6 +8,7 @@ from esphome.const import (
     CONF_INPUT,
     CONF_INVERTED,
     CONF_MODE,
+    CONF_NUMBER,
     CONF_OUTPUT,
     CONF_PIN,
 )
@@ -37,6 +38,12 @@ CONFIG_SCHEMA = (
 )
 
 
+def _inject_number(config):
+    config = dict(config)
+    config[CONF_NUMBER] = int(config.get(CONF_PIN, 0))
+    return config
+
+
 def _validate_pin_mode(value):
     if not (value[CONF_INPUT] or value[CONF_OUTPUT]):
         raise cv.Invalid("Mode must be either input or output")
@@ -46,10 +53,12 @@ def _validate_pin_mode(value):
 
 
 PIN_SCHEMA = cv.All(
+    _inject_number,
     {
         cv.GenerateID(): cv.declare_id(PCMGPIOPin),
         cv.Required(CONF_PCM5122): cv.use_id(PCM5122),
         cv.Required(CONF_PIN): cv.int_range(min=3, max=6),
+        cv.Optional(CONF_NUMBER): cv.int_range(min=3, max=6),
         cv.Optional(CONF_MODE, default={CONF_OUTPUT: True, CONF_INPUT: False}): cv.All(
             {
                 cv.Optional(CONF_INPUT, default=False): cv.boolean,

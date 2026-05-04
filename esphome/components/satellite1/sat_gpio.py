@@ -4,12 +4,13 @@ from esphome import pins
 
 from esphome.const import (
     CONF_ID,
+    CONF_INPUT,
+    CONF_INVERTED,
     CONF_MODE,
+    CONF_NUMBER,
+    CONF_OUTPUT,
     CONF_PIN,
     CONF_PORT,
-    CONF_OUTPUT,
-    CONF_INPUT,
-    CONF_INVERTED
 )
 
 from . import satellite1 as sat
@@ -31,6 +32,24 @@ XMOS_PORT = {
 "OUTPUT_A" : XMOSPort.OUTPUT_A      
 }
 
+_XMOS_PORT_OFFSET = {
+    "INPUT_A": 0,
+    "INPUT_B": 8,
+    "OUTPUT_A": 16,
+}
+
+
+def _inject_number(config):
+    # Inject a synthetic CONF_NUMBER so ESPHome's gpio/binary_sensor _final_validate
+    # can read it without crashing. The value is unused — satellite1 pins are expander
+    # pins and always fall back to polling mode at that validation stage.
+    port = str(config.get(CONF_PORT, "INPUT_A")).upper()
+    pin = int(config.get(CONF_PIN, 0))
+    config = dict(config)
+    config[CONF_NUMBER] = _XMOS_PORT_OFFSET.get(port, 0) + pin
+    return config
+
+
 def _validate_pin_mode(value):
     if not (value[CONF_INPUT] or value[CONF_OUTPUT]):
         raise cv.Invalid("Mode must be either input or output")
@@ -40,11 +59,13 @@ def _validate_pin_mode(value):
 
 
 PIN_SCHEMA = cv.All(
+    _inject_number,
     {
         cv.GenerateID(): cv.declare_id(Satellite1GPIOPin),
         cv.Required(sat.CONF_SATELLITE1): cv.use_id(sat.Satellite1),
         cv.Required(CONF_PORT): cv.enum(XMOS_PORT),
         cv.Required(CONF_PIN): cv.int_range(min=0, max=7),
+        cv.Optional(CONF_NUMBER): cv.int_range(min=0, max=23),
         cv.Optional(CONF_MODE, default=CONF_OUTPUT): cv.All(
             {
                 cv.Optional(CONF_INPUT, default=False): cv.boolean,
