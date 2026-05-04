@@ -182,6 +182,7 @@ class I2SAudioOut : public I2SAudioBase, public Parented<I2SPortComponent> {
   }
   size_t get_dma_buffer_size_ms() const { return this->parent_->dma_buffer_length_ * 1000 / this->sample_rate_; }
   uint8_t get_dma_buffer_count() const { return this->parent_->dma_buffer_count_; }
+  size_t get_dma_buffer_length() const { return this->parent_->dma_buffer_length_; }
 
   void register_at_parent() override { this->parent_->set_audio_out(this); }
 
