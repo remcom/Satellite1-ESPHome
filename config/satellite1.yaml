@@ -101,14 +101,6 @@ external_components:
       - pcm5122
       - fusb302b
       - dac_switcher
-  # ESPHome PRs for sendspin and related features
-  - source:
-      # https://github.com/esphome/esphome/pull/14933
-      type: git
-      url: https://github.com/kahrendt/esphome
-      ref: 890e33f99af2c2ea15dc74c3ec4cf32d25203526
-    components: [const, media_source, sendspin]
-    refresh: 300s
   - source:
       # https://github.com/esphome/esphome/pull/12429
       type: git
