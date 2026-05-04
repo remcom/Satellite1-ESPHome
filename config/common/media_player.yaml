@@ -73,6 +73,7 @@ select:
 binary_sensor:
   - platform: gpio
     id: line_out_sensor
+    use_interrupt: false
     pin:
       pcm5122: speaker_dac_pcm5122
       pin: 4
