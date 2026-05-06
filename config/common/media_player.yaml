@@ -347,7 +347,6 @@ script:
                 mode: !lambda return id(tas2780_power_mode);
             - lambda: id(tas2780_active) = true;
 
-# Only necessary for text metatdata
 text_sensor:
   - platform: sendspin
     id: track_title
@@ -358,8 +357,17 @@ text_sensor:
 
 sensor:
   - platform: sendspin
+    name: "Track Progress"
+    type: track_progress
+  - platform: sendspin
+    name: "Track Duration"
     type: track_duration
-    id: sendspin_track_duration
+  - platform: sendspin
+    name: "Track Number"
+    type: track
+  - platform: sendspin
+    name: "Year"
+    type: year
 
 interval:
   - interval: 30s
