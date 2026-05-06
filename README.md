@@ -2,9 +2,9 @@
 
 **ESPHome firmware for FutureProofHomes Satellite1 with synchronized multi-room audio using Sendspin**
 
-> **Beta Release** | Based on the original [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome) project
+> Based on the original [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome) project
 
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.4.0-blue)](https://esphome.io)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.5.0-blue)](https://esphome.io)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -92,7 +92,7 @@ Beyond multi-room audio, this fork includes:
 
 ### Software
 
-- **ESPHome** 2026.4.0 or newer
+- **ESPHome** 2026.5.0 or newer
 - **Home Assistant** with Voice Assistant configured
 - **Chrome or Edge browser** (for web installer)
 
@@ -146,14 +146,14 @@ We welcome contributions!
 
 - 🐛 **Report bugs** - [Open an issue](https://github.com/remcom/Satellite1-ESPHome/issues) if something doesn't work
 - 💡 **Suggest features** - Share ideas for improvements
-- 🧪 **Test and provide feedback** - Try the latest beta releases
+- 🧪 **Test and provide feedback** - Try the latest releases and share your experience
 - 📝 **Improve documentation** - Help others get started
 
 ### Choosing the Right Firmware
 
-- **Want stable, production-ready firmware?** → Use the official [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
+- **Need Sendspin multi-room audio?** → You're in the right place!
+- **Prefer the official firmware?** → Use [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
 - **Need Snapcast support?** → Use the official FutureProofHomes firmware
-- **Want Sendspin multi-room audio?** → You're in the right place!
 
 ---
 
