@@ -73,6 +73,7 @@ select:
 binary_sensor:
   - platform: gpio
     id: line_out_sensor
+    use_interrupt: false
     pin:
       pcm5122: speaker_dac_pcm5122
       pin: 4
@@ -217,10 +218,10 @@ audio_file:
 media_source:
   - platform: audio_file
     id: audio_file_announcement_source
-  - platform: http_request
+  - platform: audio_http
     id: http_announcement_source
     buffer_size: 250000
-  - platform: http_request
+  - platform: audio_http
     id: http_media_source
     buffer_size: 500000
   - platform: sendspin
@@ -346,7 +347,6 @@ script:
                 mode: !lambda return id(tas2780_power_mode);
             - lambda: id(tas2780_active) = true;
 
-# Only necessary for text metatdata
 text_sensor:
   - platform: sendspin
     id: track_title
@@ -357,8 +357,17 @@ text_sensor:
 
 sensor:
   - platform: sendspin
+    name: "Track Progress"
+    type: track_progress
+  - platform: sendspin
+    name: "Track Duration"
     type: track_duration
-    id: sendspin_track_duration
+  - platform: sendspin
+    name: "Track Number"
+    type: track
+  - platform: sendspin
+    name: "Year"
+    type: year
 
 interval:
   - interval: 30s
