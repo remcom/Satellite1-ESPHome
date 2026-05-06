@@ -100,7 +100,7 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   uint32_t buffer_duration_ms_;
   optional<uint32_t> timeout_;
   bool pause_state_{false};
-  int16_t q15_volume_factor_{INT16_MAX};
+  int32_t q31_volume_factor_{INT32_MAX};
 
   QueueHandle_t i2s_event_queue_{nullptr};
 

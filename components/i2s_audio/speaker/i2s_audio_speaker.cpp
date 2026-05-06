@@ -9,22 +9,16 @@
 
 #include "esp_timer.h"
 
+// esp-audio-libs
+#include <gain.h>
+
 namespace esphome::i2s_audio {
 
 static const char *const TAG = "i2s_audio.speaker";
 
-// Lists the Q15 fixed point scaling factor for volume reduction.
-// Has 100 values representing silence and a reduction [49, 48.5, ... 0.5, 0] dB.
-// dB to PCM scaling factor formula: floating_point_scale_factor = 2^(-db/6.014)
-// float to Q15 fixed point formula: q15_scale_factor = floating_point_scale_factor * 2^(15)
-static const std::vector<int16_t> Q15_VOLUME_SCALING_FACTORS = {
-    0,     116,   122,   130,   137,   146,   154,   163,   173,   183,   194,   206,   218,   231,   244,
-    259,   274,   291,   308,   326,   345,   366,   388,   411,   435,   461,   488,   517,   548,   580,
-    615,   651,   690,   731,   774,   820,   868,   920,   974,   1032,  1094,  1158,  1227,  1300,  1377,
-    1459,  1545,  1637,  1734,  1837,  1946,  2061,  2184,  2313,  2450,  2596,  2750,  2913,  3085,  3269,
-    3462,  3668,  3885,  4116,  4360,  4619,  4893,  5183,  5490,  5816,  6161,  6527,  6914,  7324,  7758,
-    8218,  8706,  9222,  9770,  10349, 10963, 11613, 12302, 13032, 13805, 14624, 15491, 16410, 17384, 18415,
-    19508, 20665, 21891, 23189, 24565, 26022, 27566, 29201, 30933, 32767};
+// Software volume control maps the user-facing [0.0, 1.0] range to a Q31 scale factor.
+// Volumes in (0.0, 1.0) map linearly to a dB reduction in [-49.0, 0.0] dB.
+static constexpr float SOFTWARE_VOLUME_MIN_DB = -49.0f;
 
 void I2SAudioSpeakerBase::setup() {
   this->event_group_ = xEventGroupCreate();
@@ -118,10 +112,12 @@ void I2SAudioSpeakerBase::set_volume(float volume) {
 #endif  // USE_AUDIO_DAC
   {
     if (volume >= 1.0f) {
-      this->q15_volume_factor_ = INT16_MAX;
+      this->q31_volume_factor_ = INT32_MAX;
+    } else if (volume <= 0.0f) {
+      this->q31_volume_factor_ = 0;
     } else {
-      ssize_t decibel_index = remap<ssize_t, float>(volume, 0.0f, 1.0f, 0, Q15_VOLUME_SCALING_FACTORS.size() - 1);
-      this->q15_volume_factor_ = Q15_VOLUME_SCALING_FACTORS[decibel_index];
+      this->q31_volume_factor_ =
+          esp_audio_libs::gain::db_to_q31(remap<float, float>(volume, 0.0f, 1.0f, SOFTWARE_VOLUME_MIN_DB, 0.0f));
     }
   }
 }
@@ -139,7 +135,7 @@ void I2SAudioSpeakerBase::set_mute_state(bool mute_state) {
 #endif  // USE_AUDIO_DAC
   {
     if (mute_state) {
-      this->q15_volume_factor_ = 0;
+      this->q31_volume_factor_ = 0;
     } else {
       this->set_volume(this->volume_);
     }
@@ -227,26 +223,14 @@ bool IRAM_ATTR I2SAudioSpeakerBase::i2s_on_sent_cb(i2s_chan_handle_t handle, i2s
 }
 
 void I2SAudioSpeakerBase::apply_software_volume_(uint8_t *data, size_t bytes_read) {
-  if (this->q15_volume_factor_ >= INT16_MAX)
-    return;
+  if (this->q31_volume_factor_ == INT32_MAX) {
+    return;  // Max volume, no processing needed
+  }
 
   const size_t bytes_per_sample = this->current_stream_info_.samples_to_bytes(1);
   const uint32_t len = bytes_read / bytes_per_sample;
 
-  int32_t shift = 15;
-  int32_t gain_factor = this->q15_volume_factor_;
-
-  if (bytes_per_sample >= 3) {
-    shift = 8;
-    gain_factor >>= 7;
-  }
-
-  for (uint32_t i = 0; i < len; ++i) {
-    int32_t sample = audio::unpack_audio_sample_to_q31(&data[i * bytes_per_sample], bytes_per_sample);
-    sample >>= shift;
-    sample *= gain_factor;
-    audio::pack_q31_as_audio_sample(sample, &data[i * bytes_per_sample], bytes_per_sample);
-  }
+  esp_audio_libs::gain::apply(data, data, this->q31_volume_factor_, len, bytes_per_sample);
 }
 
 void I2SAudioSpeakerBase::swap_esp32_mono_samples_(uint8_t *data, size_t bytes_read) {
