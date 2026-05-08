@@ -55,7 +55,7 @@ void ResamplerMicrophone::setup() {
       return;
     }
     if (this->requires_resampling_()) {
-      std::shared_ptr<RingBuffer> temp_ring_buffer = this->ring_buffer_.lock();
+      std::shared_ptr<ring_buffer::RingBuffer> temp_ring_buffer = this->ring_buffer_.lock();
       if (this->ring_buffer_.use_count() > 1) {
         size_t bytes_free = temp_ring_buffer->free();
 
@@ -249,10 +249,10 @@ void ResamplerMicrophone::resample_task(void *params) {
   esp_err_t err = resampler->start(source_stream_info, this_resampler->audio_stream_info_, this_resampler->taps_,
                                    this_resampler->filters_);
 
-  std::shared_ptr<RingBuffer> output_ring_buffer;
+  std::shared_ptr<ring_buffer::RingBuffer> output_ring_buffer;
   if (err == ESP_OK) {
-    std::shared_ptr<RingBuffer> temp_ring_buffer =
-        RingBuffer::create(source_stream_info.ms_to_bytes(this_resampler->buffer_duration_ms_));
+    std::shared_ptr<ring_buffer::RingBuffer> temp_ring_buffer =
+        ring_buffer::RingBuffer::create(source_stream_info.ms_to_bytes(this_resampler->buffer_duration_ms_));
 
     if (temp_ring_buffer.use_count() == 0) {
       err = ESP_ERR_NO_MEM;
@@ -262,11 +262,11 @@ void ResamplerMicrophone::resample_task(void *params) {
 
       // Create output ring buffer for resampled audio
       output_ring_buffer =
-          RingBuffer::create(this_resampler->audio_stream_info_.ms_to_bytes(this_resampler->buffer_duration_ms_));
+          ring_buffer::RingBuffer::create(this_resampler->audio_stream_info_.ms_to_bytes(this_resampler->buffer_duration_ms_));
       if (output_ring_buffer.use_count() == 0) {
         err = ESP_ERR_NO_MEM;
       } else {
-        std::weak_ptr<RingBuffer> output_ring_buffer_weak = output_ring_buffer;
+        std::weak_ptr<ring_buffer::RingBuffer> output_ring_buffer_weak = output_ring_buffer;
         resampler->add_sink(output_ring_buffer_weak);
       }
     }

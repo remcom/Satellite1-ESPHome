@@ -82,7 +82,7 @@ void I2SAudioSpeaker::run_speaker_task() {
   }
 
   if (transfer_buffer != nullptr && (expand_factor == 1 || expansion_buffer != nullptr)) {
-    std::shared_ptr<RingBuffer> temp_ring_buffer = RingBuffer::create(ring_buffer_size);
+    std::shared_ptr<ring_buffer::RingBuffer> temp_ring_buffer = ring_buffer::RingBuffer::create(ring_buffer_size);
     if (temp_ring_buffer.use_count() == 1) {
       transfer_buffer->set_source(temp_ring_buffer);
       this->audio_ring_buffer_ = temp_ring_buffer;  // assign to base weak_ptr

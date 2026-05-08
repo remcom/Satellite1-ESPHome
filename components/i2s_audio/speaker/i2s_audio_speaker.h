@@ -14,7 +14,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
 #include "esphome/core/helpers.h"
-#include "esphome/core/ring_buffer.h"
+#include "esphome/components/ring_buffer/ring_buffer.h"
 
 namespace esphome::i2s_audio {
 
@@ -95,7 +95,7 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   EventGroupHandle_t event_group_{nullptr};
 
   // Weak pointer: task owns the shared_ptr; base holds a weak ref for play() / has_buffered_data()
-  std::weak_ptr<RingBuffer> audio_ring_buffer_;
+  std::weak_ptr<ring_buffer::RingBuffer> audio_ring_buffer_;
 
   uint32_t buffer_duration_ms_;
   optional<uint32_t> timeout_;

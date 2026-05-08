@@ -5,6 +5,7 @@
 #include "esphome/components/audio/audio.h"
 #include "esphome/components/audio/audio_transfer_buffer.h"
 #include "esphome/components/microphone/microphone_source.h"
+#include "esphome/components/ring_buffer/ring_buffer.h"
 
 #include "esphome/core/component.h"
 
@@ -68,7 +69,7 @@ class ResamplerMicrophone : public Component, public microphone::Microphone {
   StackType_t *task_stack_buffer_{nullptr};
   StaticTask_t task_stack_;
 
-  std::weak_ptr<RingBuffer> ring_buffer_;
+  std::weak_ptr<ring_buffer::RingBuffer> ring_buffer_;
 
   audio::AudioStreamInfo source_stream_info_;
 };
