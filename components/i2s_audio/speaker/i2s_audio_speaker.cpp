@@ -55,6 +55,17 @@ void I2SAudioSpeakerBase::loop() {
   }
   if (event_group_bits & SpeakerEventGroupBits::TASK_STOPPING) {
     ESP_LOGV(TAG, "Stopping");
+    // Lockstep-breaking error bits are latched by the task and cleared along with all other bits
+    // when TASK_STOPPED is processed; log them here, exactly once, as the task winds down.
+    if (event_group_bits & SpeakerEventGroupBits::ERR_DROPPED_EVENT) {
+      ESP_LOGE(TAG, "ISR event queue overflow, restarting speaker task to recover timestamp sync");
+    }
+    if (event_group_bits & SpeakerEventGroupBits::ERR_PARTIAL_WRITE) {
+      ESP_LOGE(TAG, "Partial DMA write broke buffer alignment, restarting speaker task");
+    }
+    if (event_group_bits & SpeakerEventGroupBits::ERR_LOCKSTEP_DESYNC) {
+      ESP_LOGE(TAG, "Event/record queues desynced, restarting speaker task");
+    }
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::TASK_STOPPING);
     this->state_ = speaker::STATE_STOPPING;
   }
@@ -75,10 +86,6 @@ void I2SAudioSpeakerBase::loop() {
   if (event_group_bits & SpeakerEventGroupBits::ERR_ESP_NO_MEM) {
     ESP_LOGE(TAG, "Not enough memory");
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::ERR_ESP_NO_MEM);
-  }
-  if (event_group_bits & SpeakerEventGroupBits::WARN_DROPPED_EVENT) {
-    ESP_LOGW(TAG, "I2S event queue full; dropped oldest event");
-    xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::WARN_DROPPED_EVENT);
   }
 
   // Spawn task when COMMAND_START is received and speaker is starting
@@ -213,9 +220,16 @@ bool IRAM_ATTR I2SAudioSpeakerBase::i2s_on_sent_cb(i2s_chan_handle_t handle, i2s
   I2SAudioSpeakerBase *this_speaker = (I2SAudioSpeakerBase *) user_ctx;
 
   if (xQueueIsQueueFullFromISR(this_speaker->i2s_event_queue_)) {
-    xEventGroupSetBits(this_speaker->event_group_, SpeakerEventGroupBits::WARN_DROPPED_EVENT);
+    // Queue is full, so discard the oldest event. Once we drop a completion event, i2s_event_queue_
+    // and any per-buffer record queue maintained by the task are permanently desynced, so the task
+    // must restart to recover. Set both ERR_DROPPED_EVENT (so loop() can log it) and COMMAND_STOP
+    // (so the task bails immediately, closing the race where loop() could clear the error bit
+    // before the task observes it).
     int64_t dummy;
     xQueueReceiveFromISR(this_speaker->i2s_event_queue_, &dummy, &need_yield1);
+    xEventGroupSetBitsFromISR(this_speaker->event_group_,
+                              SpeakerEventGroupBits::ERR_DROPPED_EVENT | SpeakerEventGroupBits::COMMAND_STOP,
+                              &need_yield2);
   }
   xQueueSendToBackFromISR(this_speaker->i2s_event_queue_, &now, &need_yield3);
 
