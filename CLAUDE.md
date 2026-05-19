@@ -100,7 +100,7 @@ Important IDs used across YAML configs:
 ## Key Conventions
 
 - ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md`
-- ESPHome version pinned in `requirements.txt` (currently 2026.3.2)
+- ESPHome version pinned in `requirements.txt` (currently 2026.5.0)
 - Python 3.11-3.13 required (ESPHome constraint)
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - External components reference specific git commits for stability
