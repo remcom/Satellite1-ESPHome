@@ -261,8 +261,8 @@ void ResamplerMicrophone::resample_task(void *params) {
       resampler->add_source(this_resampler->ring_buffer_);
 
       // Create output ring buffer for resampled audio
-      output_ring_buffer =
-          ring_buffer::RingBuffer::create(this_resampler->audio_stream_info_.ms_to_bytes(this_resampler->buffer_duration_ms_));
+      output_ring_buffer = ring_buffer::RingBuffer::create(
+          this_resampler->audio_stream_info_.ms_to_bytes(this_resampler->buffer_duration_ms_));
       if (output_ring_buffer.use_count() == 0) {
         err = ESP_ERR_NO_MEM;
       } else {
