@@ -3,12 +3,12 @@ substitutions:
   friendly_name: "Satellite1"
 
   # Change to calibrate your temperature/humidity sensor readings
-  temp_offset: "-3"
-  humidity_offset: "5"
+  temp_offset: "0"
+  humidity_offset: "0"
 
   # Recommend leaving the following unchanged
   node_name: satellite1
-  company_name: FutureProofHomes
+  company_name: HackZone
   project_name: Satellite1
   component_name: Core
 
