@@ -1,5 +1,5 @@
 substitutions:
-  company_name: FutureProofHomes
+  company_name: Hackone
   project_name: Satellite1
 
 packages:
@@ -80,7 +80,7 @@ external_components:
   # FPH Custom Components - fetched from GitHub for remote/dashboard builds
   - source:
       type: git
-      url: https://github.com/remcom/Satellite1-ESPHome
+      url: https://github.com/artfix/Satellite1-ESPHome
       ref: main
       path: esphome/components
     components:
@@ -90,7 +90,7 @@ external_components:
   # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
   - source:
       type: git
-      url: https://github.com/remcom/Satellite1-ESPHome
+      url: https://github.com/artfix/Satellite1-ESPHome
       ref: main
       path: components
     components:
