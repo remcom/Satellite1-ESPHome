@@ -1,5 +1,5 @@
 substitutions:
-  company_name: FutureProofHomes
+  company_name: HackZone
   project_name: Satellite1
 
 packages:
@@ -61,7 +61,7 @@ esphome:
 
 # Dashboard import enables automatic updates from GitHub
 dashboard_import:
-  package_import_url: github://remcom/Satellite1-ESPHome/config/satellite1-dashboard.yaml@main
+  package_import_url: github://artfix/Satellite1-ESPHome/config/satellite1-dashboard.yaml@main
   import_full_config: false
 
 esp32_improv:
