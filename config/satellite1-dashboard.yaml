@@ -31,7 +31,14 @@ packages:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  use_address: 192.168.1.6  # Use the local IP of the sat1 to better find it in LAN
+  use_address: 192.168.1.6  
+  # Use the local IP of the sat1 to better find it in LAN and for wifi bug of not connecting
+
+# Added encryption key to pass the sat1 on-board, is a MUST
+api:
+  batch_delay: 50ms  # Reduce latency for real-time applications
+  encryption:
+    key: your_key_here
 
   # Fallback hotspot (if WiFi fails)
 #  ap:
