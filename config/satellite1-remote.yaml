@@ -97,9 +97,15 @@ external_components:
       - i2s_audio
       - resampler
       - tas2780
-      - pcm5122
       - fusb302b
       - dac_switcher
+  # PCM5122 audio DAC from: https://github.com/esphome/esphome/pull/15709
+  - source:
+      type: git
+      url: https://github.com/remcom/esphome
+      ref: f8258913eb622417ba3d5e9cba1d1fde4a313972
+    components:
+      - pcm5122
   # ESPHome PRs for sendspin and related features
 
 logger:
