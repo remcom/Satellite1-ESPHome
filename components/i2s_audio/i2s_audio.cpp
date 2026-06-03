@@ -151,13 +151,18 @@ bool I2SAudioOut::stop_i2s_channel_() {
     return false;
   }
 
-  // Delete channel and reset state for clean restart (matches upstream behavior)
-  err = i2s_del_channel(this->parent_->tx_handle_);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to delete TX channel: %s", esp_err_to_name(err));
-    return false;
+  // Only delete the channel when the RX side is also gone. If the mic is still
+  // active (rx_handle_ != nullptr), keep the handle allocated so the next TX
+  // start can re-enable it without calling init_driver_(), which requires both
+  // handles to be null before i2s_new_channel() can pair them.
+  if (this->parent_->rx_handle_ == nullptr) {
+    err = i2s_del_channel(this->parent_->tx_handle_);
+    if (err != ESP_OK) {
+      ESP_LOGE(TAG, "Failed to delete TX channel: %s", esp_err_to_name(err));
+      return false;
+    }
+    this->parent_->tx_handle_ = nullptr;
   }
-  this->parent_->tx_handle_ = nullptr;
   this->callbacks_registered_ = false;
   return true;
 }
