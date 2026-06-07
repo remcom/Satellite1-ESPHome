@@ -101,14 +101,14 @@ external_components:
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: d883f72b19eda90ab10958a1c8ca36b7ee91e5b7
+      ref: 36ae9866b8625a8f428101a37b949b831e842c1d
     components:
       - tas2780
   # PCM5122 audio DAC from: https://github.com/esphome/esphome/pull/15709
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: f8258913eb622417ba3d5e9cba1d1fde4a313972
+      ref: 2543b3c15c1954f4dd65c118ee545bc92f92de3b
     components:
       - pcm5122
   # Router speaker from: https://github.com/esphome/esphome/pull/16592
