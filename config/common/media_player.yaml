@@ -15,14 +15,8 @@ audio_dac:
   - platform: tas2780
     id: speaker_dac_tas2780
     address: 0x3F
-    pvdd_sensor:
-      name: "Amplifier Supply Voltage"
-      disabled_by_default: true
-      entity_category: diagnostic
-    temperature:
-      name: "Amplifier Temperature"
-      disabled_by_default: true
-      entity_category: diagnostic
+    vol_range_min: 0.65
+    vol_range_max: 1.0
 
   - platform: pcm5122
     id: speaker_dac_pcm5122
@@ -65,10 +59,10 @@ select:
           channel: !lambda |-
             auto index = id(tas_mode_select).active_index();
             if (index.has_value()){
-              return index.value();
+              return (esphome::tas2780::ChannelSelect) index.value();
             }
             ESP_LOGI("main", "No channel selected");
-            return 0;
+            return (esphome::tas2780::ChannelSelect) 0;
 
 binary_sensor:
   - platform: gpio
@@ -76,7 +70,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       pcm5122: speaker_dac_pcm5122
-      pin: 4
+      number: 3
       inverted: false
     name: "Line-Out Connected"
     icon: "mdi:audio-input-stereo-minijack"
@@ -141,7 +135,7 @@ fusb302b:
             id(tas2780_power_mode) = 0;
           }
       - tas2780.activate:
-          mode: !lambda return id(tas2780_power_mode);
+          power_mode: !lambda return id(tas2780_power_mode);
       - lambda: id(tas2780_active) = true;
 
 speaker:
@@ -344,7 +338,7 @@ script:
                 format: "Activating TAS2780 with power mode %d"
                 args: ['id(tas2780_power_mode)']
             - tas2780.activate:
-                mode: !lambda return id(tas2780_power_mode);
+                power_mode: !lambda return id(tas2780_power_mode);
             - lambda: id(tas2780_active) = true;
 
 text_sensor:

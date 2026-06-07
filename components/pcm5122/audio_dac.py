@@ -10,7 +10,6 @@ from esphome.const import (
     CONF_MODE,
     CONF_NUMBER,
     CONF_OUTPUT,
-    CONF_PIN,
 )
 
 CODEOWNERS = ["@remcom"]
@@ -34,40 +33,36 @@ CONFIG_SCHEMA = (
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
-    .extend(i2c.i2c_device_schema(0x18))
+    .extend(i2c.i2c_device_schema(0x4D))
 )
-
-
-def _inject_number(config):
-    config = dict(config)
-    config[CONF_NUMBER] = int(config.get(CONF_PIN, 0))
-    return config
 
 
 def _validate_pin_mode(value):
     if not (value[CONF_INPUT] or value[CONF_OUTPUT]):
         raise cv.Invalid("Mode must be either input or output")
     if value[CONF_INPUT] and value[CONF_OUTPUT]:
-        raise cv.Invalid("Mode must be either input or output")
+        raise cv.Invalid("Mode must be either input or output, not both")
+    return value
+
+
+def _validate_pin(value):
+    if value[CONF_MODE][CONF_INPUT] and value[CONF_NUMBER] == 6:
+        raise cv.Invalid("GPIO6 cannot be used as input on the PCM5122")
     return value
 
 
 PIN_SCHEMA = cv.All(
-    _inject_number,
-    {
-        cv.GenerateID(): cv.declare_id(PCMGPIOPin),
-        cv.Required(CONF_PCM5122): cv.use_id(PCM5122),
-        cv.Required(CONF_PIN): cv.int_range(min=3, max=6),
-        cv.Optional(CONF_NUMBER): cv.int_range(min=3, max=6),
-        cv.Optional(CONF_MODE, default={CONF_OUTPUT: True, CONF_INPUT: False}): cv.All(
-            {
-                cv.Optional(CONF_INPUT, default=False): cv.boolean,
-                cv.Optional(CONF_OUTPUT, default=False): cv.boolean,
-            },
-            _validate_pin_mode,
-        ),
-        cv.Optional(CONF_INVERTED, default=False): cv.boolean,
-    }
+    pins.gpio_base_schema(
+        PCMGPIOPin,
+        cv.int_range(min=3, max=6),
+        modes=[CONF_INPUT, CONF_OUTPUT],
+        mode_validator=_validate_pin_mode,
+    ).extend(
+        {
+            cv.Required(CONF_PCM5122): cv.use_id(PCM5122),
+        }
+    ),
+    _validate_pin,
 )
 
 
@@ -76,7 +71,7 @@ async def pcm5122_pin_to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_parented(var, config[CONF_PCM5122])
 
-    cg.add(var.set_pin(config[CONF_PIN]))
+    cg.add(var.set_pin(config[CONF_NUMBER]))
     cg.add(var.set_inverted(config[CONF_INVERTED]))
     cg.add(var.set_flags(pins.gpio_flags_expr(config[CONF_MODE])))
     return var
