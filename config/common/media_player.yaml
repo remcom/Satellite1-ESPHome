@@ -68,7 +68,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       pcm5122: speaker_dac_pcm5122
-      number: 4
+      number: 3
       inverted: false
     name: "Line-Out Connected"
     icon: "mdi:audio-input-stereo-minijack"
