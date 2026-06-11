@@ -179,11 +179,11 @@ size_t I2SAudioMicrophone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_w
       // Avoid spamming the logs with the error message if its repeated
       ESP_LOGW(TAG, "Error reading from I2S microphone: %s", esp_err_to_name(err));
     }
-    this->status_set_warning();
+    this->status_set_warning(LOG_STR("I2S read error"));
     return 0;
   }
   if ((bytes_read == 0) && (ticks_to_wait > 0)) {
-    this->status_set_warning();
+    this->status_set_warning(LOG_STR("No data received"));
     return 0;
   }
   this->status_clear_warning();

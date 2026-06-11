@@ -12,7 +12,8 @@
 // esp-audio-libs
 #include <gain.h>
 
-namespace esphome::i2s_audio {
+namespace esphome {
+namespace i2s_audio {
 
 static const char *const TAG = "i2s_audio.speaker";
 
@@ -261,6 +262,7 @@ void I2SAudioSpeakerBase::swap_esp32_mono_samples_(uint8_t *data, size_t bytes_r
 #endif  // USE_ESP32_VARIANT_ESP32
 }
 
-}  // namespace esphome::i2s_audio
+}  // namespace i2s_audio
+}  // namespace esphome
 
 #endif  // USE_ESP32

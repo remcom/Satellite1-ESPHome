@@ -15,37 +15,29 @@ audio_dac:
   - platform: tas2780
     id: speaker_dac_tas2780
     address: 0x3F
-    pvdd_sensor:
-      name: "Amplifier Supply Voltage"
-      disabled_by_default: true
-      entity_category: diagnostic
-    temperature:
-      name: "Amplifier Temperature"
-      disabled_by_default: true
-      entity_category: diagnostic
+    vol_range_min: 0.65
+    vol_range_max: 1.0
 
   - platform: pcm5122
     id: speaker_dac_pcm5122
     address: 0x4D
-
-  # Define the DAC switcher
-  - platform: dac_switcher
-    id: dac_switcher_main
-    tas2780: speaker_dac_tas2780
-    pcm5122: speaker_dac_pcm5122
 
 # API actions for switching between DACs
 api:
   actions:
     - action: switch_to_speaker
       then:
-        - dac_switcher.select_tas2780:
-            id: dac_switcher_main
+        - audio_dac.mute_on: speaker_dac_pcm5122
+        - router.speaker.switch_output:
+            id: router_speaker
+            target_speaker: i2s_tas2780_speaker
 
     - action: switch_to_lineout
       then:
-        - dac_switcher.select_pcm5122:
-            id: dac_switcher_main
+        - audio_dac.mute_on: speaker_dac_tas2780
+        - router.speaker.switch_output:
+            id: router_speaker
+            target_speaker: i2s_pcm5122_speaker
 
 select:
   - platform: template
@@ -65,10 +57,10 @@ select:
           channel: !lambda |-
             auto index = id(tas_mode_select).active_index();
             if (index.has_value()){
-              return index.value();
+              return static_cast<esphome::tas2780::ChannelSelect>(index.value());
             }
             ESP_LOGI("main", "No channel selected");
-            return 0;
+            return esphome::tas2780::ChannelSelect::MONO_DWN_MIX;
 
 binary_sensor:
   - platform: gpio
@@ -76,7 +68,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       pcm5122: speaker_dac_pcm5122
-      pin: 4
+      number: 3
       inverted: false
     name: "Line-Out Connected"
     icon: "mdi:audio-input-stereo-minijack"
@@ -87,8 +79,10 @@ binary_sensor:
     on_press:
       # Cable inserted - switch to line-out DAC
       #  - Enable Sendspin static delay adjustment to apply the persisted delay when using the external audio output
-      - dac_switcher.select_pcm5122:
-          id: dac_switcher_main
+      - audio_dac.mute_on: speaker_dac_tas2780
+      - router.speaker.switch_output:
+          id: router_speaker
+          target_speaker: i2s_pcm5122_speaker
       - lambda: id(jack_plugged_recently) = true;
       - script.execute: control_leds
       - delay: 200ms
@@ -104,8 +98,10 @@ binary_sensor:
     on_release:
       # Cable removed - switch back to speaker DAC
       #  - Disable Sendspin static delay adjustment when using the internal speaker
-      - dac_switcher.select_tas2780:
-          id: dac_switcher_main
+      - audio_dac.mute_on: speaker_dac_pcm5122
+      - router.speaker.switch_output:
+          id: router_speaker
+          target_speaker: i2s_tas2780_speaker
       - lambda: id(jack_unplugged_recently) = true;
       - script.execute: control_leds
       - sendspin.media_source.disable_static_delay_adjustment:
@@ -141,26 +137,51 @@ fusb302b:
             id(tas2780_power_mode) = 0;
           }
       - tas2780.activate:
-          mode: !lambda return id(tas2780_power_mode);
+          power_mode: !lambda return id(tas2780_power_mode);
       - lambda: id(tas2780_active) = true;
 
 speaker:
   - platform: i2s_audio
-    id: i2s_audio_speaker
+    id: i2s_tas2780_speaker
     sample_rate: 48000
-    i2s_dout_pin: GPIO9
+    i2s_dout_pin:
+      number: GPIO9
+      allow_other_uses: true
     bits_per_sample: 32bit
     i2s_audio_id: i2s_shared
     dac_type: external
     channel: stereo
     timeout: never
     buffer_duration: 100ms
-    audio_dac: dac_switcher_main  # Using DAC switcher for TAS2780/PCM5122 selection
+    audio_dac: speaker_dac_tas2780
+
+  - platform: i2s_audio
+    id: i2s_pcm5122_speaker
+    sample_rate: 48000
+    i2s_dout_pin:
+      number: GPIO9
+      allow_other_uses: true
+    bits_per_sample: 32bit
+    i2s_audio_id: i2s_shared
+    dac_type: external
+    channel: stereo
+    timeout: never
+    buffer_duration: 100ms
+    audio_dac: speaker_dac_pcm5122
+
+  - platform: router
+    id: router_speaker
+    bits_per_sample: 16
+    num_channels: 2
+    sample_rate: 48000
+    output_speakers:
+      - i2s_tas2780_speaker
+      - i2s_pcm5122_speaker
 
   # Virtual speakers to combine the announcement and media streams together into one output
   - platform: mixer
     id: mixing_speaker
-    output_speaker: i2s_audio_speaker
+    output_speaker: router_speaker
     num_channels: 2
     task_stack_in_psram: true
     source_speakers:
@@ -344,7 +365,7 @@ script:
                 format: "Activating TAS2780 with power mode %d"
                 args: ['id(tas2780_power_mode)']
             - tas2780.activate:
-                mode: !lambda return id(tas2780_power_mode);
+                power_mode: !lambda return id(tas2780_power_mode);
             - lambda: id(tas2780_active) = true;
 
 text_sensor:

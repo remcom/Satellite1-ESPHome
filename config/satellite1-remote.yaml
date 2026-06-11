@@ -96,11 +96,14 @@ external_components:
     components:
       - i2s_audio
       - resampler
-      - tas2780
-      - pcm5122
       - fusb302b
-      - dac_switcher
-  # ESPHome PRs for sendspin and related features
+  # TAS2780 audio amplifier from: https://github.com/esphome/esphome/pull/15708
+  - source:
+      type: git
+      url: https://github.com/remcom/esphome
+      ref: 36ae9866b8625a8f428101a37b949b831e842c1d
+    components:
+      - tas2780
 
 logger:
 

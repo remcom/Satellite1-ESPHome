@@ -36,7 +36,7 @@ esphome:
   name: ${node_name}
   name_add_mac_suffix: true
   friendly_name: ${friendly_name}
-  min_version: 2026.5.0
+  min_version: 2026.6.0
 
   project:
     name: ${company_name}.${project_name}
@@ -135,7 +135,7 @@ memory_flasher:
         - script.execute: control_leds
         - lambda: id(xmos_flashing_state) = 0;
         - tas2780.activate:
-            mode: !lambda return id(tas2780_power_mode);
+            power_mode: !lambda return id(tas2780_power_mode);
         - lambda: id(tas2780_active) = true;
 
     on_flashing_failed:
