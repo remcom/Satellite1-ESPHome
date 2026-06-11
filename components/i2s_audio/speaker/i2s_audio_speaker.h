@@ -16,7 +16,8 @@
 #include "esphome/core/helpers.h"
 #include "esphome/components/ring_buffer/ring_buffer.h"
 
-namespace esphome::i2s_audio {
+namespace esphome {
+namespace i2s_audio {
 
 // Shared constants for I2S audio speaker implementations
 static constexpr uint32_t DMA_BUFFER_DURATION_MS = 15;
@@ -113,6 +114,7 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   audio::AudioStreamInfo current_stream_info_;
 };
 
-}  // namespace esphome::i2s_audio
+}  // namespace i2s_audio
+}  // namespace esphome
 
 #endif  // USE_ESP32

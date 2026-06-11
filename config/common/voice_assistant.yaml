@@ -104,6 +104,7 @@ micro_wake_word:
     channels: 0
     gain_factor: 6
   stop_after_detection: false
+  task_stack_in_psram: true
   models:
     - model: https://github.com/kahrendt/microWakeWord/releases/download/okay_nabu_20241226.3/okay_nabu.json
       id: okay_nabu

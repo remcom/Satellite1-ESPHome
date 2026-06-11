@@ -4,7 +4,8 @@
 
 #include "i2s_audio_speaker.h"
 
-namespace esphome::i2s_audio {
+namespace esphome {
+namespace i2s_audio {
 
 enum class I2SCommFmt : uint8_t {
   STANDARD,  // Philips / I2S standard
@@ -30,6 +31,7 @@ class I2SAudioSpeaker : public I2SAudioSpeakerBase {
   I2SCommFmt i2s_comm_fmt_{I2SCommFmt::STANDARD};
 };
 
-}  // namespace esphome::i2s_audio
+}  // namespace i2s_audio
+}  // namespace esphome
 
 #endif  // USE_ESP32

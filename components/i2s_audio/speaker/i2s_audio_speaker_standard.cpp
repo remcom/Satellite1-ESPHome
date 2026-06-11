@@ -10,7 +10,8 @@
 
 #include "esp_timer.h"
 
-namespace esphome::i2s_audio {
+namespace esphome {
+namespace i2s_audio {
 
 static const char *const TAG = "i2s_audio.speaker.std";
 
@@ -246,6 +247,7 @@ esp_err_t I2SAudioSpeaker::start_i2s_driver_(audio::AudioStreamInfo &audio_strea
   return ESP_OK;
 }
 
-}  // namespace esphome::i2s_audio
+}  // namespace i2s_audio
+}  // namespace esphome
 
 #endif  // USE_ESP32
