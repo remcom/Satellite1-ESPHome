@@ -4,8 +4,8 @@
 
 > Based on the original [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome) project
 
-[![Firmware](https://img.shields.io/badge/Firmware-v1.0.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.5.0-blue)](https://esphome.io)
+[![Firmware](https://img.shields.io/badge/Firmware-v1.1.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.6.0-blue)](https://esphome.io)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -13,7 +13,7 @@
 
 ## 🎯 What is This?
 
-This firmware enables **synchronized multi-room audio** on the [FutureProofHomes Satellite1](https://futureproofhomes.net/) voice assistant hardware using **Sendspin** - a next-generation ESPHome audio synchronization protocol. Perfect for whole-home voice control and perfectly synchronized music playback across multiple rooms.
+This firmware enables **synchronized multi-room audio** on the [FutureProofHomes Satellite1](https://futureproofhomes.net/) voice assistant hardware using **Sendspin** - ESPHome's native audio synchronization protocol (included since ESPHome 2026.6.0). Perfect for whole-home voice control and perfectly synchronized music playback across multiple rooms.
 
 ### Key Features
 
@@ -28,7 +28,7 @@ This firmware enables **synchronized multi-room audio** on the [FutureProofHomes
 
 ## ⚠️ Important Notice
 
-- ❌ **No Snapcast support** - This fork uses [Sendspin](https://github.com/esphome/esphome/pull/12284) instead
+- ❌ **No Snapcast support** - This fork uses Sendspin instead
 - ✅ **For Snapcast users** - Please use the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome)
 
 ---
@@ -65,10 +65,9 @@ This firmware uses **Sendspin** for multi-room audio synchronization instead of 
 Beyond multi-room audio, this fork includes:
 
 - **ESPHome Dashboard adoption** - One-click setup and automatic updates
+- **OTA firmware updates** - Over-the-air updates with stable and beta channels
 - **Hardware diagnostics** - Optional TAS2780 voltage and temperature monitoring
-- **Improved GPIO handling** - Enhanced reliability and null safety
 - **Smart power management** - Automatic DAC shutoff when idle
-- **Optimized memory usage** - Better SPI buffer allocation
 
 ---
 
@@ -93,7 +92,7 @@ Beyond multi-room audio, this fork includes:
 
 ### Software
 
-- **ESPHome** 2026.5.0+
+- **ESPHome** 2026.6.0+
 - **Home Assistant** with Voice Assistant configured
 - **Chrome or Edge browser** (for web installer)
 
@@ -170,7 +169,7 @@ We welcome contributions!
 
 - 🏠 **Home Assistant** - [home-assistant.io](https://www.home-assistant.io/)
 - ⚡ **ESPHome** - [esphome.io](https://esphome.io)
-- 🔊 **Sendspin PR** - [esphome/esphome#12284](https://github.com/esphome/esphome/pull/12284)
+- 🔊 **Sendspin** - Native multi-room audio sync (part of ESPHome since 2026.6.0)
 - 🎙️ **Voice PE Project** - [home-assistant-voice-pe](https://github.com/esphome/home-assistant-voice-pe)
 
 ---
