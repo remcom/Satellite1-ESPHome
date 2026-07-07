@@ -23,7 +23,7 @@ class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
   void pin_mode(gpio::Flags flags) override {}
   bool digital_read() override;
   void digital_write(bool value) override;
-  std::string dump_summary() const override { return ""; };
+  size_t dump_summary(char *buffer, size_t len) const override { return 0; }
 
   void set_pin(XMOSPort port, uint8_t pin) {
     this->port_ = port;
