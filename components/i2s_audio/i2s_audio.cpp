@@ -17,8 +17,8 @@ void I2SAudioBase::dump_i2s_settings() const {
   } else {
     ESP_LOGCONFIG(TAG, "I2S-Writer (%s):", init_str.c_str());
   }
-  ESP_LOGCONFIG(TAG, "  sample-rate: %u slot_mode: %d slot_mask: %d slot_bit_width: %d",
-                (unsigned) this->sample_rate_, this->slot_mode_, this->std_slot_mask_, this->slot_bit_width_);
+  ESP_LOGCONFIG(TAG, "  sample-rate: %u slot_mode: %d slot_mask: %d slot_bit_width: %d", (unsigned) this->sample_rate_,
+                this->slot_mode_, this->std_slot_mask_, this->slot_bit_width_);
   ESP_LOGCONFIG(TAG, "  use_apll: %s", this->use_apll_ ? "yes" : "no");
 }
 
