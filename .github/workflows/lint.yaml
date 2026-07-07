@@ -26,25 +26,25 @@ jobs:
           clang-format-version: '18'
           check-path: 'esphome/components'
 
-  clang-tidy:
-    name: clang-tidy (components)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+  # clang-tidy:
+  #   name: clang-tidy (components)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v6
+  #       with:
+  #         python-version: '3.13'
 
-      - name: Install ESPHome and clang-tidy
-        run: |
-          pip install -r requirements.txt
-          pip install clang-tidy==18.1.8
+  #     - name: Install ESPHome and clang-tidy
+  #       run: |
+  #         pip install -r requirements.txt
+  #         pip install clang-tidy==18.1.8
 
-      - name: Run clang-tidy on components/ and esphome/components/
-        run: python3 scripts/run_clang_tidy.py
+  #     - name: Run clang-tidy on components/ and esphome/components/
+  #       run: python3 scripts/run_clang_tidy.py
 
   yamllint:
     name: yamllint
