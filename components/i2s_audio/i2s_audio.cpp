@@ -4,8 +4,7 @@
 
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 static const char *const TAG = "i2s_audio";
 
@@ -18,8 +17,8 @@ void I2SAudioBase::dump_i2s_settings() const {
   } else {
     ESP_LOGCONFIG(TAG, "I2S-Writer (%s):", init_str.c_str());
   }
-  ESP_LOGCONFIG(TAG, "  sample-rate: %d slot_mode: %d slot_mask: %d slot_bit_width: %d", this->sample_rate_,
-                this->slot_mode_, this->std_slot_mask_, this->slot_bit_width_);
+  ESP_LOGCONFIG(TAG, "  sample-rate: %u slot_mode: %d slot_mask: %d slot_bit_width: %d",
+                (unsigned) this->sample_rate_, this->slot_mode_, this->std_slot_mask_, this->slot_bit_width_);
   ESP_LOGCONFIG(TAG, "  use_apll: %s", this->use_apll_ ? "yes" : "no");
 }
 
@@ -60,11 +59,11 @@ bool I2SPortComponent::init_driver_(i2s_std_config_t std_cfg) {
       .auto_clear = true,
   };
 
-  i2s_chan_handle_t *pTxHandle = this->audio_out_ != nullptr ? &this->tx_handle_ : nullptr;
-  i2s_chan_handle_t *pRxHandle = this->audio_in_ != nullptr ? &this->rx_handle_ : nullptr;
+  i2s_chan_handle_t *tx_handle_ptr = this->audio_out_ != nullptr ? &this->tx_handle_ : nullptr;
+  i2s_chan_handle_t *rx_handle_ptr = this->audio_in_ != nullptr ? &this->rx_handle_ : nullptr;
 
   /* Allocate channels and receive their handles*/
-  esp_err_t err = i2s_new_channel(&chan_cfg, pTxHandle, pRxHandle);
+  esp_err_t err = i2s_new_channel(&chan_cfg, tx_handle_ptr, rx_handle_ptr);
   if (err != ESP_OK) {
     this->unlock();
     return false;
@@ -94,7 +93,7 @@ bool I2SPortComponent::init_driver_(i2s_std_config_t std_cfg) {
   return true;
 }
 
-bool I2SAudioOut::start_i2s_channel_(i2s_event_callbacks_t callbacks) {
+bool I2SAudioOut::start_i2s_channel(i2s_event_callbacks_t callbacks) {
   if (this->parent_->tx_handle_ == nullptr) {
     if (this->parent_->rx_handle_ != nullptr) {
       ESP_LOGE(TAG, "Trying to start I2S-TX channel, but RX handle is available. This is not allowed.");
@@ -139,7 +138,7 @@ bool I2SAudioOut::start_i2s_channel_(i2s_event_callbacks_t callbacks) {
   return true;
 }
 
-bool I2SAudioOut::stop_i2s_channel_() {
+bool I2SAudioOut::stop_i2s_channel() {
   if (this->parent_->tx_handle_ == nullptr) {
     ESP_LOGE(TAG, "Trying to stop I2S-TX channel, but handle is nullptr.");
     return false;
@@ -167,7 +166,7 @@ bool I2SAudioOut::stop_i2s_channel_() {
   return true;
 }
 
-bool I2SAudioIn::start_i2s_channel_(i2s_event_callbacks_t callbacks) {
+bool I2SAudioIn::start_i2s_channel(i2s_event_callbacks_t callbacks) {
   if (this->parent_->rx_handle_ == nullptr) {
     if (this->parent_->tx_handle_ != nullptr) {
       ESP_LOGE(TAG, "Trying to start I2S-RX channel, but TX handle is available. This is not allowed.");
@@ -201,7 +200,7 @@ bool I2SAudioIn::start_i2s_channel_(i2s_event_callbacks_t callbacks) {
   return true;
 }
 
-bool I2SAudioIn::stop_i2s_channel_() {
+bool I2SAudioIn::stop_i2s_channel() {
   if (this->parent_->rx_handle_ == nullptr) {
     ESP_LOGE(TAG, "Trying to stop I2S-RX channel, but handle is nullptr.");
     return false;
@@ -223,7 +222,6 @@ bool I2SAudioIn::stop_i2s_channel_() {
   return true;
 }
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

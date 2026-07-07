@@ -8,8 +8,7 @@
 #include "esphome/components/memory_flasher/memory_flasher.h"
 #include "esphome/components/satellite1/satellite1.h"
 
-namespace esphome {
-namespace satellite1 {
+namespace esphome::satellite1 {
 
 class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPIService {
  public:
@@ -38,7 +37,7 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   bool erase_sector_(int sector);
   bool wait_while_flash_busy_(uint32_t timeout_ms);
   bool read_page_(uint32_t byte_addr, uint8_t *buffer);
-  bool write_page_(uint32_t byte_addr, uint8_t *buffer);
+  bool write_page_(uint32_t byte_addr, const uint8_t *buffer);
 
   uint8_t manufacturer_id_;
   uint8_t memory_type_id_;
@@ -50,7 +49,7 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   void deinit_flashing_();
   int flashing_step_();
   int erasing_step_();
-  void publish_progress_() override;
+  void publish_progress() override;
 
   bool http_flash_{false};
   bool embedded_flash_{false};
@@ -69,5 +68,4 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   uint8_t *compare_buffer_;
 };
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1

@@ -3,8 +3,7 @@
 
 #include "esphome/core/automation.h"
 
-namespace esphome {
-namespace memory_flasher {
+namespace esphome::memory_flasher {
 
 template<typename... Ts> class FlashAction : public Action<Ts...> {
  public:
@@ -100,5 +99,4 @@ template<typename... Ts> class InProgressCondition : public Condition<Ts...>, pu
   bool check(Ts... x) override { return this->parent_->get_state() != FLASHER_IDLE; }
 };
 
-}  // namespace memory_flasher
-}  // namespace esphome
+}  // namespace esphome::memory_flasher

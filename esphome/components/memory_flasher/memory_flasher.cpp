@@ -3,8 +3,7 @@
 #include "esphome/core/log.h"
 #include "esphome/components/md5/md5.h"
 
-namespace esphome {
-namespace memory_flasher {
+namespace esphome::memory_flasher {
 
 static const char *const TAG = "memory_flasher";
 
@@ -83,10 +82,7 @@ bool HttpImageReader::init_reader() {
   ESP_LOGI(TAG, "Connecting to: %s", this->url_.c_str());
 
   this->container_ = this->http_request_->get(url_with_auth);
-  if (this->container_ == nullptr) {
-    return false;
-  }
-  return true;
+  return this->container_ != nullptr;
 }
 
 bool HttpImageReader::deinit_reader() {
@@ -103,5 +99,4 @@ int HttpImageReader::read_image_block(uint8_t *buffer, size_t block_size) {
   return bytes_read;
 }
 
-}  // namespace memory_flasher
-}  // namespace esphome
+}  // namespace esphome::memory_flasher

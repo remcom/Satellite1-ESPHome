@@ -3,26 +3,23 @@
 #ifdef USE_ESP32
 
 #include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
 #include <freertos/queue.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
 
 #include "esphome/components/i2s_audio/i2s_audio.h"
 #include "esphome/components/microphone/microphone.h"
 #include "esphome/core/component.h"
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/event_groups.h>
-#include <freertos/semphr.h>
-#include <freertos/task.h>
-
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 class I2SAudioMicrophone : public I2SAudioIn, public microphone::Microphone, public Component {
  public:
   void setup() override;
   void dump_config() override { this->dump_i2s_settings(); }
-  void start();
-  void stop();
+  void start() override;
+  void stop() override;
 
   void loop() override;
 
@@ -55,7 +52,6 @@ class I2SAudioMicrophone : public I2SAudioIn, public microphone::Microphone, pub
   int32_t dc_offset_{0};
 };
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

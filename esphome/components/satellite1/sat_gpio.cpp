@@ -1,9 +1,8 @@
 #include "sat_gpio.h"
 
-namespace esphome {
-namespace satellite1 {
+namespace esphome::satellite1 {
 
-static const char *TAG = "Satellite1-GPIOs";
+static const char *const TAG = "Satellite1-GPIOs";
 
 void Satellite1GPIOPin::digital_write(bool value) {
   if (this->parent_ == nullptr) {
@@ -23,7 +22,7 @@ bool Satellite1GPIOPin::digital_read() {
     ESP_LOGE(TAG, "Parent not set for GPIO pin");
     return false;
   }
-  DC_STATUS_REGISTER::register_id port_register;
+  DC_STATUS_REGISTER::RegisterId port_register;
   switch (this->port_) {
     case XMOSPort::INPUT_A:
       port_register = DC_STATUS_REGISTER::GPIO_PORT_IN_A;
@@ -36,7 +35,7 @@ bool Satellite1GPIOPin::digital_read() {
       break;
     default:
       ESP_LOGE(TAG, "Invalid port set.");
-      return 0;
+      return false;
       break;
   }
   this->parent_->request_status_register_update();
@@ -45,5 +44,4 @@ bool Satellite1GPIOPin::digital_read() {
   return bit_value ^ this->inverted_;
 }
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1

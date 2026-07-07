@@ -3,9 +3,8 @@
 
 #include <endian.h>
 
-namespace esphome {
+namespace esphome::satellite1 {
 using namespace memory_flasher;
-namespace satellite1 {
 
 static const char *const TAG = "xmos_flasher";
 
@@ -29,7 +28,7 @@ void XMOSFlasher::loop() {
 
     case FLASHER_ERASING: {
       int remaining = this->erasing_step_();
-      this->publish_progress_();
+      this->publish_progress();
       if (remaining == 0 && this->requested_action_ == ACTION_FULL_ERASE) {
         this->deinit_flashing_();
         this->state_ = FLASHER_SUCCESS_STATE;
@@ -43,7 +42,7 @@ void XMOSFlasher::loop() {
 
     case FLASHER_FLASHING: {
       int remaining = this->flashing_step_();
-      this->publish_progress_();
+      this->publish_progress();
       if (remaining == 0) {
         this->deinit_flashing_();
         this->state_ = FLASHER_SUCCESS_STATE;
@@ -55,10 +54,6 @@ void XMOSFlasher::loop() {
     }
 
     case FLASHER_SUCCESS_STATE:
-      this->publish();
-      this->state_ = FLASHER_IDLE;
-      break;
-
     case FLASHER_ERROR_STATE:
       this->publish();
       this->state_ = FLASHER_IDLE;
@@ -69,7 +64,7 @@ void XMOSFlasher::loop() {
   }
 }
 
-void XMOSFlasher::publish_progress_() {
+void XMOSFlasher::publish_progress() {
   uint32_t now = millis();
 
   if ((now - this->last_published_) > 1000) {
@@ -162,18 +157,18 @@ void XMOSFlasher::flash_embedded_image() {
 
 bool XMOSFlasher::read_jedec_id_() {
   uint8_t manufacturer = 0;
-  uint8_t memoryType = 0;
+  uint8_t memory_type = 0;
   uint8_t capcacity = 0;
-  this->enable();
-  this->transfer_byte(0x9F);
-  manufacturer = this->transfer_byte(0);
-  memoryType = this->transfer_byte(0);
-  capcacity = this->transfer_byte(0);
-  this->disable();
+  this->enable_();
+  this->transfer_byte_(0x9F);
+  manufacturer = this->transfer_byte_(0);
+  memory_type = this->transfer_byte_(0);
+  capcacity = this->transfer_byte_(0);
+  this->disable_();
 
-  if (manufacturer && memoryType && capcacity) {
+  if (manufacturer && memory_type && capcacity) {
     this->manufacturer_id_ = manufacturer;
-    this->memory_type_id_ = memoryType;
+    this->memory_type_id_ = memory_type;
     this->capacity_id_ = capcacity;
     return true;
   }
@@ -182,15 +177,14 @@ bool XMOSFlasher::read_jedec_id_() {
 
 bool XMOSFlasher::wait_while_flash_busy_(uint32_t timeout_ms) {
   int32_t timeout_invoke = millis();
-  const uint8_t WEL = 2;
-  const uint8_t BUSY = 1;
+  const uint8_t busy = 1;
 
   while ((millis() - timeout_invoke) < timeout_ms) {
-    this->enable();
-    this->transfer_byte(0x05);
-    uint8_t status = this->transfer_byte(0x00);
-    this->disable();
-    if ((status & BUSY) == 0) {
+    this->enable_();
+    this->transfer_byte_(0x05);
+    uint8_t status = this->transfer_byte_(0x00);
+    this->disable_();
+    if ((status & busy) == 0) {
       return true;
     }
   }
@@ -199,26 +193,23 @@ bool XMOSFlasher::wait_while_flash_busy_(uint32_t timeout_ms) {
 
 bool XMOSFlasher::enable_writing_() {
   // enable writing
-  this->enable();
-  this->transfer_byte(0x06);
-  this->disable();
+  this->enable_();
+  this->transfer_byte_(0x06);
+  this->disable_();
 
-  this->enable();
-  this->transfer_byte(0x05);
-  uint8_t status = this->transfer_byte(0x00);
-  this->disable();
-  const uint8_t WEL = 2;
-  if (!(status & WEL)) {
-    return false;
-  }
-  return true;
+  this->enable_();
+  this->transfer_byte_(0x05);
+  uint8_t status = this->transfer_byte_(0x00);
+  this->disable_();
+  const uint8_t wel = 2;
+  return (status & wel) != 0;
 }
 
 bool XMOSFlasher::disable_writing_() {
   // disable writing
-  this->enable();
-  this->transfer_byte(0x04);
-  this->disable();
+  this->enable_();
+  this->transfer_byte_(0x04);
+  this->disable_();
   return true;
 }
 
@@ -232,12 +223,12 @@ bool XMOSFlasher::erase_sector_(int sector) {
     return false;
   }
 
-  this->enable();
-  this->transfer_byte(0x20);
-  this->transfer_byte(*(u8_ptr + 2));
-  this->transfer_byte(*(u8_ptr + 1));
-  this->transfer_byte(*(u8_ptr));
-  this->disable();
+  this->enable_();
+  this->transfer_byte_(0x20);
+  this->transfer_byte_(*(u8_ptr + 2));
+  this->transfer_byte_(*(u8_ptr + 1));
+  this->transfer_byte_(*(u8_ptr));
+  this->disable_();
 
   // this->disable_writing_();
   return true;
@@ -248,15 +239,15 @@ bool XMOSFlasher::chip_erase_() {
     return false;
   }
 
-  this->enable();
-  this->transfer_byte(0xc7);
-  this->disable();
+  this->enable_();
+  this->transfer_byte_(0xc7);
+  this->disable_();
 
   // this->disable_writing_();
   return true;
 }
 
-bool XMOSFlasher::write_page_(uint32_t byte_addr, uint8_t *buffer) {
+bool XMOSFlasher::write_page_(uint32_t byte_addr, const uint8_t *buffer) {
   if ((byte_addr & (FLASH_PAGE_SIZE - 1)) != 0) {
     ESP_LOGE(TAG, "Address needs to be page aligned (%d).", FLASH_PAGE_SIZE);
     return false;
@@ -268,15 +259,15 @@ bool XMOSFlasher::write_page_(uint32_t byte_addr, uint8_t *buffer) {
 
   uint32_t u32 = htole32(byte_addr);
   uint8_t *u8_ptr = (uint8_t *) &u32;
-  this->enable();
-  this->transfer_byte(0x02);
-  this->transfer_byte(*(u8_ptr + 2));
-  this->transfer_byte(*(u8_ptr + 1));
-  this->transfer_byte(*(u8_ptr));
+  this->enable_();
+  this->transfer_byte_(0x02);
+  this->transfer_byte_(*(u8_ptr + 2));
+  this->transfer_byte_(*(u8_ptr + 1));
+  this->transfer_byte_(*(u8_ptr));
   for (int pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
-    this->transfer_byte(*(buffer + pos));
+    this->transfer_byte_(*(buffer + pos));
   }
-  this->disable();
+  this->disable_();
 
   if (!this->wait_while_flash_busy_(15)) {
     ESP_LOGE(TAG, "Writing page timeout");
@@ -292,16 +283,16 @@ bool XMOSFlasher::read_page_(uint32_t byte_addr, uint8_t *buffer) {
   }
   uint32_t u32 = htole32(byte_addr);
   uint8_t *u8_ptr = (uint8_t *) &u32;
-  this->enable();
-  this->transfer_byte(0x0B);
-  this->transfer_byte(*(u8_ptr + 2));
-  this->transfer_byte(*(u8_ptr + 1));
-  this->transfer_byte(*(u8_ptr));
-  this->transfer_byte(0x00);
+  this->enable_();
+  this->transfer_byte_(0x0B);
+  this->transfer_byte_(*(u8_ptr + 2));
+  this->transfer_byte_(*(u8_ptr + 1));
+  this->transfer_byte_(*(u8_ptr));
+  this->transfer_byte_(0x00);
   for (int pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
-    *(buffer + pos) = this->transfer_byte(0x00);
+    *(buffer + pos) = this->transfer_byte_(0x00);
   }
-  this->disable();
+  this->disable_();
   return true;
 }
 
@@ -331,6 +322,9 @@ bool XMOSFlasher::init_flashing_() {
     return false;
   }
 
+  // NOLINTBEGIN(cppcoreguidelines-no-malloc): exceptions are disabled in this build
+  // (CONFIG_COMPILER_CXX_EXCEPTIONS=n), so a std::vector allocation failure would abort()
+  // instead of letting us report INIT_FLASH_ERROR and bail out gracefully.
   this->reader_buffer_ = (uint8_t *) malloc(FLASH_PAGE_SIZE);
   if (this->reader_buffer_ == nullptr) {
     ESP_LOGE(TAG, "Couldn't allocate memory");
@@ -344,6 +338,7 @@ bool XMOSFlasher::init_flashing_() {
     this->error_code_ = INIT_FLASH_ERROR;
     return false;
   }
+  // NOLINTEND(cppcoreguidelines-no-malloc)
 
   ESP_LOGD(TAG, "MD5 expected: %s", this->md5_expected_.c_str());
 
@@ -365,6 +360,7 @@ bool XMOSFlasher::init_flashing_() {
 }
 
 void XMOSFlasher::deinit_flashing_() {
+  // NOLINTBEGIN(cppcoreguidelines-no-malloc): pairs with the malloc() in init_flashing_().
   if (this->reader_buffer_) {
     free(this->reader_buffer_);
     this->reader_buffer_ = nullptr;
@@ -374,6 +370,7 @@ void XMOSFlasher::deinit_flashing_() {
     free(this->compare_buffer_);
     this->compare_buffer_ = nullptr;
   }
+  // NOLINTEND(cppcoreguidelines-no-malloc)
 
   if (this->reader_) {
     this->reader_->deinit_reader();
@@ -469,5 +466,4 @@ int XMOSFlasher::flashing_step_() {
   return this->bytes_remaining_;
 }
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1

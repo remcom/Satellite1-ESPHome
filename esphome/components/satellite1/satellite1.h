@@ -4,8 +4,7 @@
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
 
-namespace esphome {
-namespace satellite1 {
+namespace esphome::satellite1 {
 
 static const uint8_t CONTROL_RESOURCE_CNTRL_ID = 1;
 static const uint8_t CONTROL_CMD_READ_BIT = 0x80;
@@ -23,7 +22,7 @@ static const uint8_t DFU_CONTROLLER_SERVICER_RESID = 240;
 static const uint8_t MAX_CONNECTION_ATTEMPTS = 3;
 
 namespace DC_RESOURCE {
-enum dc_resource_enum {
+enum DcResourceEnum {
   CNTRL_ID = 1,
   DFU_CONTROLLER = DFU_CONTROLLER_SERVICER_RESID,
   GPIO_PORT_IN_A = GPIO_SERVICER_RESID_PORT_IN_A,
@@ -33,11 +32,11 @@ enum dc_resource_enum {
 }
 
 namespace DC_RET_STATUS {
-enum dc_ret_status_enum { CMD_SUCCESS = 0, DEVICE_BUSY = 7, PAYLOAD_AVAILABLE = 23 };
+enum DcRetStatusEnum { CMD_SUCCESS = 0, DEVICE_BUSY = 7, PAYLOAD_AVAILABLE = 23 };
 }
 
 namespace DC_STATUS_REGISTER {
-enum register_id {
+enum RegisterId {
   DEVICE_STATUS = 0,
   GPIO_PORT_IN_A = 1,
   GPIO_PORT_IN_B = 2,
@@ -48,7 +47,7 @@ enum register_id {
 }
 
 namespace DC_DFU_CMD {
-enum dc_dfu_cmd_id {
+enum DcDfuCmdId {
   GET_VERSION = (88 | CONTROL_CMD_READ_BIT),
 };
 }
@@ -141,7 +140,7 @@ class Satellite1 : public Component,
    * @return             The cached value of the requested status register as an 8-bit
    *                     unsigned integer.
    */
-  uint8_t get_dc_status(DC_STATUS_REGISTER::register_id reg) {
+  uint8_t get_dc_status(DC_STATUS_REGISTER::RegisterId reg) {
     assert(reg < DC_STATUS_REGISTER::REGISTER_LEN);
     return this->dc_status_register_[reg];
   }
@@ -182,11 +181,10 @@ class Satellite1SPIService : public Parented<Satellite1> {
   }
 
  protected:
-  uint8_t transfer_byte(uint8_t byte) { return this->parent_->transfer_byte(byte); }
-  void enable() { this->parent_->enable(); }
-  void disable() { this->parent_->disable(); }
+  uint8_t transfer_byte_(uint8_t byte) { return this->parent_->transfer_byte(byte); }
+  void enable_() { this->parent_->enable(); }
+  void disable_() { this->parent_->disable(); }
   uint8_t servicer_id_;
 };
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1

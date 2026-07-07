@@ -3,8 +3,7 @@
 
 #include "esphome/core/automation.h"
 
-namespace esphome {
-namespace satellite1 {
+namespace esphome::satellite1 {
 
 template<typename... Ts> class XMOSHardwareResetAction : public Action<Ts...>, public Parented<Satellite1> {
  public:
@@ -34,5 +33,4 @@ class XMOSNoResponseStateTrigger : public Trigger<> {
   }
 };
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1
