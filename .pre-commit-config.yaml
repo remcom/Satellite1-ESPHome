@@ -12,3 +12,18 @@ repos:
         name: clang-format (check, v18) [esphome]
         files: ^components/.*\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$
         args: ["--dry-run", "--Werror", "--style=file"]
+
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy [esphome]
+        entry: python3 scripts/run_clang_tidy.py
+        language: system
+        files: ^(components|esphome/components)/.*\.(cc|cpp)$
+        pass_filenames: true
+        # Regenerates compile_commands.json itself (codegen + cmake configure, no ninja
+        # build, ~1 min) but that's still too slow for every commit, so it's opt-in:
+        # pre-commit run --hook-stage manual clang-tidy
+        # For fast local iteration once compile_commands.json is fresh, run the script
+        # directly with --skip-regen.
+        stages: [manual]
