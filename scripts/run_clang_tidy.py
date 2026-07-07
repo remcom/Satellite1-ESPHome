@@ -144,8 +144,35 @@ def clang_options(idedata: dict, build_dir: Path) -> list[str]:
     return cmd
 
 
+def _patch_pio_wrapped_mirror_urls() -> None:
+    """Work around an esphome bug hit on a cold cache (e.g. fresh CI runner):
+    something in the native-ESP-IDF framework download path can hand
+    ``download_from_mirrors`` a PlatformIO-style ``owner/pkg@url`` spec
+    instead of a plain URL, which ``requests.get()`` then rejects with
+    InvalidSchema. Once a version's framework is extracted once, this
+    codepath isn't hit again, so it only bites the very first run.
+
+    Wrap ``download_from_mirrors`` to strip any such prefix from each mirror
+    before it's used, regardless of which caller produced it. Patched on the
+    ``esphome.espidf.framework`` module specifically -- it imports the name
+    with ``from esphome.framework_helpers import download_from_mirrors``, so
+    patching the original module's attribute wouldn't affect that call site.
+    """
+    import esphome.espidf.framework as espidf_framework
+
+    original = espidf_framework.download_from_mirrors
+
+    def patched(mirrors, substitutions, target, timeout=30):
+        cleaned = [m.split("@", 1)[1] if "@http" in m else m for m in mirrors]
+        return original(cleaned, substitutions, target, timeout=timeout)
+
+    espidf_framework.download_from_mirrors = patched
+
+
 def regenerate_compile_commands(device: str) -> None:
     """Codegen + cmake-configure (no ninja build) to (re)produce compile_commands.json."""
+    _patch_pio_wrapped_mirror_urls()
+
     import esphome.__main__ as esphome_main
 
     sys.argv = ["esphome", "-q", "compile", "--only-generate", f"config/{device}.yaml"]
