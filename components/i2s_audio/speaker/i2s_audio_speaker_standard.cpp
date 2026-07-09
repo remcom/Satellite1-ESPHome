@@ -10,8 +10,7 @@
 
 #include "esp_timer.h"
 
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 static const char *const TAG = "i2s_audio.speaker.std";
 
@@ -37,7 +36,7 @@ void I2SAudioSpeaker::dump_config() {
 
 void I2SAudioSpeaker::set_i2s_comm_fmt(I2SCommFmt fmt) {
   this->i2s_comm_fmt_ = fmt;
-  // Propagate to parent's string field, which start_i2s_channel_() reads.
+  // Propagate to parent's string field, which start_i2s_channel() reads.
   switch (fmt) {
     case I2SCommFmt::PCM:
       I2SAudioBase::set_i2s_comm_fmt("pcm");
@@ -71,7 +70,7 @@ void I2SAudioSpeaker::run_speaker_task() {
   // When the I2S slot width exceeds the stream bit depth (e.g., 32-bit I2S with 16-bit
   // audio), each sample must be expanded before writing so the DMA sees the correct number
   // of bytes per frame.  Only the 2× case (16-bit → 32-bit) is supported; other ratios
-  // are rejected by start_i2s_driver_() before the task reaches this point.
+  // are rejected by start_i2s_driver() before the task reaches this point.
   const uint8_t expand_factor = this->i2s_bits_per_sample() / this->current_stream_info_.get_bits_per_sample();
 
   bool successful_setup = false;
@@ -219,7 +218,7 @@ void I2SAudioSpeaker::run_speaker_task() {
   }
 }
 
-esp_err_t I2SAudioSpeaker::start_i2s_driver_(audio::AudioStreamInfo &audio_stream_info) {
+esp_err_t I2SAudioSpeaker::start_i2s_driver(audio::AudioStreamInfo &audio_stream_info) {
   this->current_stream_info_ = audio_stream_info;
 
   if (this->has_fixed_i2s_rate() && (this->sample_rate_ != audio_stream_info.get_sample_rate())) {
@@ -241,13 +240,12 @@ esp_err_t I2SAudioSpeaker::start_i2s_driver_(audio::AudioStreamInfo &audio_strea
 
   // Start with no on_sent callback; the task registers it after the first preload
   const i2s_event_callbacks_t no_callbacks = {.on_sent = nullptr};
-  if (!this->start_i2s_channel_(no_callbacks)) {
+  if (!this->start_i2s_channel(no_callbacks)) {
     return ESP_ERR_INVALID_STATE;
   }
   return ESP_OK;
 }
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

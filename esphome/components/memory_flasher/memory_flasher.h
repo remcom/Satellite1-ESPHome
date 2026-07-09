@@ -2,8 +2,7 @@
 
 #include "esphome/components/http_request/http_request.h"
 
-namespace esphome {
-namespace memory_flasher {
+namespace esphome::memory_flasher {
 
 static const uint8_t MD5_SIZE = 32;
 
@@ -46,7 +45,7 @@ class FlashImageReader {
 class HttpImageReader : public FlashImageReader {
  public:
   HttpImageReader(http_request::HttpRequestComponent *http_request, std::string url)
-      : http_request_(http_request), url_(url) {}
+      : http_request_(http_request), url_(std::move(url)) {}
   bool init_reader() override;
   bool deinit_reader() override;
 
@@ -66,7 +65,7 @@ class HttpImageReader : public FlashImageReader {
 
 class EmbeddedImageReader : public FlashImageReader {
  public:
-  EmbeddedImageReader(FlashImage img) : image_(img) {}
+  EmbeddedImageReader(FlashImage img) : image_(std::move(img)) {}
   bool init_reader() override {
     this->read_pos_ = 0;
     return true;
@@ -118,7 +117,7 @@ class MemoryFlasher : public Component {
   FlasherAction get_requested_action() const { return this->requested_action_; }
   uint8_t get_flashing_progress() const { return this->flashing_progress_; }
 
-  virtual void dump_config() override;
+  void dump_config() override;
 
   virtual bool init_flasher() { return true; }
   virtual bool deinit_flasher() { return true; }
@@ -139,7 +138,7 @@ class MemoryFlasher : public Component {
                           const char version_bytes[5]) {
     this->embedded_image_.data = pgm_pointer;
     this->embedded_image_.length = length;
-    this->embedded_image_.md5 = expected_md5;
+    this->embedded_image_.md5 = std::move(expected_md5);
     memcpy(this->embedded_image_.version.bytes, version_bytes, 5);
   }
 
@@ -160,7 +159,7 @@ class MemoryFlasher : public Component {
   }
 
  protected:
-  virtual void publish_progress_() {}
+  virtual void publish_progress() {}
   CallbackManager<void()> state_callback_{};
 
   uint8_t flashing_progress_{0};
@@ -186,5 +185,4 @@ class MemoryFlasher : public Component {
   std::string url_{};
 };
 
-}  // namespace memory_flasher
-}  // namespace esphome
+}  // namespace esphome::memory_flasher

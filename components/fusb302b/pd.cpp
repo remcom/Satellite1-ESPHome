@@ -5,8 +5,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace fusb302b {
+namespace esphome::fusb302b {
 
 static const char *const TAG = "PowerDelivery";
 
@@ -256,5 +255,4 @@ void PDMsg::debug_log() const {
            this->num_of_obj, !!(this->extended), this->get_coded_header());
 }
 
-}  // namespace fusb302b
-}  // namespace esphome
+}  // namespace esphome::fusb302b

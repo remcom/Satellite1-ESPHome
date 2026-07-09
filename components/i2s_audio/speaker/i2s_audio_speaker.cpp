@@ -12,8 +12,7 @@
 // esp-audio-libs
 #include <gain.h>
 
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 static const char *const TAG = "i2s_audio.speaker";
 
@@ -76,7 +75,7 @@ void I2SAudioSpeakerBase::loop() {
       this->speaker_task_handle_ = nullptr;
     }
 
-    this->stop_i2s_channel_();
+    this->stop_i2s_channel();
     this->on_task_stopped();
 
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::ALL_BITS);
@@ -93,7 +92,7 @@ void I2SAudioSpeakerBase::loop() {
   if ((event_group_bits & SpeakerEventGroupBits::COMMAND_START) && (this->state_ == speaker::STATE_STARTING)) {
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::COMMAND_START);
 
-    if (this->start_i2s_driver_(this->audio_stream_info_) != ESP_OK) {
+    if (this->start_i2s_driver(this->audio_stream_info_) != ESP_OK) {
       ESP_LOGE(TAG, "Driver failed to start; retrying in 1 second");
       this->state_ = speaker::STATE_STOPPED;
       this->status_momentary_error("driver-failure", 1000);
@@ -104,7 +103,7 @@ void I2SAudioSpeakerBase::loop() {
       if (this->speaker_task_handle_ == nullptr) {
         ESP_LOGE(TAG, "Failed to create speaker task");
         this->status_set_error(LOG_STR("Failed to create speaker task"));
-        this->stop_i2s_channel_();
+        this->stop_i2s_channel();
         this->state_ = speaker::STATE_STOPPED;
       }
     }
@@ -262,7 +261,6 @@ void I2SAudioSpeakerBase::swap_esp32_mono_samples_(uint8_t *data, size_t bytes_r
 #endif  // USE_ESP32_VARIANT_ESP32
 }
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

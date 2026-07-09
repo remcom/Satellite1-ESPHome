@@ -5,8 +5,7 @@
 #include "esphome/core/hal.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 static const size_t RING_BUFFER_LENGTH = 60;  // Measured in milliseconds
 static const size_t QUEUE_LENGTH = 10;
@@ -159,7 +158,7 @@ void I2SAudioMicrophone::configure_stream_settings_() {
 }
 
 bool I2SAudioMicrophone::start_driver_() {
-  if (!this->start_i2s_channel_()) {
+  if (!this->start_i2s_channel()) {
     ESP_LOGE(TAG, "Failed to start I2S channel");
     return false;
   }
@@ -167,7 +166,7 @@ bool I2SAudioMicrophone::start_driver_() {
   return true;
 }
 
-bool I2SAudioMicrophone::stop_driver_() { return this->stop_i2s_channel_(); }
+bool I2SAudioMicrophone::stop_driver_() { return this->stop_i2s_channel(); }
 
 size_t I2SAudioMicrophone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_wait) {
   size_t bytes_read = 0;
@@ -252,7 +251,6 @@ void I2SAudioMicrophone::mic_task(void *params) {
   }
 }
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

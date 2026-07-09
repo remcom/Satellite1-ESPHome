@@ -4,8 +4,7 @@
 
 #include "satellite1.h"
 
-namespace esphome {
-namespace satellite1 {
+namespace esphome::satellite1 {
 
 static const uint8_t GPIO_SERVICER_CMD_READ_PORT = 0x00;
 static const uint8_t GPIO_SERVICER_CMD_WRITE_PORT = 0x01;
@@ -23,7 +22,7 @@ class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
   void pin_mode(gpio::Flags flags) override {}
   bool digital_read() override;
   void digital_write(bool value) override;
-  std::string dump_summary() const override { return ""; };
+  size_t dump_summary(char *buffer, size_t len) const override { return 0; }
 
   void set_pin(XMOSPort port, uint8_t pin) {
     this->port_ = port;
@@ -31,7 +30,7 @@ class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
   }
   void set_inverted(bool inverted) { this->inverted_ = inverted; }
   void set_flags(gpio::Flags flags) { this->flags_ = flags; }
-  gpio::Flags get_flags() const { return this->flags_; }
+  gpio::Flags get_flags() const override { return this->flags_; }
 
  protected:
   XMOSPort port_{XMOSPort::INPUT_A};
@@ -40,5 +39,4 @@ class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
   gpio::Flags flags_{};
 };
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1

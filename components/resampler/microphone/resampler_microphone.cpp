@@ -10,8 +10,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace esphome {
-namespace resampler {
+namespace esphome::resampler {
 
 static const UBaseType_t RESAMPLER_TASK_PRIORITY = 1;
 static const UBaseType_t MAX_LISTENERS = 16;
@@ -328,7 +327,6 @@ void ResamplerMicrophone::resample_task(void *params) {
   }
 }
 
-}  // namespace resampler
-}  // namespace esphome
+}  // namespace esphome::resampler
 
 #endif

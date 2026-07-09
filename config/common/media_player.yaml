@@ -9,6 +9,11 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  # Tracks whether the PCM5122 is currently powered (not in powerdown mode)
+  - id: pcm5122_active
+    type: bool
+    restore_value: no
+    initial_value: 'true'
 
 audio_dac:
   # Define both DACs
@@ -78,7 +83,11 @@ binary_sensor:
 
     on_press:
       # Cable inserted - switch to line-out DAC
+      #  - Bring the PCM5122 out of powerdown before routing audio to it
+      #  - TAS2780 is no longer in use, deactivate it
       #  - Enable Sendspin static delay adjustment to apply the persisted delay when using the external audio output
+      - script.execute: pcm5122_ensure_active
+      - script.execute: tas2780_ensure_powerdown
       - audio_dac.mute_on: speaker_dac_tas2780
       - router.speaker.switch_output:
           id: router_speaker
@@ -98,10 +107,13 @@ binary_sensor:
     on_release:
       # Cable removed - switch back to speaker DAC
       #  - Disable Sendspin static delay adjustment when using the internal speaker
+      #  - TAS2780 is reactivated by on_state once audio is actually playing
+      #  - PCM5122 is no longer in use, put it into powerdown
       - audio_dac.mute_on: speaker_dac_pcm5122
       - router.speaker.switch_output:
           id: router_speaker
           target_speaker: i2s_tas2780_speaker
+      - script.execute: pcm5122_ensure_powerdown
       - lambda: id(jack_unplugged_recently) = true;
       - script.execute: control_leds
       - sendspin.media_source.disable_static_delay_adjustment:
@@ -287,14 +299,26 @@ media_player:
           duration: 0.0s
     # Restore audio ducking when not actively playing announcements or running voice assistant
     on_state:
-      # Ensure TAS2780 is active when audio is playing
+      # Ensure TAS2780 is active when audio is playing through the internal speaker
       - if:
           condition:
-            or:
-              - media_player.is_playing: external_media_player
-              - media_player.is_announcing: external_media_player
+            and:
+              - binary_sensor.is_off: line_out_sensor
+              - or:
+                  - media_player.is_playing: external_media_player
+                  - media_player.is_announcing: external_media_player
           then:
             - script.execute: tas2780_ensure_active
+      # Ensure PCM5122 is out of powerdown when audio is playing through the line-out
+      - if:
+          condition:
+            and:
+              - binary_sensor.is_on: line_out_sensor
+              - or:
+                  - media_player.is_playing: external_media_player
+                  - media_player.is_announcing: external_media_player
+          then:
+            - script.execute: pcm5122_ensure_active
       - if:
           condition:
             and:
@@ -368,6 +392,42 @@ script:
                 power_mode: !lambda return id(tas2780_power_mode);
             - lambda: id(tas2780_active) = true;
 
+  # Script to deactivate TAS2780 when it's not in use
+  - id: tas2780_ensure_powerdown
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: return id(tas2780_active);
+          then:
+            - logger.log: "Deactivating TAS2780"
+            - tas2780.deactivate:
+            - lambda: id(tas2780_active) = false;
+
+  # Script to bring the PCM5122 out of powerdown when it's needed for line-out playback
+  - id: pcm5122_ensure_active
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: return !id(pcm5122_active);
+          then:
+            - logger.log: "Bringing PCM5122 out of powerdown"
+            - lambda: id(speaker_dac_pcm5122)->set_powerdown(false);
+            - lambda: id(pcm5122_active) = true;
+
+  # Script to put the PCM5122 into powerdown when it's not in use
+  - id: pcm5122_ensure_powerdown
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: return id(pcm5122_active);
+          then:
+            - logger.log: "Putting PCM5122 into powerdown"
+            - lambda: id(speaker_dac_pcm5122)->set_powerdown(true);
+            - lambda: id(pcm5122_active) = false;
+
 text_sensor:
   - platform: sendspin
     id: track_title
@@ -406,3 +466,15 @@ interval:
             - logger.log: "Deactivating TAS2780 due to 60 seconds of idle"
             - tas2780.deactivate:
             - lambda: id(tas2780_active) = false;
+      - if:
+          condition:
+            - binary_sensor.is_on: line_out_sensor
+            - lambda: return id(pcm5122_active);
+            - for:
+                time: 60s
+                condition:
+                  or:
+                    - media_player.is_idle: external_media_player
+                    - media_player.is_paused: external_media_player
+          then:
+            - script.execute: pcm5122_ensure_powerdown

@@ -28,6 +28,14 @@ jobs:
           SAFE_VERSION="${GITHUB_REF_NAME//-/_}"
           echo "SAFE_VERSION=${SAFE_VERSION}" >> $GITHUB_ENV
 
+      - name: Set channel variable
+        run: |
+          if [ "${{ github.event.release.prerelease }}" == "true" ]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=latest" >> $GITHUB_ENV
+          fi
+
       - name: Set firmware version in config
         run: |
           sed -i 's/esp32_fw_version: dev/esp32_fw_version: ${{ env.VERSION }}/' config/satellite1.base.yaml
@@ -83,14 +91,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Stable release: upload into "latest"
-      - name: Prepare stable latest artifacts
-        if: github.event.release.prerelease == false
+      - name: Prepare channel artifacts
         run: |
-          mkdir -p "release-artifacts/latest/${{ matrix.device }}"
+          CHANNEL="${{ env.CHANNEL }}"
+          mkdir -p "release-artifacts/${CHANNEL}/${{ matrix.device }}"
           for f in release-artifacts/${{ matrix.device }}/*; do
             base=$(basename "$f")
-            # Remove version from filename for latest release
+            # Remove version from filename for channel release
             if [[ "$base" == *".ota.bin" ]]; then
               newname="${{ matrix.device }}.ota.bin"
             elif [[ "$base" == *".bin" ]]; then
@@ -100,78 +107,30 @@ jobs:
             else
               newname="$base"
             fi
-            cp "$f" "release-artifacts/latest/${{ matrix.device }}/$newname"
+            cp "$f" "release-artifacts/${CHANNEL}/${{ matrix.device }}/$newname"
           done
           # Fix paths in manifest to match renamed files
-          MANIFEST="release-artifacts/latest/${{ matrix.device }}/${{ matrix.device }}-manifest.json"
+          MANIFEST="release-artifacts/${CHANNEL}/${{ matrix.device }}/${{ matrix.device }}-manifest.json"
           if [ -f "$MANIFEST" ]; then
             sed -i 's/-esp32s3\.ota\.bin/.ota.bin/g' "$MANIFEST"
             sed -i 's/-esp32s3\.factory\.bin/.bin/g' "$MANIFEST"
           fi
 
-      - name: Delete old latest assets for this device
-        if: github.event.release.prerelease == false
+      - name: Delete old channel assets for this device
         run: |
-          gh release view latest --json assets -q '.assets[].name' 2>/dev/null | grep "^${{ matrix.device }}" | while read asset; do
+          gh release view "${{ env.CHANNEL }}" --json assets -q '.assets[].name' 2>/dev/null | grep "^${{ matrix.device }}" | while read asset; do
             echo "Deleting old asset: $asset"
-            gh release delete-asset latest "$asset" -y || true
+            gh release delete-asset "${{ env.CHANNEL }}" "$asset" -y || true
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload latest artifacts (stable only)
-        if: github.event.release.prerelease == false
+      - name: Upload channel artifacts
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: latest
+          tag_name: ${{ env.CHANNEL }}
           files: |
-            release-artifacts/latest/${{ matrix.device }}/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Prerelease: upload into "beta"
-      - name: Prepare prerelease beta artifacts
-        if: github.event.release.prerelease == true
-        run: |
-          mkdir -p "release-artifacts/beta/${{ matrix.device }}"
-          for f in release-artifacts/${{ matrix.device }}/*; do
-            base=$(basename "$f")
-            # Remove version from filename for beta release
-            if [[ "$base" == *".ota.bin" ]]; then
-              newname="${{ matrix.device }}.ota.bin"
-            elif [[ "$base" == *".bin" ]]; then
-              newname="${{ matrix.device }}.bin"
-            elif [[ "$base" == *".manifest.json" ]]; then
-              newname="${{ matrix.device }}-manifest.json"
-            else
-              newname="$base"
-            fi
-            cp "$f" "release-artifacts/beta/${{ matrix.device }}/$newname"
-          done
-          # Fix paths in manifest to match renamed files
-          MANIFEST="release-artifacts/beta/${{ matrix.device }}/${{ matrix.device }}-manifest.json"
-          if [ -f "$MANIFEST" ]; then
-            sed -i 's/-esp32s3\.ota\.bin/.ota.bin/g' "$MANIFEST"
-            sed -i 's/-esp32s3\.factory\.bin/.bin/g' "$MANIFEST"
-          fi
-
-      - name: Delete old beta assets for this device
-        if: github.event.release.prerelease == true
-        run: |
-          gh release view beta --json assets -q '.assets[].name' 2>/dev/null | grep "^${{ matrix.device }}" | while read asset; do
-            echo "Deleting old asset: $asset"
-            gh release delete-asset beta "$asset" -y || true
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload beta artifacts (for prerelease only)
-        if: github.event.release.prerelease == true
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: beta
-          files: |
-            release-artifacts/beta/${{ matrix.device }}/*
+            release-artifacts/${{ env.CHANNEL }}/${{ matrix.device }}/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -187,15 +146,16 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME}"
           REPO="${GITHUB_REPOSITORY}"
+          CHANNEL="${{ github.event.release.prerelease && 'beta' || 'latest' }}"
           mkdir -p release-artifacts
 
           cat <<EOF > release-artifacts/landing-manifest.json
           {
             "version": "${VERSION}",
             "devices": {
-              "satellite1": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1-manifest.json" },
-              "satellite1.ld2450": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2450-manifest.json" },
-              "satellite1.ld2410": { "manifest_url": "https://github.com/${REPO}/releases/download/${{ github.event.release.prerelease && 'beta' || 'latest' }}/satellite1.ld2410-manifest.json" }
+              "satellite1": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1-manifest.json" },
+              "satellite1.ld2450": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.ld2450-manifest.json" },
+              "satellite1.ld2410": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.ld2410-manifest.json" }
             }
           }
           EOF
@@ -207,3 +167,37 @@ jobs:
           files: release-artifacts/landing-manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update_site_manifest:
+    needs: build
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Download latest firmware bins
+        run: |
+          gh release download latest --repo "${{ github.repository }}" \
+            --pattern "satellite1.bin" \
+            --pattern "satellite1.ld2410.bin" \
+            --pattern "satellite1.ld2450.bin" \
+            --dir site/manifests \
+            --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit updated bins
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/manifests/*.bin
+          if git diff --cached --quiet; then
+            echo "No changes to site manifest bins"
+          else
+            git commit -m "chore: update site manifest firmware bins for ${GITHUB_REF_NAME}"
+            git push origin HEAD:${{ github.event.repository.default_branch }}
+          fi

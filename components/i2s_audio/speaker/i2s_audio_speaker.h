@@ -16,8 +16,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/components/ring_buffer/ring_buffer.h"
 
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 // Shared constants for I2S audio speaker implementations
 static constexpr uint32_t DMA_BUFFER_DURATION_MS = 15;
@@ -48,7 +47,7 @@ enum SpeakerEventGroupBits : uint32_t {
 /// @brief Abstract base class for I2S audio speaker implementations.
 /// Provides shared infrastructure: event groups, ring buffer, software volume control,
 /// task lifecycle, and common setup()/loop()/start()/stop()/play() logic.
-/// Derived classes implement run_speaker_task() and start_i2s_driver_().
+/// Derived classes implement run_speaker_task() and start_i2s_driver().
 class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public Component {
  public:
   float get_setup_priority() const override { return esphome::setup_priority::PROCESSOR; }
@@ -83,8 +82,8 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   virtual void run_speaker_task() = 0;
 
   /// @brief Starts the I2S driver for the given stream. Called from loop() before task spawn.
-  /// Uses the shared I2S bus via start_i2s_channel_() / stop_i2s_channel_().
-  virtual esp_err_t start_i2s_driver_(audio::AudioStreamInfo &audio_stream_info) = 0;
+  /// Uses the shared I2S bus via start_i2s_channel() / stop_i2s_channel().
+  virtual esp_err_t start_i2s_driver(audio::AudioStreamInfo &audio_stream_info) = 0;
 
   /// @brief Called in loop() when the task has stopped. Override for mode-specific cleanup.
   virtual void on_task_stopped() {}
@@ -114,7 +113,6 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   audio::AudioStreamInfo current_stream_info_;
 };
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

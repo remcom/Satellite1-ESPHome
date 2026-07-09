@@ -2,8 +2,7 @@
 #include "esp_rom_gpio.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace satellite1 {
+namespace esphome::satellite1 {
 
 static const char *const TAG = "Satellite1";
 
@@ -182,11 +181,10 @@ bool Satellite1::check_for_xmos_() {
 }
 
 void Satellite1::xmos_hardware_reset() {
-  this->xmos_rst_pin_->digital_write(1);
+  this->xmos_rst_pin_->digital_write(true);
   delay(100);
-  this->xmos_rst_pin_->digital_write(0);
+  this->xmos_rst_pin_->digital_write(false);
   delay(100);
 }
 
-}  // namespace satellite1
-}  // namespace esphome
+}  // namespace esphome::satellite1

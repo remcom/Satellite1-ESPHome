@@ -9,8 +9,7 @@
 
 #include "fusb302_defines.h"
 
-namespace esphome {
-namespace fusb302b {
+namespace esphome::fusb302b {
 
 static const char *const TAG = "fusb302b";
 
@@ -63,6 +62,9 @@ void msg_reader_task(void *params) {
         fusb302b->read_status_register(FUSB_STATUS1, regs.status1);
       }
     }
+    // These branches only differ by ESP_LOGV message; at lower LOG_LOCAL_LEVEL the macro compiles
+    // away entirely, making the branches look identical.
+    // NOLINTNEXTLINE(bugprone-branch-clone)
     if (regs.interrupta & FUSB_INTERRUPTA_I_HARDRST) {
       ESP_LOGV(TAG, "Hard reset received");
     } else if (regs.interrupta & FUSB_INTERRUPTA_I_SOFTRST) {
@@ -490,7 +492,6 @@ bool FUSB302B::send_message(const PDMsg &msg) {
   return err == i2c::ERROR_OK;
 }
 
-}  // namespace fusb302b
-}  // namespace esphome
+}  // namespace esphome::fusb302b
 
 #endif  // USE_ESP_IDF

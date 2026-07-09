@@ -7,8 +7,7 @@
 #include "esphome/core/defines.h"
 #include <driver/i2s_std.h>
 
-namespace esphome {
-namespace i2s_audio {
+namespace esphome::i2s_audio {
 
 class I2SAccess {
  public:
@@ -76,12 +75,12 @@ class I2SAudioBase {
   }
 
  protected:
-  virtual bool start_i2s_channel_(i2s_event_callbacks_t callbacks) = 0;
-  virtual bool start_i2s_channel_() {
+  virtual bool start_i2s_channel(i2s_event_callbacks_t callbacks) = 0;
+  virtual bool start_i2s_channel() {
     const i2s_event_callbacks_t callbacks = {};
-    return this->start_i2s_channel_(callbacks);
+    return this->start_i2s_channel(callbacks);
   }
-  virtual bool stop_i2s_channel_() = 0;
+  virtual bool stop_i2s_channel() = 0;
 
   virtual bool IRAM_ATTR i2s_overflow_cb(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx) {
     return true;
@@ -164,9 +163,9 @@ class I2SAudioIn : public I2SAudioBase, public Parented<I2SPortComponent> {
   void register_at_parent() override { this->parent_->set_audio_in(this); }
 
  protected:
-  using I2SAudioBase::start_i2s_channel_;
-  bool start_i2s_channel_(i2s_event_callbacks_t callbacks) override;
-  bool stop_i2s_channel_() override;
+  using I2SAudioBase::start_i2s_channel;
+  bool start_i2s_channel(i2s_event_callbacks_t callbacks) override;
+  bool stop_i2s_channel() override;
   gpio_num_t din_pin_{I2S_GPIO_UNUSED};
 };
 
@@ -189,14 +188,13 @@ class I2SAudioOut : public I2SAudioBase, public Parented<I2SPortComponent> {
   bool is_adjustable() const { return !this->is_fixed_; }
 
  protected:
-  using I2SAudioBase::start_i2s_channel_;
-  bool start_i2s_channel_(i2s_event_callbacks_t callbacks) override;
-  bool stop_i2s_channel_() override;
+  using I2SAudioBase::start_i2s_channel;
+  bool start_i2s_channel(i2s_event_callbacks_t callbacks) override;
+  bool stop_i2s_channel() override;
   gpio_num_t dout_pin_{I2S_GPIO_UNUSED};
   bool callbacks_registered_{false};
 };
 
-}  // namespace i2s_audio
-}  // namespace esphome
+}  // namespace esphome::i2s_audio
 
 #endif  // USE_ESP32

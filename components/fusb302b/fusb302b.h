@@ -12,8 +12,7 @@
 #include "esphome/components/text_sensor/text_sensor.h"
 #endif
 
-namespace esphome {
-namespace fusb302b {
+namespace esphome::fusb302b {
 
 enum class Fusb302State { UNATTACHED, ATTACHED, FAILED };
 
@@ -82,7 +81,6 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
   QueueHandle_t message_queue_{nullptr};
 };
 
-}  // namespace fusb302b
-}  // namespace esphome
+}  // namespace esphome::fusb302b
 
 #endif  // USE_ESP_IDF

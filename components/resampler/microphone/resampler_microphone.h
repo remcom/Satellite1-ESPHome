@@ -15,8 +15,7 @@
 #include <freertos/event_groups.h>
 #include <freertos/semphr.h>
 
-namespace esphome {
-namespace resampler {
+namespace esphome::resampler {
 
 class ResamplerMicrophone : public Component, public microphone::Microphone {
  public:
@@ -74,7 +73,6 @@ class ResamplerMicrophone : public Component, public microphone::Microphone {
   audio::AudioStreamInfo source_stream_info_;
 };
 
-}  // namespace resampler
-}  // namespace esphome
+}  // namespace esphome::resampler
 
 #endif
