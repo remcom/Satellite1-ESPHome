@@ -53,7 +53,12 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
   bool disable_auto_crc();
 
  protected:
-  bool cc_line_selection_();
+  // CC line measurement runs as a non-blocking state machine across loop() iterations:
+  // each measurement needs ~5 ms to settle, which must not block the main loop.
+  enum class CcMeasurePhase : uint8_t { IDLE, SETTLE_CC1, SETTLE_CC2 };
+
+  bool cc_read_bc_lvl_(uint8_t &lvl);
+  void cc_measurement_failed_();
   void fusb_reset_unlocked_();
   void fusb_reset_();
   void check_status_();
@@ -62,7 +67,8 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
       this->state_callback_.call();
 #ifdef USE_TEXT_SENSOR
       if (this->contract_sensor_ != nullptr) {
-        std::string val = (this->state_ == PD_STATE_DISCONNECTED) ? "Detached" : this->contract_;
+        // get_contract() copies the string under the contract lock (written from trigger task)
+        std::string val = (this->state_ == PD_STATE_DISCONNECTED) ? "Detached" : this->get_contract();
         this->contract_sensor_->publish_state(val);
       }
 #endif
@@ -72,6 +78,12 @@ class FUSB302B : public PowerDelivery, public Component, public i2c::I2CDevice {
   void cleanup_();
 
   Fusb302State hw_state_{Fusb302State::UNATTACHED};
+  CcMeasurePhase cc_phase_{CcMeasurePhase::IDLE};
+  uint32_t cc_phase_start_{0};
+  uint32_t cc_retry_after_{0};
+  uint8_t cc1_lvl_{0};
+  // Set by the reader task when a VBUSOK interrupt reports VBUS gone; handled in loop()
+  std::atomic<bool> vbus_lost_{false};
   uint32_t startup_delay_{0};
   int irq_pin_{0};
 

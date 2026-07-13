@@ -5,7 +5,7 @@
 > Based on the original [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome) project
 
 [![Firmware](https://img.shields.io/badge/Firmware-v1.1.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.6.0-blue)](https://esphome.io)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.7-blue)](https://esphome.io)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 

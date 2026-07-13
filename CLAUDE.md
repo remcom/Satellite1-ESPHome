@@ -35,16 +35,14 @@ esphome logs config/satellite1.yaml
 
 **esphome/components/** - FutureProofHomes hardware drivers:
 - `satellite1/` - Main board component (SPI communication with XMOS, GPIO control, audio DAC)
-- `memory_flasher/` - XMOS firmware flasher
-- `audio_visualizer/` - Audio level visualizer for LED ring
+- `memory_flasher/` - XMOS firmware flasher (also `satellite1/memory_flasher/` platform)
 
 **components/** - Hardware drivers and audio pipeline (local overrides):
 - `i2s_audio/` - I2S audio with shared bus support, includes `speaker/` and `microphone/`
 - `resampler/` - Audio resampler
 - `fusb302b/` - USB-PD controller
-- `pcm5122/` - Audio DAC
-- `tas2780/` - Audio amplifier
-- `dac_switcher/` - DAC switching logic
+
+(TAS2780 amplifier comes from a pinned git source — see `external_components` in `config/satellite1.yaml`; PCM5122 DAC and dac_switcher come from ESPHome core.)
 
 ### External Components (from ESPHome PRs)
 
@@ -64,29 +62,6 @@ The firmware pulls experimental components from ESPHome PRs for Sendspin support
 
 **YAML pattern:** Uses `!include` for modular configs. The `packages:` key in base config includes components from `common/`.
 
-## Testing
-
-### Microphone Pipeline Test
-
-Tests mic by streaming audio via UDP from the device to this machine.
-
-```bash
-# Setup
-tests/mic_streaming/setup_testdata.sh
-source scripts/setup_build_env.sh
-pip install -r tests/mic_streaming/requirements.txt
-
-# Enable developer mode in config/satellite1.base.yaml:
-# developer: !include common/developer.yaml
-
-# Compile, upload, then run test
-python tests/mic_streaming/run_test.py
-# Or live streaming:
-python tests/mic_streaming/run_live_streaming.py
-```
-
-Recordings saved to `testdata/mic_streaming/`.
-
 ## Key Component IDs
 
 Important IDs used across YAML configs:
@@ -99,8 +74,8 @@ Important IDs used across YAML configs:
 
 ## Key Conventions
 
-- ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md`
-- ESPHome version pinned in `requirements.txt` (currently 2026.5.0)
+- ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md` (adapted from upstream ESPHome — repo-layout specifics there may not apply here)
+- ESPHome version pinned in `requirements.txt` (check that file for the current pin; `min_version` in `satellite1.base.yaml` is the floor for dashboard builds)
 - Python 3.11-3.13 required (ESPHome constraint)
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - External components reference specific git commits for stability

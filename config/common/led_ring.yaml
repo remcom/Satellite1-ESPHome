@@ -191,7 +191,7 @@ light:
               it[18] = muted_color;
               it[19] = Color::BLACK;
             }
-            if ( id(external_media_player).volume == 0.0f || id(external_media_player).is_muted() ) {
+            if ( id(external_media_player).is_muted() ) {
               it[1] = Color::BLACK;
               it[2] = muted_color;
               it[3] = muted_color;
@@ -220,7 +220,6 @@ light:
             auto light_color = id(led_ring).current_values;
             Color color(light_color.get_red() * 255, light_color.get_green() * 255,
                   light_color.get_blue() * 255);
-            Color silenced_color(255, 0, 0);
             auto volume_ratio = 24.0f * id(external_media_player).volume;
             for (int i = 0; i < 24; i++) {
               if (i <= volume_ratio) {
@@ -228,9 +227,6 @@ light:
               } else {
                 it[(0+i)%24] = Color::BLACK;
               }
-            }
-            if (id(external_media_player).volume == 0.0f) {
-              it[0] = silenced_color;
             }
       - addressable_lambda:
           name: "Action Button Touched"
@@ -550,7 +546,7 @@ script:
             id(control_leds_timer_ticking).execute();
           } else if (id(master_mute_switch).state) {
             id(control_leds_muted_or_silent).execute();
-          } else if (id(external_media_player).volume == 0.0f || id(external_media_player).is_muted()) {
+          } else if (id(external_media_player).is_muted()) {
             id(control_leds_muted_or_silent).execute();
           } else if (id(voice_assistant_phase) == ${voice_assist_idle_phase_id}) {
             id(control_leds_voice_assistant_idle_phase).execute();
@@ -663,7 +659,6 @@ script:
           id: voice_assistant_leds
           effect: "Error"
       - delay: 2s
-      - lambda: id(volume_buttons_touched) = false;
       - script.execute: control_leds
 
   # Script executed when the voice assistant requires user action

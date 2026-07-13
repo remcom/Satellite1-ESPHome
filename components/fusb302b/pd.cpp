@@ -158,6 +158,14 @@ bool PowerDelivery::respond_to_src_cap_msg_(const PDMsg &msg) {
       selected = idx;
     }
   }
+  if (selected == 255) {
+    // No usable PDO (e.g. only augmented PDOs): requesting object position 0 (255 + 1
+    // wrapped) would be malformed, so request the always-present 5V fixed supply instead.
+    ESP_LOGW(TAG, "No acceptable PDO in source capabilities, requesting default 5V");
+    this->requested_contract_ = PdContract{PD_PDO_TYPE_FIXED_SUPPLY, 0, 100, 30, 0};
+    this->send_message(this->create_fallback_request_message());
+    return true;
+  }
   this->requested_contract_ = selected_info;
 
   PDMsg response = build_source_cap_response(this, selected_info, selected + 1);
@@ -188,7 +196,11 @@ std::string PowerDelivery::get_contract_string(PdContract contract) const {
 
 void PowerDelivery::set_contract_(PdContract contract) {
   this->accepted_contract_ = contract;
-  this->contract_ = this->get_contract_string(contract);
+  {
+    // contract_ is read from the main loop via get_contract()
+    LockGuard lock(this->contract_lock_);
+    this->contract_ = this->get_contract_string(contract);
+  }
   this->contract_voltage_ = contract.max_v * 5 / 100;
   this->contract_timer_ = millis();
 }

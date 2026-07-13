@@ -141,7 +141,11 @@ class PowerDelivery {
  public:
   PowerDeliveryState get_state() const { return this->state_; }
   int get_contract_voltage() const { return this->contract_voltage_; }
-  std::string get_contract() const { return this->contract_; }
+  std::string get_contract() const {
+    // contract_ is written from the trigger task; copy it under the lock
+    LockGuard lock(this->contract_lock_);
+    return this->contract_;
+  }
 
   PowerDeliveryState get_prev_state() const { return this->prev_state_; }
 
@@ -173,7 +177,8 @@ class PowerDelivery {
   uint32_t active_ams_timer_{0};
   bool active_ams_{false};
 
-  uint8_t last_received_msg_id_{255};
+  // Written from the trigger/reader tasks, read from the main loop (and vice versa)
+  std::atomic<uint8_t> last_received_msg_id_{255};
   PdSpecRevision msg_spec_rev_{PD_SPEC_REV_2};
   std::atomic<uint8_t> msg_counter_{0};
 
@@ -197,15 +202,16 @@ class PowerDelivery {
 
   PdSpecRevision spec_revision_{PD_SPEC_REV_2};
 
-  bool wait_src_cap_{true};
+  std::atomic<bool> wait_src_cap_{true};
   bool tried_soft_reset_{false};
-  int get_src_cap_retry_count_{0};
+  std::atomic<int> get_src_cap_retry_count_{0};
   uint32_t get_src_cap_time_stamp_{0};
 
   int request_voltage_{5};
 
   PowerDeliveryState state_{PD_STATE_DISCONNECTED};
   int contract_voltage_{5};
+  mutable Mutex contract_lock_;
   std::string contract_{"0.5A @ 5V"};
 
   CallbackManager<void()> state_callback_{};

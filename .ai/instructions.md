@@ -1,5 +1,7 @@
 # ESPHome AI Collaboration Guide
 
+> **Note:** This guide is adapted from upstream ESPHome and is kept for its coding standards, C++ style, component patterns, and embedded-systems guidance. Repo-layout specifics (e.g. `/docker`, `/script`, `platformio.ini`, `script/test_build_components`, the `dev` branch, PR templates) describe the upstream ESPHome repository and do **not** exist in this fork — see `CLAUDE.md` for this repo's actual layout and build commands.
+
 This document provides essential context for AI models interacting with this project. Adhering to these guidelines will ensure consistency and maintain code quality.
 
 ## 1. Project Overview & Purpose

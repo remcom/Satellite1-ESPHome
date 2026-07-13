@@ -115,6 +115,9 @@ static constexpr uint8_t FUSB_INTERRUPTA_I_HARDRST = 1;
 // INTERRUPTB bits
 static constexpr uint8_t FUSB_INTERRUPTB_I_GCRCSENT = 1;
 
+// INTERRUPT bits (mirror MASK1 layout)
+static constexpr uint8_t FUSB_INTERRUPT_I_VBUSOK = (1 << 7);
+
 // STATUS0 bits
 static constexpr uint8_t FUSB_STATUS0_VBUSOK = (1 << 7);
 static constexpr uint8_t FUSB_STATUS0_ACTIVITY = (1 << 6);

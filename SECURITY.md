@@ -34,6 +34,6 @@ Out of scope: vulnerabilities in upstream ESPHome, third-party components, or th
 ## Security Considerations
 
 - **Wi-Fi credentials** are provided at flash time and stored on-device. Use a dedicated IoT network segment.
-- **OTA updates** are password-protected via ESPHome's built-in OTA mechanism. Use a strong OTA password.
+- **OTA updates** are accepted from the local network without a password in the default configuration. Run the device on a trusted network segment, or add a `password:` to the `ota:` block in your local config if your network is shared.
 - **API access** to the device should be restricted to your local network. Enable the ESPHome API encryption key.
 - This firmware is intended for home network environments and is **not hardened for untrusted network exposure**.

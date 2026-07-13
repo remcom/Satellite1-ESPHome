@@ -16,6 +16,8 @@ switch:
     internal: true
     restore_mode: ALWAYS_OFF
     on_turn_off:
+      # Cancel the pending 15 minute auto-off so it can't cut short a later ring
+      - script.stop: timer_ring_timeout
       # Disable stop wake word
       - micro_wake_word.disable_model: stop
       - script.execute: disable_repeat
@@ -48,10 +50,17 @@ switch:
       # Refresh LED
       - script.execute: control_leds
       # If 15 minutes have passed and the timer is still ringing, stop it.
+      - script.execute: timer_ring_timeout
+
+script:
+  # Auto-off for a ringing timer; mode restart so a new ring resets the
+  # countdown and script.stop on turn_off cancels it.
+  - id: timer_ring_timeout
+    mode: restart
+    then:
       - delay: 15min
       - switch.turn_off: timer_ringing
 
-script:
   # Script used to fetch the first active timer (Stored in global first_active_timer)
   - id: fetch_first_active_timer
     then:
