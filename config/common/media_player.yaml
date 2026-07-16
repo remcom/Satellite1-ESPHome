@@ -332,6 +332,13 @@ media_player:
                 id: media_mixing_input
                 decibel_reduction: 0
                 duration: 1.0s
+      # Re-evaluate LED state so the music visualizer follows play/pause/stop
+      # (guarded: state can publish during setup, before the LED strip buffer exists)
+      - if:
+          condition:
+            lambda: return !id(init_in_progress);
+          then:
+            - script.execute: control_leds
 
 script:
   # Script executed when we want to play sounds on the device.

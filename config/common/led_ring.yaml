@@ -229,6 +229,137 @@ light:
               }
             }
       - addressable_lambda:
+          name: "Music Visualizer"
+          update_interval: 33ms
+          lambda: |-
+            static float level_smoothed = 0.0f;
+            static float peak_hold = 0.0f;
+            static uint8_t peak_age = 0;
+            if (initial_run) {
+              level_smoothed = 0.0f;
+              peak_hold = 0.0f;
+              peak_age = 0;
+            }
+            // Only one speaker receives data at a time (router), so take the max of both
+            float level = max( id(i2s_tas2780_speaker)->get_audio_level(),
+                               id(i2s_pcm5122_speaker)->get_audio_level() );
+            // Perceptual curve so quiet passages still register
+            level = sqrtf(level);
+            // Fast attack, slow decay
+            if (level > level_smoothed) {
+              level_smoothed += 0.6f * (level - level_smoothed);
+            } else {
+              level_smoothed += 0.15f * (level - level_smoothed);
+            }
+            // Peak-hold dot that decays after ~330ms
+            if (level_smoothed >= peak_hold) {
+              peak_hold = level_smoothed;
+              peak_age = 0;
+            } else if (++peak_age > 10) {
+              peak_hold = max( peak_hold - 0.03f, level_smoothed );
+            }
+            auto light_color = id(led_ring).current_values;
+            Color ring_color(light_color.get_red() * 255, light_color.get_green() * 255,
+                  light_color.get_blue() * 255);
+            int color_mode = id(music_visualizer_color_mode).active_index().value_or(0);
+            float lit = 24.0f * level_smoothed;
+            for (int i = 0; i < 24; i++) {
+              Color color = ring_color;
+              if (color_mode == 1) {  // Rainbow: hue follows position around the ring
+                color = light::ESPHSVColor(i * 255 / 24, 255, 255).to_rgb();
+              } else if (color_mode == 2) {  // Level Gradient: classic green -> yellow -> red VU
+                float f = i / 23.0f;
+                color = Color(min(255, (int)(510 * f)), min(255, (int)(510 * (1.0f - f))), 0);
+              }
+              if (i < lit) {
+                it[i] = color * min( 255.0f * (lit - i) , 255.0f );
+              } else {
+                it[i] = Color::BLACK;
+              }
+              if (i == min( static_cast<int>(24.0f * peak_hold) , 23 ) && i > lit) {
+                it[i] = color;
+              }
+            }
+      - addressable_lambda:
+          name: "Music Spectrum"
+          update_interval: 33ms
+          lambda: |-
+            static float levels[3] = {0.0f, 0.0f, 0.0f};
+            if (initial_run) {
+              levels[0] = levels[1] = levels[2] = 0.0f;
+            }
+            // Makeup gain per band: treble peaks are naturally much smaller than bass
+            const float gains[3] = {1.0f, 2.2f, 3.5f};
+            float raw[3] = {
+              max( id(i2s_tas2780_speaker)->get_audio_level_bass(), id(i2s_pcm5122_speaker)->get_audio_level_bass() ),
+              max( id(i2s_tas2780_speaker)->get_audio_level_mid(), id(i2s_pcm5122_speaker)->get_audio_level_mid() ),
+              max( id(i2s_tas2780_speaker)->get_audio_level_treble(), id(i2s_pcm5122_speaker)->get_audio_level_treble() )
+            };
+            auto light_color = id(led_ring).current_values;
+            Color ring_color(light_color.get_red() * 255, light_color.get_green() * 255,
+                  light_color.get_blue() * 255);
+            int color_mode = id(music_visualizer_color_mode).active_index().value_or(0);
+            // Fixed hues per band for rainbow mode: bass red, mid green, treble blue
+            const uint8_t band_hues[3] = {0, 96, 170};
+            for (int b = 0; b < 3; b++) {
+              float level = min( sqrtf(raw[b] * gains[b]) , 1.0f );
+              // Fast attack, slow decay
+              if (level > levels[b]) {
+                levels[b] += 0.6f * (level - levels[b]);
+              } else {
+                levels[b] += 0.15f * (level - levels[b]);
+              }
+              // Each band fills an 8-LED arc: bass 0-7, mid 8-15, treble 16-23
+              float lit = 8.0f * levels[b];
+              for (int j = 0; j < 8; j++) {
+                Color color = ring_color;
+                if (color_mode == 1) {  // Rainbow: one hue per band
+                  color = light::ESPHSVColor(band_hues[b], 255, 255).to_rgb();
+                } else if (color_mode == 2) {  // Level Gradient within each arc
+                  float f = j / 7.0f;
+                  color = Color(min(255, (int)(510 * f)), min(255, (int)(510 * (1.0f - f))), 0);
+                }
+                if (j < lit) {
+                  it[b * 8 + j] = color * min( 255.0f * (lit - j) , 255.0f );
+                } else {
+                  it[b * 8 + j] = Color::BLACK;
+                }
+              }
+            }
+      - addressable_lambda:
+          name: "Music Pulse"
+          update_interval: 33ms
+          lambda: |-
+            static float level_smoothed = 0.0f;
+            static uint8_t rainbow_hue = 0;
+            if (initial_run) {
+              level_smoothed = 0.0f;
+              rainbow_hue = 0;
+            }
+            float level = max( id(i2s_tas2780_speaker)->get_audio_level(),
+                               id(i2s_pcm5122_speaker)->get_audio_level() );
+            level = sqrtf(level);
+            // Fast attack, slow decay
+            if (level > level_smoothed) {
+              level_smoothed += 0.6f * (level - level_smoothed);
+            } else {
+              level_smoothed += 0.1f * (level - level_smoothed);
+            }
+            auto light_color = id(led_ring).current_values;
+            Color color(light_color.get_red() * 255, light_color.get_green() * 255,
+                  light_color.get_blue() * 255);
+            int color_mode = id(music_visualizer_color_mode).active_index().value_or(0);
+            if (color_mode == 1) {  // Rainbow: hue drifts, sped up by the music level
+              rainbow_hue += 1 + (uint8_t)(6.0f * level_smoothed);
+              color = light::ESPHSVColor(rainbow_hue, 255, 255).to_rgb();
+            } else if (color_mode == 2) {  // Level Gradient: green when quiet, red when loud
+              color = Color(min(255, (int)(510 * level_smoothed)),
+                            min(255, (int)(510 * (1.0f - level_smoothed))), 0);
+            }
+            for (int i = 0; i < 24; i++) {
+              it[i] = color * (uint8_t)(255.0f * level_smoothed);
+            }
+      - addressable_lambda:
           name: "Action Button Touched"
           update_interval: 16ms
           lambda: |-
@@ -499,6 +630,72 @@ light:
               }
               index = (index + 1);
 
+switch:
+  # User-facing option: when on, the LED ring visualizes the music level during playback
+  - platform: template
+    name: "Music Visualizer"
+    id: music_visualizer_switch
+    icon: "mdi:chart-bar"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    # Guard: restore fires this during setup(), before the LED strip buffer exists
+    on_turn_on:
+      - if:
+          condition:
+            lambda: return !id(init_in_progress);
+          then:
+            - script.execute: control_leds
+    on_turn_off:
+      - if:
+          condition:
+            lambda: return !id(init_in_progress);
+          then:
+            - script.execute: control_leds
+
+select:
+  # Visualizer style: how the ring reacts to the music
+  - platform: template
+    name: "Music Visualizer Style"
+    id: music_visualizer_style
+    icon: "mdi:chart-histogram"
+    entity_category: config
+    options:
+      - "VU Meter"
+      - "Spectrum"
+      - "Pulse"
+    initial_option: "VU Meter"
+    optimistic: true
+    restore_value: true
+    # Guard: restore fires this during setup(), before the LED strip buffer exists
+    on_value:
+      - if:
+          condition:
+            lambda: return !id(init_in_progress);
+          then:
+            - script.execute: control_leds
+
+  # Visualizer colors: what palette the effects draw with
+  - platform: template
+    name: "Music Visualizer Color"
+    id: music_visualizer_color_mode
+    icon: "mdi:palette"
+    entity_category: config
+    options:
+      - "Ring Color"
+      - "Rainbow"
+      - "Level Gradient"
+    initial_option: "Ring Color"
+    optimistic: true
+    restore_value: true
+    # Guard: restore fires this during setup(), before the LED strip buffer exists
+    on_value:
+      - if:
+          condition:
+            lambda: return !id(init_in_progress);
+          then:
+            - script.execute: control_leds
+
 script:
   # Master script controlling the LEDs, based on different conditions : initialization in progress, wifi and api connected and voice assistant phase.
   # For the sake of simplicity and re-usability, the script calls child scripts defined below.
@@ -548,6 +745,9 @@ script:
             id(control_leds_muted_or_silent).execute();
           } else if (id(external_media_player).is_muted()) {
             id(control_leds_muted_or_silent).execute();
+          } else if (id(music_visualizer_switch).state &&
+                     id(external_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_PLAYING) {
+            id(control_leds_music_visualizer).execute();
           } else if (id(voice_assistant_phase) == ${voice_assist_idle_phase_id}) {
             id(control_leds_voice_assistant_idle_phase).execute();
           }
@@ -722,6 +922,20 @@ script:
           brightness: !lambda return max( id(led_ring).current_values.get_brightness() , 0.2f );
           id: voice_assistant_leds
           effect: "Jack Plugged"
+
+  # Script executed while music is playing and the visualizer option is enabled
+  # The LED ring visualizes the playback audio level in the selected style.
+  - id: control_leds_music_visualizer
+    then:
+      - light.turn_on:
+          brightness: !lambda return max( id(led_ring).current_values.get_brightness() , 0.2f );
+          id: voice_assistant_leds
+          effect: !lambda |-
+            switch (id(music_visualizer_style).active_index().value_or(0)) {
+              case 1: return std::string("Music Spectrum");
+              case 2: return std::string("Music Pulse");
+              default: return std::string("Music Visualizer");
+            }
 
   # Script executed when the center button is touched
   # The complete LED ring turns on

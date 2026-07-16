@@ -150,6 +150,7 @@ void I2SAudioSpeaker::run_speaker_task() {
       if (bytes_read > 0) {
         this->apply_software_volume_(new_data, bytes_read);
         this->swap_esp32_mono_samples_(new_data, bytes_read);
+        this->update_audio_level_(new_data, bytes_read);
       }
 
       if (transfer_buffer->available() == 0) {
@@ -205,6 +206,7 @@ void I2SAudioSpeaker::run_speaker_task() {
     }
   }
 
+  this->reset_audio_level_();
   xEventGroupSetBits(this->event_group_, SpeakerEventGroupBits::TASK_STOPPING);
 
   if (transfer_buffer != nullptr) {

@@ -8,6 +8,8 @@
 #include <freertos/queue.h>
 #include <freertos/FreeRTOS.h>
 
+#include <atomic>
+
 #include "esphome/components/audio/audio.h"
 #include "esphome/components/speaker/speaker.h"
 
@@ -71,6 +73,17 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
 
   bool has_buffered_data() const override;
 
+  /// @brief Peak audio level of the most recent chunk written to the DMA, in [0.0, 1.0].
+  /// Returns 0 when no audio has been written recently (stopped, paused, or starved),
+  /// so consumers (e.g. LED visualizers) decay to dark without polling speaker state.
+  float get_audio_level() const { return this->get_audio_level_(this->audio_level_); }
+
+  /// @brief Per-band peak levels of the most recent chunk, in [0.0, 1.0], split by
+  /// one-pole filters at ~250 Hz and ~2.5 kHz. Same staleness behavior as get_audio_level().
+  float get_audio_level_bass() const { return this->get_audio_level_(this->audio_level_bass_); }
+  float get_audio_level_mid() const { return this->get_audio_level_(this->audio_level_mid_); }
+  float get_audio_level_treble() const { return this->get_audio_level_(this->audio_level_treble_); }
+
   void set_volume(float volume) override;
   void set_mute_state(bool mute_state) override;
 
@@ -95,6 +108,12 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   void apply_software_volume_(uint8_t *data, size_t bytes_read);
   void swap_esp32_mono_samples_(uint8_t *data, size_t bytes_read);
 
+  /// @brief Updates the audio level meters from a chunk about to be written to the DMA.
+  /// Called from the speaker task.
+  void update_audio_level_(const uint8_t *data, size_t bytes_read);
+  void reset_audio_level_();
+  float get_audio_level_(const std::atomic<float> &level) const;
+
   TaskHandle_t speaker_task_handle_{nullptr};
   EventGroupHandle_t event_group_{nullptr};
 
@@ -111,6 +130,17 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   QueueHandle_t write_records_queue_{nullptr};
 
   audio::AudioStreamInfo current_stream_info_;
+
+  // Written by the speaker task, read from the main loop (LED effects)
+  std::atomic<float> audio_level_{0.0f};
+  std::atomic<float> audio_level_bass_{0.0f};
+  std::atomic<float> audio_level_mid_{0.0f};
+  std::atomic<float> audio_level_treble_{0.0f};
+  std::atomic<uint32_t> audio_level_updated_ms_{0};
+
+  // One-pole band filter states, only touched by the speaker task
+  float band_filter_bass_{0.0f};
+  float band_filter_mid_{0.0f};
 };
 
 }  // namespace esphome::i2s_audio

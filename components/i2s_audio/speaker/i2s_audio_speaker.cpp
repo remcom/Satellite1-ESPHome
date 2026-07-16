@@ -9,6 +9,9 @@
 
 #include "esp_timer.h"
 
+#include <algorithm>
+#include <cmath>
+
 // esp-audio-libs
 #include <gain.h>
 
@@ -245,6 +248,72 @@ void I2SAudioSpeakerBase::apply_software_volume_(uint8_t *data, size_t bytes_rea
   const uint32_t len = bytes_read / bytes_per_sample;
 
   esp_audio_libs::gain::apply(data, data, this->q31_volume_factor_, len, bytes_per_sample);
+}
+
+float I2SAudioSpeakerBase::get_audio_level_(const std::atomic<float> &level) const {
+  // A DMA-sized chunk covers ~15 ms; treat anything older than a few chunks as silence
+  static constexpr uint32_t AUDIO_LEVEL_STALE_MS = 150;
+  if (millis() - this->audio_level_updated_ms_.load(std::memory_order_relaxed) > AUDIO_LEVEL_STALE_MS) {
+    return 0.0f;
+  }
+  return level.load(std::memory_order_relaxed);
+}
+
+void I2SAudioSpeakerBase::update_audio_level_(const uint8_t *data, size_t bytes_read) {
+  static constexpr float BASS_CUTOFF_HZ = 250.0f;
+  static constexpr float MID_CUTOFF_HZ = 2500.0f;
+
+  const uint32_t sample_rate = this->current_stream_info_.get_sample_rate();
+  const uint8_t channels = this->current_stream_info_.get_channels();
+  const bool is_16_bit = this->current_stream_info_.get_bits_per_sample() <= 16;
+  const size_t frames = bytes_read / this->current_stream_info_.frames_to_bytes(1);
+
+  // One-pole low-pass coefficients; the meter only needs a rough band split
+  const float alpha_bass = 1.0f - expf(-2.0f * M_PI * BASS_CUTOFF_HZ / sample_rate);
+  const float alpha_mid = 1.0f - expf(-2.0f * M_PI * MID_CUTOFF_HZ / sample_rate);
+
+  float lp_bass = this->band_filter_bass_;
+  float lp_mid = this->band_filter_mid_;
+  float peak = 0.0f;
+  float peak_bass = 0.0f;
+  float peak_mid = 0.0f;
+  float peak_treble = 0.0f;
+
+  // Filters run on the first channel only; a mono view is plenty for a visualizer
+  for (size_t f = 0; f < frames; f++) {
+    float sample;
+    if (is_16_bit) {
+      sample = static_cast<float>(reinterpret_cast<const int16_t *>(data)[f * channels]) / 32768.0f;
+    } else {
+      sample = static_cast<float>(reinterpret_cast<const int32_t *>(data)[f * channels]) / 2147483648.0f;
+    }
+    peak = std::max(peak, fabsf(sample));
+
+    lp_bass += alpha_bass * (sample - lp_bass);
+    lp_mid += alpha_mid * (sample - lp_mid);
+    peak_bass = std::max(peak_bass, fabsf(lp_bass));
+    peak_mid = std::max(peak_mid, fabsf(lp_mid - lp_bass));
+    peak_treble = std::max(peak_treble, fabsf(sample - lp_mid));
+  }
+
+  this->band_filter_bass_ = lp_bass;
+  this->band_filter_mid_ = lp_mid;
+
+  this->audio_level_.store(peak, std::memory_order_relaxed);
+  this->audio_level_bass_.store(peak_bass, std::memory_order_relaxed);
+  this->audio_level_mid_.store(peak_mid, std::memory_order_relaxed);
+  this->audio_level_treble_.store(peak_treble, std::memory_order_relaxed);
+  this->audio_level_updated_ms_.store(millis(), std::memory_order_relaxed);
+}
+
+void I2SAudioSpeakerBase::reset_audio_level_() {
+  this->audio_level_.store(0.0f, std::memory_order_relaxed);
+  this->audio_level_bass_.store(0.0f, std::memory_order_relaxed);
+  this->audio_level_mid_.store(0.0f, std::memory_order_relaxed);
+  this->audio_level_treble_.store(0.0f, std::memory_order_relaxed);
+  this->audio_level_updated_ms_.store(0, std::memory_order_relaxed);
+  this->band_filter_bass_ = 0.0f;
+  this->band_filter_mid_ = 0.0f;
 }
 
 void I2SAudioSpeakerBase::swap_esp32_mono_samples_(uint8_t *data, size_t bytes_read) {
