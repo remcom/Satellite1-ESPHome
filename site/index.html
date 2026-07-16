@@ -3,105 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Satellite1 Sendspin Firmware (Unofficial)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Satellite1 Sendspin Firmware — Web Installer</title>
+  <meta name="description" content="Install stable ESPHome firmware for the FutureProofHomes Satellite1 with native Sendspin multi-room audio sync, straight from your browser. No CLI required.">
+  <link rel="canonical" href="https://remcom.github.io/Satellite1-ESPHome/site/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Satellite1 Sendspin Firmware — Web Installer">
+  <meta property="og:description" content="Install stable ESPHome firmware for the FutureProofHomes Satellite1 with native Sendspin multi-room audio sync, straight from your browser.">
+  <meta property="og:url" content="https://remcom.github.io/Satellite1-ESPHome/site/">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Satellite1 Sendspin Firmware — Web Installer">
+  <meta name="twitter:description" content="Install stable ESPHome firmware for the FutureProofHomes Satellite1 with native Sendspin multi-room audio sync.">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#03a9f4',
-            dark: {
-              900: '#1a1a2e',
-              800: '#16213e',
-            }
-          }
-        }
-      }
-    }
-  </script>
 </head>
-<body class="bg-dark-900 text-gray-100 min-h-screen p-5">
-  <div class="max-w-4xl mx-auto">
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a href="index.html" class="brand"><img src="assets/icon.svg" alt=""> Satellite1 Sendspin</a>
+      <a href="https://github.com/remcom/Satellite1-ESPHome" target="_blank" rel="noopener" class="gh">GitHub ↗</a>
+    </nav>
 
-    <!-- Warning Banner -->
-    <div class="bg-amber-500/20 border border-amber-500/50 rounded-xl p-5 mt-5">
-      <div class="flex items-start gap-3">
-        <span class="text-amber-500 text-2xl">&#9888;</span>
-        <div>
-          <h2 class="text-amber-400 font-semibold text-lg mb-1">Unofficial Firmware - Work in Progress</h2>
-          <p class="text-amber-200/80 text-sm leading-relaxed">
-            This is <strong>not official FutureProofHomes firmware</strong>. This is an experimental development fork focused on implementing
-            <a href="https://github.com/esphome/esphome/pull/12284" target="_blank" class="underline hover:text-amber-100">Sendspin</a>
-            synchronized multi-room audio. Expect bugs, breaking changes, and incomplete features.
-          </p>
-          <p class="text-amber-200/80 text-sm mt-2">
-            For stable firmware, use the official <a href="https://github.com/FutureProofHomes/Satellite1-ESPHome" target="_blank" class="underline hover:text-amber-100">FutureProofHomes/Satellite1-ESPHome</a>.
-          </p>
-        </div>
+    <header class="hero">
+      <div class="badge-row">
+        <span class="badge live">v1.2.0 · Stable release</span>
+        <span class="badge">ESPHome 2026.7</span>
+        <span class="badge">Independent fork</span>
       </div>
-    </div>
-
-    <header class="text-center py-10">
-      <h1 class="text-4xl font-bold text-primary mb-2">Satellite1 Sendspin Firmware</h1>
-      <p class="text-gray-400 text-lg">Experimental multi-room audio for Satellite1</p>
+      <h1>Satellite1, synced with Sendspin</h1>
+      <p>A maintained ESPHome firmware for the FutureProofHomes Satellite1, built around Sendspin — ESPHome's native multi-room audio sync — with close upstream ESPHome tracking and ongoing power-management and hardware-driver fixes.</p>
     </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
-      <div class="bg-dark-800 rounded-xl p-8 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
-        <h2 class="text-xl font-semibold text-primary mb-3">Default</h2>
-        <p class="text-gray-400 text-sm leading-relaxed mb-5">Base firmware without radar sensor. Voice assistant and Sendspin audio.</p>
-        <a href="default.html" class="inline-block px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-sky-600 transition-colors">Install Default</a>
+    <div class="grid3">
+      <div class="tile">
+        <h3>Default</h3>
+        <p>Base firmware without a radar sensor. Voice assistant and Sendspin audio.</p>
+        <a href="default.html" class="btn">Install Default</a>
       </div>
 
-      <div class="bg-dark-800 rounded-xl p-8 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
-        <h2 class="text-xl font-semibold text-primary mb-3">LD2410</h2>
-        <p class="text-gray-400 text-sm leading-relaxed mb-5">With HLK-LD2410 radar for simple presence detection.</p>
-        <a href="ld2410.html" class="inline-block px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-sky-600 transition-colors">Install LD2410</a>
+      <div class="tile">
+        <h3>LD2410</h3>
+        <p>With HLK-LD2410 radar for simple room presence detection.</p>
+        <a href="ld2410.html" class="btn">Install LD2410</a>
       </div>
 
-      <div class="bg-dark-800 rounded-xl p-8 text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20">
-        <h2 class="text-xl font-semibold text-primary mb-3">LD2450</h2>
-        <p class="text-gray-400 text-sm leading-relaxed mb-5">With HLK-LD2450 radar for zone and multi-target tracking.</p>
-        <a href="ld2450.html" class="inline-block px-6 py-3 bg-primary text-white rounded-lg font-medium hover:bg-sky-600 transition-colors">Install LD2450</a>
+      <div class="tile">
+        <h3>LD2450 <span class="tag">Advanced</span></h3>
+        <p>With HLK-LD2450 radar for zone and multi-target tracking.</p>
+        <a href="ld2450.html" class="btn">Install LD2450</a>
       </div>
     </div>
 
-    <div class="bg-dark-800 rounded-xl p-8 mt-10">
-      <h2 class="text-xl font-semibold text-primary mb-4">What is Sendspin?</h2>
-      <p class="text-gray-400 mb-4">
-        <a href="https://github.com/esphome/esphome/pull/12284" target="_blank" class="text-primary hover:underline">Sendspin</a>
-        enables synchronized multi-room audio playback across ESPHome devices. Multiple Satellite1 units can play audio in perfect sync throughout your home.
+    <div class="card section-card">
+      <h2>What is Sendspin?</h2>
+      <p>
+        <a href="https://github.com/esphome/esphome/pull/12284" target="_blank" rel="noopener">Sendspin</a>
+        is ESPHome's native protocol for synchronized multi-room audio, built into ESPHome core since 2026.6.0. Multiple Satellite1 units play audio in perfect sync throughout your home, with no external sync server to run or maintain.
       </p>
-      <p class="text-gray-400 mb-6">This fork is a development project to bring Sendspin support to the Satellite1 hardware.</p>
 
-      <h2 class="text-xl font-semibold text-primary mb-4">Project Goals</h2>
-      <ul class="text-gray-400 space-y-2 list-disc list-inside mb-6">
-        <li>Sendspin integration for synchronized multi-room audio</li>
-        <li>Work towards upstream ESPHome component integration</li>
-        <li>Feature parity with Home Assistant Voice PE</li>
-      </ul>
+      <h2 class="section-gap">Why an independent fork?</h2>
+      <p>
+        This fork tracks upstream ESPHome releases closely (currently 2026.7.0), with fixes for DAC power management, LED/timer logic, and the FUSB302B USB-PD driver landing as they're found. It's not a fork in maintenance limbo: releases are versioned, linted, and built from CI on every change.
+      </p>
+      <p>Both this fork and the <a href="https://github.com/FutureProofHomes/Satellite1-ESPHome" target="_blank" rel="noopener">official FutureProofHomes firmware</a> target the same hardware and now both build on Sendspin — pick whichever release cadence and maintenance style fits your setup.</p>
+      <p>A long-term goal here is upstreaming the Satellite1 hardware drivers into ESPHome core so any ESPHome user can use them directly. The PCM5122 DAC driver is already merged upstream; the TAS2780 amplifier driver is in progress.</p>
 
-      <h2 class="text-xl font-semibold text-primary mb-4">Requirements</h2>
-      <ul class="text-gray-400 space-y-2 list-disc list-inside mb-6">
+      <h2 class="section-gap">Requirements</h2>
+      <ul>
         <li>Google Chrome or Microsoft Edge (Web Serial required)</li>
         <li>USB cable connected to your Satellite1</li>
         <li>Home Assistant with Voice Assistant configured</li>
-        <li>ESPHome 2026.6.0 or newer</li>
+        <li>ESPHome 2026.7.0 or newer for building from source</li>
       </ul>
 
-      <h2 class="text-xl font-semibold text-primary mb-4">First Time Installation</h2>
-      <p class="text-gray-400">The device will be erased during first install. After flashing, connect to the "satellite1" WiFi network to configure your home network.</p>
+      <h2 class="section-gap">First-time installation</h2>
+      <p>The device is erased during first install. After flashing, connect to the "satellite1" Wi-Fi network to configure your home network — no cables or CLI needed after that.</p>
     </div>
 
-    <footer class="text-center py-10 text-gray-500">
-      <p class="space-x-3">
-        <a href="https://github.com/remcom/Satellite1-ESPHome" target="_blank" class="text-primary hover:underline">GitHub (This Fork)</a>
-        <span>|</span>
-        <a href="https://github.com/FutureProofHomes/Satellite1-ESPHome" target="_blank" class="text-primary hover:underline">Official Firmware</a>
-        <span>|</span>
-        <a href="https://docs.futureproofhomes.net" target="_blank" class="text-primary hover:underline">Satellite1 Docs</a>
+    <footer>
+      <p>
+        <a href="https://github.com/remcom/Satellite1-ESPHome" target="_blank" rel="noopener">GitHub (this fork)</a>
+        <span class="divider">·</span>
+        <a href="https://github.com/FutureProofHomes/Satellite1-ESPHome" target="_blank" rel="noopener">Official firmware</a>
+        <span class="divider">·</span>
+        <a href="https://docs.futureproofhomes.net" target="_blank" rel="noopener">Satellite1 docs</a>
       </p>
     </footer>
   </div>
