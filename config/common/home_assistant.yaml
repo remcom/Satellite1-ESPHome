@@ -67,6 +67,6 @@ text_sensor:
     name: "XMOS Firmware"
     icon: "mdi:memory"
     entity_category: "diagnostic"
+    # Published by the satellite1 on_xmos_connected / on_xmos_no_response triggers
     update_interval: never
-    lambda: return id(satellite1_id).status_string();
 

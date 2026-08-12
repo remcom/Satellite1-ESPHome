@@ -62,6 +62,9 @@ binary_sensor:
   - platform: gpio
     id: btn_left
     use_interrupt: false
+    # The boot-time sync into master_mute_switch happens from on_boot in
+    # satellite1.base.yaml, not from an initial-state trigger: this handler reaches
+    # control_leds, which drives the LED ring before its buffer exists during setup().
     pin:
       satellite1:
       port: INPUT_A

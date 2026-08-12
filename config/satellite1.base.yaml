@@ -36,13 +36,22 @@ esphome:
   name: ${node_name}
   name_add_mac_suffix: true
   friendly_name: ${friendly_name}
-  min_version: 2026.7.2
+  min_version: 2026.8.0b1
 
   project:
     name: ${company_name}.${project_name}
     version: ${esp32_fw_version}
 
   on_boot:
+    # Negative priority: this runs after every component is set up, so the LED ring
+    # driven by control_leds (via the switch's on_turn_* triggers) is ready. The
+    # hardware switch always wins over master_mute_switch's restored state.
+    - priority: -100
+      then:
+        - switch.template.publish:
+            id: master_mute_switch
+            state: !lambda return id(btn_left).state;
+
     - priority: 375
       then:
         - logger.log: "${company_name} ${project_name} ${component_name} running ESP firmware: ${esp32_fw_version} and XMOS firmware: ${xmos_fw_version}"
@@ -82,6 +91,8 @@ packages:
 
 http_request:
   buffer_size_rx: 2048
+  buffer_size_tx: 1024
+  timeout: 30s
 
 safe_mode:
 

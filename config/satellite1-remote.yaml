@@ -71,11 +71,6 @@ esp32_improv:
     - lambda: id(improv_ble_in_progress) = false;
     - script.execute: control_leds
 
-http_request:
-  buffer_size_rx: 2048
-  buffer_size_tx: 1024
-  timeout: 30s
-
 external_components:
   # FPH Custom Components - fetched from GitHub for remote/dashboard builds
   - source:
