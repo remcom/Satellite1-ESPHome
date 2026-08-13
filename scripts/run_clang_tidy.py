@@ -121,7 +121,19 @@ def clang_options(idedata: dict, build_dir: Path) -> list[str]:
     ]
     cmd.append("-std=gnu++20")
 
-    cmd += [f"-D{define}" for define in idedata["defines"]]
+    # Lint at the most verbose log level, whatever the device config compiles
+    # at. ESP_LOGCONFIG/ESP_LOGD/... expand to nothing below their threshold
+    # (satellite1.yaml builds at `level: info`, which is *below* CONFIG), which
+    # both hides the log statements from analysis entirely and manufactures
+    # false positives in the code around them: a variable used only by a
+    # stripped ESP_LOGCONFIG looks unused, and an if/else whose branches only
+    # log looks like a branch clone.
+    cmd += [
+        f"-D{define}"
+        for define in idedata["defines"]
+        if not define.startswith("ESPHOME_LOG_LEVEL=")
+    ]
+    cmd.append("-DESPHOME_LOG_LEVEL=ESPHOME_LOG_LEVEL_VERY_VERBOSE")
 
     toolchain_dir = os.path.normpath(f"{idedata['cxx_path']}/../../")
     for directory in idedata["includes"]["toolchain"]:
@@ -170,13 +182,35 @@ def _patch_pio_wrapped_mirror_urls() -> None:
 
 
 def regenerate_compile_commands(device: str) -> None:
-    """Codegen + cmake-configure (no ninja build) to (re)produce compile_commands.json."""
+    """Codegen + cmake-configure (no ninja build) to (re)produce compile_commands.json.
+
+    The cycle runs twice, deliberately. ESP-IDF resolves component requirements
+    over two passes, so on a *fresh* build tree the first cycle emits a
+    compile_commands.json whose ESPHome entries are missing the include dirs
+    contributed by transitively-required components (esp_driver_i2s,
+    esp_driver_spi, esp_driver_gpio, ...). clang-tidy then can't find
+    driver/i2s_std.h et al, reports clang-diagnostic-error, and emits a pile of
+    phantom findings from the half-parsed translation units. The second cycle
+    sees the fully resolved graph and fills those includes in. An
+    already-configured tree (the usual local case) is unaffected either way,
+    which is why this only ever showed up on a clean CI runner.
+
+    A second bare run_reconfigure() is not enough (cmake short-circuits it as a
+    no-op), and the second codegen can't run in this process either: esphome
+    registers entities in module-level state during validation, so calling
+    main() twice fails with spurious "Duplicate ... entity" errors. Hence pass 2
+    goes through a fresh interpreter.
+    """
     _patch_pio_wrapped_mirror_urls()
 
     import esphome.__main__ as esphome_main
 
-    sys.argv = ["esphome", "-q", "compile", "--only-generate", f"config/{device}.yaml"]
+    esphome_argv = ["-q", "compile", "--only-generate", f"config/{device}.yaml"]
     os.chdir(REPO_ROOT)
+
+    # Pass 1 in-process, so the mirror-URL patch above applies -- it's only
+    # needed while a version's framework is still being downloaded.
+    sys.argv = ["esphome", *esphome_argv]
     rc = esphome_main.main()
     if rc:
         raise SystemExit(f"error: 'esphome compile --only-generate' failed (exit {rc})")
@@ -186,6 +220,15 @@ def regenerate_compile_commands(device: str) -> None:
     rc = toolchain.run_reconfigure()
     if rc:
         raise SystemExit(f"error: ESP-IDF cmake reconfigure failed (exit {rc})")
+
+    # Pass 2: fresh interpreter for codegen, then reconfigure again.
+    rc = subprocess.run([sys.executable, "-m", "esphome", *esphome_argv], cwd=REPO_ROOT).returncode
+    if rc:
+        raise SystemExit(f"error: 'esphome compile --only-generate' failed on pass 2 (exit {rc})")
+
+    rc = toolchain.run_reconfigure()
+    if rc:
+        raise SystemExit(f"error: ESP-IDF cmake reconfigure failed on pass 2 (exit {rc})")
 
 
 def main() -> int:

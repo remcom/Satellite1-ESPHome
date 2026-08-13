@@ -7,9 +7,19 @@ on:
 permissions:
   contents: write
 
+# Never cancel a release build half-way through; just don't run two for the
+# same tag at once.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  # Builds run in parallel, but only stage artifacts -- every write to a shared
+  # release happens in the single `publish` job below, so the matrix can't race
+  # itself deleting/uploading assets on the same tag.
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     strategy:
       matrix:
@@ -20,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set version variables
         run: |
@@ -28,130 +38,107 @@ jobs:
           SAFE_VERSION="${GITHUB_REF_NAME//-/_}"
           echo "SAFE_VERSION=${SAFE_VERSION}" >> $GITHUB_ENV
 
-      - name: Set channel variable
-        run: |
-          if [ "${{ github.event.release.prerelease }}" == "true" ]; then
-            echo "CHANNEL=beta" >> $GITHUB_ENV
-          else
-            echo "CHANNEL=latest" >> $GITHUB_ENV
-          fi
-
-      - name: Set firmware version in config
-        run: |
-          sed -i 's/esp32_fw_version: dev/esp32_fw_version: ${{ env.VERSION }}/' config/satellite1.base.yaml
-
       - name: Get ESPHome version from requirements.txt
         run: |
           ESPHOME_VERSION=$(grep -oP 'esphome==\K[^\s]+' requirements.txt)
+          if [ -z "$ESPHOME_VERSION" ]; then
+            echo "Could not determine esphome version from requirements.txt"; exit 1;
+          fi
           echo "ESPHOME_VERSION=${ESPHOME_VERSION}" >> $GITHUB_ENV
 
       - name: Build ESPHome firmware
-        uses: esphome/build-action@v7.2.0
+        id: build
+        uses: esphome/build-action@v8.0.0
         with:
           yaml-file: "config/${{ matrix.device }}.yaml"
           complete-manifest: true
           version: ${{ env.ESPHOME_VERSION }}
           release-url: ${{ github.event.release.html_url }}
           release-summary: ${{ github.event.release.body }}
+          substitutions: |
+            esp32_fw_version=${{ env.VERSION }}
 
-      - name: Prepare versioned release artifacts
+      - name: Stage versioned and channel artifacts
+        env:
+          DEVICE: ${{ matrix.device }}
+          OUTDIR: ${{ steps.build.outputs.name }}
         run: |
+          set -euo pipefail
           SAFE_VERSION="${{ env.SAFE_VERSION }}"
 
-          OUTDIR=$(find . -maxdepth 1 -type d -exec bash -c \
-            'ls "$0"/*.bin "$0"/*.ota.bin "$0"/manifest.json 1> /dev/null 2>&1 && echo "$0"' {} \; | sort | tail -n1)
-
-          if [ -z "$OUTDIR" ]; then
-            echo "Could not find build output for ${{ matrix.device }}"; exit 1;
+          if [ ! -d "$OUTDIR" ]; then
+            echo "Build output directory '$OUTDIR' not found for ${DEVICE}"; exit 1;
           fi
 
-          mkdir -p "release-artifacts/${{ matrix.device }}"
+          mkdir -p "staging/versioned" "staging/channel"
 
           for f in "$OUTDIR"/*; do
             base=$(basename "$f")
             # Handle double extensions like .ota.bin
             if [[ "$base" == *.ota.bin ]]; then
               ext="ota.bin"
+              channel_name="${DEVICE}.ota.bin"
             elif [[ "$base" == *.bin ]]; then
               ext="bin"
+              channel_name="${DEVICE}.bin"
             elif [[ "$base" == manifest.json ]]; then
               ext="manifest.json"
+              channel_name="${DEVICE}-manifest.json"
             else
               ext="${base##*.}"
+              channel_name="${DEVICE}.${ext}"
             fi
-            mv "$f" "release-artifacts/${{ matrix.device }}/${{ matrix.device }}-${SAFE_VERSION}.${ext}"
+            cp "$f" "staging/versioned/${DEVICE}-${SAFE_VERSION}.${ext}"
+            cp "$f" "staging/channel/${channel_name}"
           done
 
-      - name: Upload versioned artifacts to release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ env.VERSION }}
-          files: |
-            release-artifacts/${{ matrix.device }}/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Prepare channel artifacts
-        run: |
-          CHANNEL="${{ env.CHANNEL }}"
-          mkdir -p "release-artifacts/${CHANNEL}/${{ matrix.device }}"
-          for f in release-artifacts/${{ matrix.device }}/*; do
-            base=$(basename "$f")
-            # Remove version from filename for channel release
-            if [[ "$base" == *".ota.bin" ]]; then
-              newname="${{ matrix.device }}.ota.bin"
-            elif [[ "$base" == *".bin" ]]; then
-              newname="${{ matrix.device }}.bin"
-            elif [[ "$base" == *".manifest.json" ]]; then
-              newname="${{ matrix.device }}-manifest.json"
-            else
-              newname="$base"
-            fi
-            cp "$f" "release-artifacts/${CHANNEL}/${{ matrix.device }}/$newname"
-          done
-          # Fix paths in manifest to match renamed files
-          MANIFEST="release-artifacts/${CHANNEL}/${{ matrix.device }}/${{ matrix.device }}-manifest.json"
+          # Fix paths in the channel manifest to match the renamed files
+          MANIFEST="staging/channel/${DEVICE}-manifest.json"
           if [ -f "$MANIFEST" ]; then
             sed -i 's/-esp32s3\.ota\.bin/.ota.bin/g' "$MANIFEST"
             sed -i 's/-esp32s3\.factory\.bin/.bin/g' "$MANIFEST"
           fi
 
-      - name: Delete old channel assets for this device
-        run: |
-          gh release view "${{ env.CHANNEL }}" --json assets -q '.assets[].name' 2>/dev/null | grep "^${{ matrix.device }}" | while read asset; do
-            echo "Deleting old asset: $asset"
-            gh release delete-asset "${{ env.CHANNEL }}" "$asset" -y || true
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload channel artifacts
-        uses: softprops/action-gh-release@v3
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
         with:
-          tag_name: ${{ env.CHANNEL }}
-          files: |
-            release-artifacts/${{ env.CHANNEL }}/${{ matrix.device }}/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: firmware-${{ matrix.device }}
+          path: staging/
+          if-no-files-found: error
+          retention-days: 7
 
-  landing_manifest:
+  # Single owner of both the versioned release and the rolling channel release,
+  # so asset deletes/uploads are serialized across all three devices.
+  publish:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - name: Set version and channel variables
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          if [ "${{ github.event.release.prerelease }}" == "true" ]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=latest" >> $GITHUB_ENV
+          fi
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: firmware-*
+          merge-multiple: true
+          path: dist
 
       - name: Generate landing manifest
         run: |
-          VERSION="${GITHUB_REF_NAME}"
           REPO="${GITHUB_REPOSITORY}"
-          CHANNEL="${{ github.event.release.prerelease && 'beta' || 'latest' }}"
-          mkdir -p release-artifacts
+          CHANNEL="${{ env.CHANNEL }}"
 
-          cat <<EOF > release-artifacts/landing-manifest.json
+          cat <<EOF > dist/channel/landing-manifest.json
           {
-            "version": "${VERSION}",
+            "version": "${GITHUB_REF_NAME}",
             "devices": {
               "satellite1": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1-manifest.json" },
               "satellite1.ld2450": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.ld2450-manifest.json" },
@@ -160,22 +147,49 @@ jobs:
           }
           EOF
 
-      - name: Upload landing manifest
-        uses: softprops/action-gh-release@v3
+      - name: Upload versioned artifacts to release
+        uses: softprops/action-gh-release@v3.0.2
         with:
-          tag_name: ${{ github.event.release.prerelease && 'beta' || 'latest' }}
-          files: release-artifacts/landing-manifest.json
+          tag_name: ${{ env.VERSION }}
+          files: dist/versioned/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Sweep every asset this workflow owns, for all devices at once. Doing
+      # this per-device in the matrix was unsafe: the `satellite1` prefix also
+      # matches `satellite1.ld2410.*`, so a parallel job could delete another
+      # device's freshly-uploaded assets.
+      - name: Delete superseded channel assets
+        run: |
+          set -uo pipefail
+          # A first-ever beta/latest release doesn't exist yet, and a matchless
+          # grep exits 1 -- neither is an error here.
+          EXISTING=$(gh release view "${{ env.CHANNEL }}" --json assets -q '.assets[].name' 2>/dev/null || true)
+          STALE=$(grep -E '^(satellite1|landing-manifest\.json$)' <<< "$EXISTING" || true)
+          for asset in $STALE; do
+            echo "Deleting old asset: $asset"
+            gh release delete-asset "${{ env.CHANNEL }}" "$asset" -y || true
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload channel artifacts
+        uses: softprops/action-gh-release@v3.0.2
+        with:
+          tag_name: ${{ env.CHANNEL }}
+          files: dist/channel/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   update_site_manifest:
-    needs: build
+    needs: publish
     if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.repository.default_branch }}
 
