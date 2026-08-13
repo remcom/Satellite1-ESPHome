@@ -21,10 +21,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
@@ -39,10 +39,10 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
@@ -51,7 +51,7 @@ jobs:
       # esphome.espidf keeps its toolchain and ccache under the platformdirs
       # user cache; without this every run re-downloads ESP-IDF.
       - name: Cache ESP-IDF toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/esphome
           key: esphome-idf-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
