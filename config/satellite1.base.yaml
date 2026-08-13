@@ -71,6 +71,7 @@ esphome:
 ota:
   - platform: esphome
     id: ota_esphome
+    allow_partition_access: true
 
 packages:
   core_board: !include common/core_board.yaml
