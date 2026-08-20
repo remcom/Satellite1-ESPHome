@@ -168,12 +168,11 @@ bool I2SAudioMicrophone::start_driver_() {
 
 bool I2SAudioMicrophone::stop_driver_() { return this->stop_i2s_channel(); }
 
-size_t I2SAudioMicrophone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_wait) {
+size_t I2SAudioMicrophone::read_(uint8_t *buf, size_t len, uint32_t timeout_ms) {
   size_t bytes_read = 0;
-  // i2s_channel_read expects the timeout value in ms, not ticks
-  esp_err_t err = i2s_channel_read(this->parent_->get_rx_handle(), buf, len, &bytes_read, pdTICKS_TO_MS(ticks_to_wait));
-  if ((err != ESP_OK) && ((err != ESP_ERR_TIMEOUT) || (ticks_to_wait != 0))) {
-    // Ignore ESP_ERR_TIMEOUT if ticks_to_wait = 0, as it will read the data on the next call
+  esp_err_t err = i2s_channel_read(this->parent_->get_rx_handle(), buf, len, &bytes_read, timeout_ms);
+  if ((err != ESP_OK) && ((err != ESP_ERR_TIMEOUT) || (timeout_ms != 0))) {
+    // Ignore ESP_ERR_TIMEOUT if timeout_ms = 0, as it will read the data on the next call
     if (!this->status_has_warning()) {
       // Avoid spamming the logs with the error message if its repeated
       ESP_LOGW(TAG, "Error reading from I2S microphone: %s", esp_err_to_name(err));
@@ -181,7 +180,7 @@ size_t I2SAudioMicrophone::read_(uint8_t *buf, size_t len, TickType_t ticks_to_w
     this->status_set_warning(LOG_STR("I2S read error"));
     return 0;
   }
-  if ((bytes_read == 0) && (ticks_to_wait > 0)) {
+  if ((bytes_read == 0) && (timeout_ms > 0)) {
     this->status_set_warning(LOG_STR("No data received"));
     return 0;
   }
@@ -227,7 +226,7 @@ void I2SAudioMicrophone::mic_task(void *params) {
     while (!(xEventGroupGetBits(this_microphone->event_group_) & MicrophoneEventGroupBits::COMMAND_STOP)) {
       if (this_microphone->data_callbacks_.size() > 0) {
         samples.resize(bytes_to_read);
-        size_t bytes_read = this_microphone->read_(samples.data(), bytes_to_read, 2 * pdMS_TO_TICKS(READ_DURATION_MS));
+        size_t bytes_read = this_microphone->read_(samples.data(), bytes_to_read, 2 * READ_DURATION_MS);
         size_t samples_read = bytes_read / sizeof(int32_t);
         int32_t *samples_32 = reinterpret_cast<int32_t *>(samples.data());
         for (size_t i = 0; i < samples_read; i += 3) {

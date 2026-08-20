@@ -5,7 +5,7 @@ name: Sync labels
 on:
   push:
     branches:
-      - main
+      - develop
     paths:
       - .github/labels.yml
   workflow_dispatch:
@@ -16,9 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ⤵️ Check out code from GitHub
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
+      # Reads .github/labels.yml (the action's default path). Labels present on
+      # the repo but absent from that file are deleted, matching the `prune`
+      # default of the action this replaced.
       - name: 🚀 Run Label Syncer
-        uses: micnncim/action-label-syncer@v1.3.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: crazy-max/ghaction-github-labeler@v6.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

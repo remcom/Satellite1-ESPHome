@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0f1e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)">
   <title>Satellite1 Sendspin Firmware — Web Installer</title>
   <meta name="description" content="Install stable ESPHome firmware for the FutureProofHomes Satellite1 with native Sendspin multi-room audio sync, straight from your browser. No CLI required.">
   <link rel="canonical" href="https://remcom.github.io/Satellite1-ESPHome/site/">
@@ -18,7 +20,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
-  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 </head>
 <body>
   <div class="wrap">
@@ -29,8 +30,8 @@
 
     <header class="hero">
       <div class="badge-row">
-        <span class="badge live">v1.2.0 · Stable release</span>
-        <span class="badge">ESPHome 2026.7</span>
+        <span class="badge live">v1.3.0 · Stable release</span>
+        <span class="badge">ESPHome 2026.8.0</span>
         <span class="badge">Independent fork</span>
       </div>
       <h1>Satellite1, synced with Sendspin</h1>
@@ -66,7 +67,7 @@
 
       <h2 class="section-gap">Why an independent fork?</h2>
       <p>
-        This fork tracks upstream ESPHome releases closely (currently 2026.7.2), with fixes for DAC power management, LED/timer logic, and the FUSB302B USB-PD driver landing as they're found. It's not a fork in maintenance limbo: releases are versioned, linted, and built from CI on every change.
+        This fork tracks upstream ESPHome releases closely (currently 2026.8.0), with fixes for DAC power management, LED/timer logic, and the FUSB302B USB-PD driver landing as they're found. It's not a fork in maintenance limbo: releases are versioned, linted, and built from CI on every change.
       </p>
       <p>Both this fork and the <a href="https://github.com/FutureProofHomes/Satellite1-ESPHome" target="_blank" rel="noopener">official FutureProofHomes firmware</a> target the same hardware and now both build on Sendspin — pick whichever release cadence and maintenance style fits your setup.</p>
       <p>A long-term goal here is upstreaming the Satellite1 hardware drivers into ESPHome core so any ESPHome user can use them directly. The PCM5122 DAC driver is already merged upstream; the TAS2780 amplifier driver is in progress.</p>
@@ -76,11 +77,11 @@
         <li>Google Chrome or Microsoft Edge (Web Serial required)</li>
         <li>USB cable connected to your Satellite1</li>
         <li>Home Assistant with Voice Assistant configured</li>
-        <li>ESPHome 2026.7.2 or newer for building from source</li>
+        <li>ESPHome 2026.8.0 or newer for building from source</li>
       </ul>
 
       <h2 class="section-gap">First-time installation</h2>
-      <p>The device is erased during first install. After flashing, connect to the "satellite1" Wi-Fi network to configure your home network — no cables or CLI needed after that.</p>
+      <p>The device is erased during first install. Right after flashing, the installer asks for your home Wi-Fi credentials in the browser, so no CLI or config file is needed. Devices already on the network can also be re-provisioned over Bluetooth from Home Assistant.</p>
     </div>
 
     <footer>

@@ -45,7 +45,9 @@ number:
     min_value: 0
     max_value: 1.
     step: .05
-    initial_value: .3
+    # Matches vol_range_min on the tas2780 in media_player.yaml; a different value
+    # here silently overrides the configured range on boot.
+    initial_value: .65
     on_value:
       then:
         - tas2780.update_config:

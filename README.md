@@ -2,8 +2,8 @@
 
 **Stable, actively maintained ESPHome firmware for the FutureProofHomes Satellite1 voice assistant, tracking upstream ESPHome closely with ongoing hardware and power-management fixes.**
 
-[![Firmware](https://img.shields.io/badge/Firmware-v1.2.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.7-blue)](https://esphome.io)
+[![Firmware](https://img.shields.io/badge/Firmware-v1.3.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.8-blue)](https://esphome.io)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -26,7 +26,7 @@ This is an actively maintained ESPHome firmware fork for the [FutureProofHomes S
 
 ## Why This Fork
 
-This project tracks upstream ESPHome releases closely (currently 2026.7.2), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
+This project tracks upstream ESPHome releases closely (currently 2026.8.0), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
 
 Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and now both build on Sendspin — pick whichever release cadence and maintenance style fits your setup.
 
@@ -100,7 +100,7 @@ As more drivers land upstream, this fork gets smaller and closer to stock ESPHom
 
 ### Software
 
-- **ESPHome** 2026.7.2+
+- **ESPHome** 2026.8.0+
 - **Home Assistant** with Voice Assistant configured
 - **Chrome or Edge browser** (for the web installer)
 
@@ -167,7 +167,7 @@ We welcome contributions!
 ## FAQ
 
 **Is this ready for daily use?**
-Yes — releases are versioned and tagged (currently v1.2.0), tested against real hardware, and built with linting/CI on every change. It isn't a one-off experiment; it's a maintained alternative firmware.
+Yes — releases are versioned and tagged (currently v1.3.0), tested against real hardware, and built with linting/CI on every change. It isn't a one-off experiment; it's a maintained alternative firmware.
 
 **Is this affiliated with FutureProofHomes?**
 No. It's an independent, community-maintained fork of their open-source firmware. Hardware design and the original firmware are FutureProofHomes' work.

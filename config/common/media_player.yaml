@@ -30,19 +30,26 @@ audio_dac:
 # API actions for switching between DACs
 api:
   actions:
+    # Both actions bring the target DAC out of powerdown before routing to it; without
+    # that the target may still be powered down from the jack handlers or the idle
+    # interval below, and the switch would result in silence.
     - action: switch_to_speaker
       then:
+        - script.execute: tas2780_ensure_active
         - audio_dac.mute_on: speaker_dac_pcm5122
         - router.speaker.switch_output:
             id: router_speaker
             target_speaker: i2s_tas2780_speaker
+        - script.execute: pcm5122_ensure_powerdown
 
     - action: switch_to_lineout
       then:
+        - script.execute: pcm5122_ensure_active
         - audio_dac.mute_on: speaker_dac_tas2780
         - router.speaker.switch_output:
             id: router_speaker
             target_speaker: i2s_pcm5122_speaker
+        - script.execute: tas2780_ensure_powerdown
 
 select:
   - platform: template
@@ -432,6 +439,7 @@ text_sensor:
   - platform: sendspin
     id: track_title
     type: title
+    name: Title
   - platform: sendspin
     type: artist
     name: Artist
@@ -464,8 +472,7 @@ interval:
                     - media_player.is_paused: external_media_player
           then:
             - logger.log: "Deactivating TAS2780 due to 60 seconds of idle"
-            - tas2780.deactivate:
-            - lambda: id(tas2780_active) = false;
+            - script.execute: tas2780_ensure_powerdown
       - if:
           condition:
             - binary_sensor.is_on: line_out_sensor

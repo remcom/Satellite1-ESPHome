@@ -7,6 +7,10 @@
   --card-border: rgba(255, 255, 255, 0.08);
   --text: #e7ecf5;
   --text-muted: #93a1b8;
+  --heading: #fff;
+  --live: #86efac;
+  --live-border: rgba(134, 239, 172, 0.3);
+  --divider: rgba(255, 255, 255, 0.15);
 }
 
 * {
@@ -108,8 +112,8 @@ body {
 }
 
 .badge.live {
-  color: #86efac;
-  border-color: rgba(134, 239, 172, 0.3);
+  color: var(--live);
+  border-color: var(--live-border);
   background: rgba(34, 197, 94, 0.08);
 }
 
@@ -135,7 +139,7 @@ body {
   font-weight: 700;
   letter-spacing: -0.03em;
   margin: 0 0 0.6rem;
-  background: linear-gradient(135deg, #fff, var(--primary) 120%);
+  background: linear-gradient(135deg, var(--heading), var(--primary) 120%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -164,7 +168,7 @@ body {
 }
 
 .card h2, .card h3 {
-  color: #fff;
+  color: var(--heading);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -258,7 +262,7 @@ body {
 .spec .value {
   font-weight: 600;
   margin-top: 0.15rem;
-  color: #fff;
+  color: var(--heading);
 }
 
 .note {
@@ -270,7 +274,7 @@ body {
 }
 
 .note strong {
-  color: #fff;
+  color: var(--heading);
 }
 
 .tag {
@@ -323,7 +327,7 @@ footer a:hover {
 }
 
 .divider {
-  color: rgba(255, 255, 255, 0.15);
+  color: var(--divider);
 }
 
 .section-card {
@@ -355,12 +359,20 @@ ol, ul {
     --card-border: rgba(15, 23, 42, 0.08);
     --text: #0f172a;
     --text-muted: #52607a;
+    --heading: #0f172a;
+    --live: #15803d;
+    --live-border: rgba(21, 128, 61, 0.3);
+    --divider: rgba(15, 23, 42, 0.2);
   }
 
   .hero h1 {
-    background: linear-gradient(135deg, #0f172a, var(--primary-dark) 120%);
+    background: linear-gradient(135deg, var(--heading), var(--primary-dark) 120%);
     -webkit-background-clip: text;
     background-clip: text;
+  }
+
+  .nav a.gh:hover {
+    border-color: rgba(15, 23, 42, 0.25);
   }
 
   .card, .tile {

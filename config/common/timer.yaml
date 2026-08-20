@@ -65,14 +65,20 @@ script:
   - id: fetch_first_active_timer
     then:
       - lambda: |
-          const auto &timers = id(va).get_timers();
-          auto output_timer = *timers.begin();
-          for (const auto &timer : timers) {
-            if (timer.is_active && timer.seconds_left <= output_timer.seconds_left) {
-              output_timer = timer;
+          // Only active timers are candidates; seeding from timers.front() would let an
+          // inactive timer with less time left win over the running one.
+          const voice_assistant::Timer *output_timer = nullptr;
+          for (const auto &timer : id(va).get_timers()) {
+            if (!timer.is_active) {
+              continue;
+            }
+            if (output_timer == nullptr || timer.seconds_left <= output_timer->seconds_left) {
+              output_timer = &timer;
             }
           }
-          id(first_active_timer) = output_timer;
+          if (output_timer != nullptr) {
+            id(first_active_timer) = *output_timer;
+          }
 
   # Script used to check if a timer is active (Stored in global is_timer_active)
   - id: check_if_timers_active

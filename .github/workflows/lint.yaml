@@ -6,60 +6,62 @@ on:
   pull_request:
     branches: [main, develop]
 
+# A newer push to the same branch/PR supersedes the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  clang-format:
-    name: clang-format (components)
+  # Single source of truth: runs exactly the hooks in .pre-commit-config.yaml
+  # (yamllint over config/ + .github/, clang-format over components/), so CI
+  # and local commits can't drift apart.
+  pre-commit:
+    name: pre-commit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Run clang-format on components/
-        uses: jidicula/clang-format-action@v4.16.0
-        with:
-          clang-format-version: '18'
-          check-path: 'components'
-
-      - name: Run clang-format on esphome/components/
-        uses: jidicula/clang-format-action@v4.16.0
-        with:
-          clang-format-version: '18'
-          check-path: 'esphome/components'
-
-  # clang-tidy:
-  #   name: clang-tidy (components)
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v6
-
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v6
-  #       with:
-  #         python-version: '3.13'
-
-  #     - name: Install ESPHome and clang-tidy
-  #       run: |
-  #         pip install -r requirements.txt
-  #         pip install clang-tidy==18.1.8
-
-  #     - name: Run clang-tidy on components/ and esphome/components/
-  #       run: python3 scripts/run_clang_tidy.py
-
-  yamllint:
-    name: yamllint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
+          cache: pip
 
-      - name: Install yamllint
-        run: pip install yamllint
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
 
-      - name: Run yamllint
-        run: yamllint config/
+  clang-tidy:
+    name: clang-tidy (components)
+    runs-on: ubuntu-latest
+    # Cold cache pays for the one-off ESP-IDF toolchain download.
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # esphome.espidf keeps its toolchain and ccache under the platformdirs
+      # user cache; without this every run re-downloads ESP-IDF.
+      - name: Cache ESP-IDF toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/esphome
+          key: esphome-idf-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            esphome-idf-${{ runner.os }}-
+
+      - name: Install ESPHome and clang-tidy
+        run: |
+          pip install -r requirements.txt
+          pip install clang-tidy==18.1.8
+
+      - name: Run clang-tidy on components/ and esphome/components/
+        run: python3 scripts/run_clang_tidy.py
