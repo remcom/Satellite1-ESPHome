@@ -20,7 +20,8 @@ audio_dac:
   - platform: tas2780
     id: speaker_dac_tas2780
     address: 0x3F
-    vol_range_min: 0.65
+    # ~52 dB of usable range, matching the PCM5122 line-out span
+    vol_range_min: 0.475
     vol_range_max: 1.0
 
   - platform: pcm5122
