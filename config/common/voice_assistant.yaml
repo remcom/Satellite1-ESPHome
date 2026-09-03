@@ -168,8 +168,11 @@ voice_assistant:
   media_player: external_media_player
   micro_wake_word: mww
   use_wake_word: false
-  noise_suppression_level: 0
-  auto_gain: 0 dbfs
+  # Enhanced STT input quality: RNNoise suppression + auto-gain lift the
+  # voice above room noise so the (local faster-whisper) STT lane hears a
+  # clean signal. Tunable: suppression 0-4, auto_gain in dBFS.
+  noise_suppression_level: 2
+  auto_gain: 10 dbfs
   volume_multiplier: 1
   on_client_connected:
     - lambda: id(init_in_progress) = false;
