@@ -114,12 +114,38 @@ jobs:
             cp "$f" "staging/channel/${channel_name}"
           done
 
-          # Fix paths in the channel manifest to match the renamed files
-          MANIFEST="staging/channel/${DEVICE}-manifest.json"
-          if [ -f "$MANIFEST" ]; then
-            sed -i 's/-esp32s3\.ota\.bin/.ota.bin/g' "$MANIFEST"
-            sed -i 's/-esp32s3\.factory\.bin/.bin/g' "$MANIFEST"
-          fi
+          # ESPHome names its artifacts after the node name, which is `satellite1`
+          # for every variant, so all four builds emit satellite1-esp32s3.*.bin.
+          # The paths inside manifest.json must be rewritten to the per-device
+          # names the files were just staged under: rewriting only the extension
+          # pointed every variant's manifest at the DEFAULT variant's firmware,
+          # which silently OTA'd radar devices onto the non-radar build.
+          fix_manifest_paths() {
+            local manifest="$1" ota="$2" factory="$3" dir p
+            [ -f "$manifest" ] || return 0
+            dir=$(dirname "$manifest")
+
+            sed -i -E \
+              -e "s|\"path\":[[:space:]]*\"[A-Za-z0-9._-]*\.ota\.bin\"|\"path\": \"${ota}\"|g" \
+              -e "s|\"path\":[[:space:]]*\"[A-Za-z0-9._-]*\.factory\.bin\"|\"path\": \"${factory}\"|g" \
+              "$manifest"
+
+            # Every path a manifest advertises must be a file we actually staged.
+            # Without this the release can publish a manifest pointing at a 404 --
+            # or at another variant's firmware, which is how the wrong build ends
+            # up on a device.
+            while read -r p; do
+              if [ ! -f "${dir}/${p}" ]; then
+                echo "::error::${manifest} references '${p}', which was not staged in ${dir}"
+                exit 1
+              fi
+            done < <(grep -oE '"path":[[:space:]]*"[^"]+"' "$manifest" | cut -d'"' -f4)
+          }
+
+          fix_manifest_paths "staging/channel/${DEVICE}-manifest.json" \
+            "${DEVICE}.ota.bin" "${DEVICE}.bin"
+          fix_manifest_paths "staging/versioned/${DEVICE}-${SAFE_VERSION}.manifest.json" \
+            "${DEVICE}-${SAFE_VERSION}.ota.bin" "${DEVICE}-${SAFE_VERSION}.bin"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
