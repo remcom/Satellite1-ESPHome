@@ -27,6 +27,7 @@ jobs:
           - satellite1
           - satellite1.ld2450
           - satellite1.ld2410
+          - satellite1.secure
 
     steps:
       - name: Checkout repository
@@ -46,6 +47,23 @@ jobs:
           fi
           echo "ESPHOME_VERSION=${ESPHOME_VERSION}" >> $GITHUB_ENV
 
+      - name: Write signing key for the hardened variant
+        if: matrix.device == 'satellite1.secure'
+        env:
+          SIGNING_KEY: ${{ secrets.SECURE_BOOT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SIGNING_KEY}" ]; then
+            echo "::error::secrets.SECURE_BOOT_SIGNING_KEY is empty. The hardened" \
+                 "variant must be signed -- an unsigned image has no public key to" \
+                 "verify against, so OTA on the device would be permanently broken."
+            exit 1
+          fi
+          # Path matches `signing_key: ../secure_boot_signing_key.pem` in
+          # config/satellite1.secure.yaml (resolved relative to config/).
+          printf '%s\n' "${SIGNING_KEY}" > secure_boot_signing_key.pem
+          chmod 600 secure_boot_signing_key.pem
+
       - name: Build ESPHome firmware
         id: build
         uses: esphome/build-action@v8.0.0
@@ -57,6 +75,10 @@ jobs:
           release-summary: ${{ github.event.release.body }}
           substitutions: |
             esp32_fw_version=${{ env.VERSION }}
+
+      - name: Remove signing key
+        if: always() && matrix.device == 'satellite1.secure'
+        run: rm -f secure_boot_signing_key.pem
 
       - name: Stage versioned and channel artifacts
         env:
@@ -142,7 +164,8 @@ jobs:
             "devices": {
               "satellite1": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1-manifest.json" },
               "satellite1.ld2450": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.ld2450-manifest.json" },
-              "satellite1.ld2410": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.ld2410-manifest.json" }
+              "satellite1.ld2410": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.ld2410-manifest.json" },
+              "satellite1.secure": { "manifest_url": "https://github.com/${REPO}/releases/download/${CHANNEL}/satellite1.secure-manifest.json" }
             }
           }
           EOF
@@ -199,6 +222,7 @@ jobs:
             --pattern "satellite1.bin" \
             --pattern "satellite1.ld2410.bin" \
             --pattern "satellite1.ld2450.bin" \
+            --pattern "satellite1.secure.bin" \
             --dir site/manifests \
             --clobber
         env:

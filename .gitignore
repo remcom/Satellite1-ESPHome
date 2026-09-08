@@ -30,3 +30,7 @@ sdkconfig.esp32-s3-idf
 .idea
 .remember/
 .claude/
+
+# Secure Boot v2 / signed-OTA signing key for config/satellite1.secure.yaml
+secure_boot_signing_key.pem
+*_signing_key.pem

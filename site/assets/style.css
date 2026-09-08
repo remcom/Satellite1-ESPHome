@@ -11,6 +11,7 @@
   --live: #86efac;
   --live-border: rgba(134, 239, 172, 0.3);
   --divider: rgba(255, 255, 255, 0.15);
+  --warn: #fbbf24;
 }
 
 * {
@@ -383,4 +384,66 @@ ol, ul {
   .badge {
     background: rgba(15, 23, 42, 0.03);
   }
+}
+
+/* Auto-fitting tile grid, used where a fourth variant makes a fixed
+   three-column layout wrap awkwardly. */
+.grid-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .grid-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Amber variant of .note, for consequences a reader must not skim past. */
+.note.warn {
+  border-left-color: var(--warn);
+  background: rgba(251, 191, 36, 0.09);
+}
+
+.note.warn strong {
+  color: var(--warn);
+}
+
+.tag.warn {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #431407;
+}
+
+/* Consequence list: one-way changes, spelled out rather than buried in prose. */
+.consequences {
+  list-style: none;
+  padding: 0;
+  margin: 1.25rem 0 0;
+}
+
+.consequences li {
+  position: relative;
+  padding-left: 1.6rem;
+  margin-bottom: 0.8rem;
+}
+
+.consequences li::before {
+  content: "!";
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: rgba(251, 191, 36, 0.18);
+  color: var(--warn);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.1rem;
+}
+
+.consequences li strong {
+  color: var(--heading);
 }
