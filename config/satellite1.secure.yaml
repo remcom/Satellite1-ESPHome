@@ -1,0 +1,94 @@
+# Satellite1 -- security-hardened variant.
+#
+# Identical to config/satellite1.yaml (same features, provisioning, beta channel
+# and serial console) plus two things:
+#
+#   1. NVS encryption. The AES-XTS keys are derived at runtime from an HMAC key in
+#      eFuse and are never written to flash, so this needs neither flash
+#      encryption nor an `nvs_keys` partition -- which is what keeps this variant
+#      deliverable over OTA. Wi-Fi credentials, the API key and every saved
+#      preference stop being readable from a flash dump.
+#
+#   2. Signed OTA verification. The running app checks the signature of any image
+#      offered to it against the public key in its own signature block, so a
+#      compromised or spoofed update server cannot install firmware. No eFuses are
+#      burned for this and USB flashing stays unrestricted.
+#
+# Consequences -- see site/secure.html for the user-facing version:
+#
+#   * The eFuse key burn on first boot is PERMANENT and IRREVERSIBLE.
+#   * Turning encryption on (or ever moving this device back to a plain build)
+#     wipes saved preferences once: the device comes up needing re-provisioning.
+#   * The build needs the private signing key. An unsigned build has no public key
+#     to verify against, so its OTA is dead -- self-built images need your own key.
+#   * Only one trusted key is supported in this mode. Lose it and field devices are
+#     USB-recovery-only. See `verification_keys` below for the rotation upgrade.
+#   * Moving BACK to a standard build requires a USB flash. This device installs
+#     only signed images and standard releases are unsigned, so the downgrade
+#     cannot be done over the air.
+#   * No `dashboard_import`: it would advertise satellite1-dashboard.yaml, which
+#     pulls the standard variant, so ESPHome-dashboard adoption would silently
+#     convert a hardened device back.
+
+substitutions:
+  company_name: FutureProofHomes
+  project_name: Satellite1
+
+packages:
+  # satellite1.common.yaml, not satellite1.yaml: the hardened build takes the
+  # shared stack but deliberately leaves out dashboard_import.
+  base_image: !include satellite1.common.yaml
+
+esphome:
+  name: ${node_name}
+  project:
+    name: ${company_name}.${project_name}
+    version: ${esp32_fw_version}+secure
+
+esp32:
+  framework:
+    advanced:
+      # eFuse key block holding the HMAC key the NVS keys are derived from.
+      # Written on first boot if empty -- permanent, and block 0 is claimed for
+      # the lifetime of the chip.
+      nvs_encryption:
+        key_id: 0
+
+      # ESPHome signs the app during the build with this key and embeds the
+      # matching public key in the image's signature block; ESP-IDF then rejects
+      # any OTA image not signed by it.
+      #
+      # Generate one, keep it out of git (see .gitignore) and back it up offline:
+      #   espsecure generate-signing-key --version 2 --scheme rsa3072 \
+      #     secure_boot_signing_key.pem
+      #
+      # To gain key rotation instead, drop `signing_key`, sign the release
+      # artifacts externally, and declare up to three trusted
+      # `verification_keys:` digests -- ESPHome then verifies OTA images itself
+      # and accepts any of them.
+      signed_ota_verification:
+        signing_key: ../secure_boot_signing_key.pem
+        signing_scheme: rsa3072
+
+update:
+  - platform: http_request
+    name: None
+    id: !extend update_http_request
+    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1.secure-manifest.json
+
+switch:
+  - platform: template
+    id: !extend beta_firmware
+    name: Beta firmware
+    icon: "mdi:test-tube"
+    entity_category: diagnostic
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - logger.log: "OTA updates set to use Beta firmware"
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/satellite1.secure-manifest.json");
+      - component.update: update_http_request
+    on_turn_off:
+      - logger.log: "OTA updates set to use Production firmware"
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1.secure-manifest.json");
+      - component.update: update_http_request
