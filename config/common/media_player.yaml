@@ -267,6 +267,12 @@ media_source:
     buffer_size: 500000
   - platform: sendspin
     id: sendspin_media_source
+    # Preference order (2026.9). Set explicitly: the ESPHome default list is emitted as raw
+    # strings instead of codec enums and fails to compile (upstream 2026.9.0b3 regression).
+    codecs:
+      - flac  # least processor intensive
+      - opus  # 48 kHz only
+      - pcm
 
 media_player:
   - platform: sendspin
