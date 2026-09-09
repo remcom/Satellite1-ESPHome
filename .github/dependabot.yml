@@ -1,0 +1,37 @@
+version: 2
+
+updates:
+  # Actions are pinned to full commit SHAs so an upstream tag can't be
+  # repointed under the release build (which holds SECURE_BOOT_SIGNING_KEY and
+  # writes release assets). Pins don't refresh themselves, so this is what
+  # keeps them from rotting: Dependabot rewrites both the SHA and the trailing
+  # `# vX.Y.Z` comment, which is the only reason that comment is a convention
+  # and not decoration.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Amsterdam
+    # `dependencies` alone satisfies the PR Labels check in pr-labels.yml, so
+    # these PRs don't stall on a missing label.
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: ci
+    groups:
+      # One PR a week for the routine bumps; majors stay separate because they
+      # can change action inputs and need a real read of the changelog.
+      actions-minor:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+
+# Deliberately no `pip` entry for requirements.txt: esphome is pinned to a
+# specific (often beta) release and moving it is a manual job -- bump the pin,
+# rebuild all four variants, check the RAM/flash numbers -- not something to
+# merge from a bot PR. See the ESPHome upgrade steps in CLAUDE.md.
