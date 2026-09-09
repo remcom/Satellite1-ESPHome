@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set version variables
         run: |
@@ -66,13 +66,17 @@ jobs:
 
       - name: Build ESPHome firmware
         id: build
-        uses: esphome/build-action@6b9d3f593d626a2f0d2c17daebf0a97957d67425 # v8.0.0
+        uses: esphome/build-action@6b9d3f593d626a2f0d2c17daebf0a97957d67425  # v8.0.0
         with:
           yaml-file: "config/${{ matrix.device }}.yaml"
           complete-manifest: true
           version: ${{ env.ESPHOME_VERSION }}
-          release-url: ${{ github.event.release.html_url }}
-          release-summary: ${{ github.event.release.body }}
+          # Deliberately no release-url / release-summary: the release body is
+          # editable after publication, so feeding it in here makes a published
+          # artifact depend on mutable text (and drops a large user-authored
+          # string into every manifest). Both fields are injected into the
+          # CHANNEL manifest in `publish` instead -- mutable data belongs only in
+          # the file that is mutable by design. Versioned manifests stay clean.
           substitutions: |
             esp32_fw_version=${{ env.VERSION }}
 
@@ -84,9 +88,10 @@ jobs:
         env:
           DEVICE: ${{ matrix.device }}
           OUTDIR: ${{ steps.build.outputs.name }}
+          VERSION: ${{ env.VERSION }}
+          SAFE_VERSION: ${{ env.SAFE_VERSION }}
         run: |
           set -euo pipefail
-          SAFE_VERSION="${{ env.SAFE_VERSION }}"
 
           if [ ! -d "$OUTDIR" ]; then
             echo "Build output directory '$OUTDIR' not found for ${DEVICE}"; exit 1;
@@ -94,24 +99,26 @@ jobs:
 
           mkdir -p "staging/versioned" "staging/channel"
 
+          # Firmware is staged ONLY for the versioned release. The channel
+          # release (`latest`/`beta`) carries manifests and nothing else, so the
+          # bytes a device installs always come from a tag-scoped URL that is
+          # never rewritten -- the rolling channel shrinks to a pointer.
           for f in "$OUTDIR"/*; do
             base=$(basename "$f")
             # Handle double extensions like .ota.bin
             if [[ "$base" == *.ota.bin ]]; then
               ext="ota.bin"
-              channel_name="${DEVICE}.ota.bin"
             elif [[ "$base" == *.bin ]]; then
               ext="bin"
-              channel_name="${DEVICE}.bin"
             elif [[ "$base" == manifest.json ]]; then
               ext="manifest.json"
-              channel_name="${DEVICE}-manifest.json"
             else
               ext="${base##*.}"
-              channel_name="${DEVICE}.${ext}"
             fi
             cp "$f" "staging/versioned/${DEVICE}-${SAFE_VERSION}.${ext}"
-            cp "$f" "staging/channel/${channel_name}"
+            if [ "$ext" = "manifest.json" ]; then
+              cp "$f" "staging/channel/${DEVICE}-manifest.json"
+            fi
           done
 
           # ESPHome names its artifacts after the node name, which is `satellite1`
@@ -121,34 +128,43 @@ jobs:
           # pointed every variant's manifest at the DEFAULT variant's firmware,
           # which silently OTA'd radar devices onto the non-radar build.
           fix_manifest_paths() {
-            local manifest="$1" ota="$2" factory="$3" dir p
+            local manifest="$1" ota="$2" factory="$3" p
             [ -f "$manifest" ] || return 0
-            dir=$(dirname "$manifest")
 
             sed -i -E \
-              -e "s|\"path\":[[:space:]]*\"[A-Za-z0-9._-]*\.ota\.bin\"|\"path\": \"${ota}\"|g" \
-              -e "s|\"path\":[[:space:]]*\"[A-Za-z0-9._-]*\.factory\.bin\"|\"path\": \"${factory}\"|g" \
+              -e "s|\"path\":[[:space:]]*\"[^\"]*\.ota\.bin\"|\"path\": \"${ota}\"|g" \
+              -e "s|\"path\":[[:space:]]*\"[^\"]*\.factory\.bin\"|\"path\": \"${factory}\"|g" \
               "$manifest"
 
             # Every path a manifest advertises must be a file we actually staged.
             # Without this the release can publish a manifest pointing at a 404 --
             # or at another variant's firmware, which is how the wrong build ends
-            # up on a device.
+            # up on a device. Channel manifests now carry absolute URLs, so match
+            # on the basename: both forms resolve to the same versioned asset.
             while read -r p; do
-              if [ ! -f "${dir}/${p}" ]; then
-                echo "::error::${manifest} references '${p}', which was not staged in ${dir}"
+              if [ ! -f "staging/versioned/${p##*/}" ]; then
+                echo "::error::${manifest} references '${p}', which was not staged for the versioned release"
                 exit 1
               fi
             done < <(grep -oE '"path":[[:space:]]*"[^"]+"' "$manifest" | cut -d'"' -f4)
           }
 
+          # The channel manifest points into the versioned release by absolute
+          # URL. The update component treats any path containing "http" as
+          # absolute and uses it verbatim -- behaviour present since the update
+          # entity landed (esphome/esphome#6885), so this is understood by every
+          # firmware ever shipped for this board. Devices keep polling the same
+          # channel URL they always have; it just hands them an immutable asset.
+          RELEASE_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}"
+
           fix_manifest_paths "staging/channel/${DEVICE}-manifest.json" \
-            "${DEVICE}.ota.bin" "${DEVICE}.bin"
+            "${RELEASE_BASE}/${DEVICE}-${SAFE_VERSION}.ota.bin" \
+            "${RELEASE_BASE}/${DEVICE}-${SAFE_VERSION}.bin"
           fix_manifest_paths "staging/versioned/${DEVICE}-${SAFE_VERSION}.manifest.json" \
             "${DEVICE}-${SAFE_VERSION}.ota.bin" "${DEVICE}-${SAFE_VERSION}.bin"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: firmware-${{ matrix.device }}
           path: staging/
@@ -162,6 +178,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    # `contents` for the release writes; `id-token` and `attestations` for the
+    # build-provenance attestation below.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
     steps:
       - name: Set version and channel variables
         run: |
@@ -173,11 +196,35 @@ jobs:
           fi
 
       - name: Download build artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           pattern: firmware-*
           merge-multiple: true
           path: dist
+
+      - name: Inject release metadata into channel manifests
+        env:
+          RELEASE_SUMMARY: ${{ github.event.release.body }}
+        run: |
+          set -euo pipefail
+          # The release body never reaches the build (see the build job). It is
+          # applied here, passed to jq as data via --arg rather than
+          # interpolated into the script, and only to the channel manifests --
+          # the files that are mutable by design. release_url is derived from
+          # the tag instead of read from the event payload, so it cannot drift
+          # if the release object is later edited.
+          RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${VERSION}"
+
+          for m in dist/channel/*-manifest.json; do
+            [ -f "$m" ] || continue
+            # landing-manifest.json is a different shape; skip anything that is
+            # not an ESPHome build manifest.
+            jq -e 'has("builds")' "$m" >/dev/null 2>&1 || continue
+            jq --arg url "$RELEASE_URL" --arg summary "$RELEASE_SUMMARY" \
+              '.builds[].ota += {release_url: $url, summary: $summary}' \
+              "$m" > "$m.tmp"
+            mv "$m.tmp" "$m"
+          done
 
       - name: Generate landing manifest
         run: |
@@ -196,8 +243,29 @@ jobs:
           }
           EOF
 
+      - name: Generate checksums for versioned artifacts
+        run: |
+          set -euo pipefail
+          # One file covering every immutable asset, so a download can be
+          # verified without trusting the release page it came from. The glob is
+          # explicit so SHA256SUMS can never list itself.
+          (cd dist/versioned && sha256sum -- *.bin *.manifest.json) \
+            > dist/versioned/SHA256SUMS
+          cat dist/versioned/SHA256SUMS
+
+      # Binds each firmware image to the workflow, repository and commit that
+      # produced it. `gh attestation verify <file> --repo ${{ github.repository }}`
+      # then proves provenance independently of whether the release was later
+      # edited -- the check that still works after an account compromise.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a  # v3.0.0
+        with:
+          subject-path: |
+            dist/versioned/*.bin
+            dist/versioned/SHA256SUMS
+
       - name: Upload versioned artifacts to release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3.0.2
         with:
           tag_name: ${{ env.VERSION }}
           files: dist/versioned/*
@@ -208,6 +276,12 @@ jobs:
       # this per-device in the matrix was unsafe: the `satellite1` prefix also
       # matches `satellite1.ld2410.*`, so a parallel job could delete another
       # device's freshly-uploaded assets.
+      #
+      # This now also clears the firmware left on the channel by the old scheme:
+      # only manifests are uploaded below, so the binaries go and never return.
+      # Nothing points at them -- every variant's `update:` source is a channel
+      # MANIFEST url (config/satellite1*.yaml), and the manifest now redirects
+      # to the versioned release.
       - name: Delete superseded channel assets
         run: |
           set -uo pipefail
@@ -223,36 +297,64 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload channel artifacts
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3.0.2
         with:
           tag_name: ${{ env.CHANNEL }}
           files: dist/channel/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # The web installer needs its firmware served same-origin: GitHub sends no
+  # Access-Control-Allow-Origin on release assets, so esp-web-tools cannot fetch
+  # them cross-origin from the Pages site. That is why these bins live in the
+  # repo rather than being referenced by URL like the OTA manifests are.
   update_site_manifest:
     needs: publish
     if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
 
-      - name: Download latest firmware bins
+      - name: Set version variables
         run: |
-          gh release download latest --repo "${{ github.repository }}" \
-            --pattern "satellite1.bin" \
-            --pattern "satellite1.ld2410.bin" \
-            --pattern "satellite1.ld2450.bin" \
-            --pattern "satellite1.secure.bin" \
-            --dir site/manifests \
-            --clobber
+          echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          echo "SAFE_VERSION=${GITHUB_REF_NAME//-/_}" >> $GITHUB_ENV
+
+      - name: Download firmware for the tag being released
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Pull from the immutable versioned release, never from the rolling
+          # `latest`: `latest` is whatever the publish job wrote most recently,
+          # so a second release running concurrently could have this job commit
+          # the wrong firmware to the site.
+          TMP=$(mktemp -d)
+          gh release download "${VERSION}" --repo "${GITHUB_REPOSITORY}" \
+            --pattern "*-${SAFE_VERSION}.bin" \
+            --pattern "SHA256SUMS" \
+            --dir "$TMP"
+
+          # The bins are about to be committed to the default branch, so verify
+          # them against the checksums published alongside them first.
+          (cd "$TMP" && sha256sum --check --ignore-missing SHA256SUMS)
+
+          for device in satellite1 satellite1.ld2410 satellite1.ld2450 satellite1.secure; do
+            src="${TMP}/${device}-${SAFE_VERSION}.bin"
+            if [ ! -f "$src" ]; then
+              echo "::error::${device} firmware missing from release ${VERSION}"
+              exit 1
+            fi
+            cp "$src" "site/manifests/${device}.bin"
+          done
 
       - name: Commit updated bins
         run: |
@@ -262,6 +364,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to site manifest bins"
           else
-            git commit -m "chore: update site manifest firmware bins for ${GITHUB_REF_NAME}"
+            git commit -m "chore: update site manifest firmware bins for ${VERSION}"
             git push origin HEAD:${{ github.event.repository.default_branch }}
           fi
