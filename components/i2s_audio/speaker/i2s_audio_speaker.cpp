@@ -45,6 +45,16 @@ void I2SAudioSpeakerBase::dump_config() {
 void I2SAudioSpeakerBase::loop() {
   uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
 
+  // A stop that arrives before loop() has spawned the task cancels the pending start outright,
+  // instead of starting the driver (and taking the shared bus lock) only to tear it down again.
+  constexpr uint32_t stop_bits = SpeakerEventGroupBits::COMMAND_STOP | SpeakerEventGroupBits::COMMAND_STOP_GRACEFULLY;
+  if ((event_group_bits & stop_bits) && (this->state_ == speaker::STATE_STARTING) &&
+      (this->speaker_task_handle_ == nullptr)) {
+    xEventGroupClearBits(this->event_group_, stop_bits | SpeakerEventGroupBits::COMMAND_START);
+    event_group_bits &= ~(stop_bits | SpeakerEventGroupBits::COMMAND_START);
+    this->state_ = speaker::STATE_STOPPED;
+  }
+
   if (event_group_bits & SpeakerEventGroupBits::TASK_STARTING) {
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::TASK_STARTING);
   }
@@ -210,7 +220,7 @@ void I2SAudioSpeakerBase::stop() { this->stop_(false); }
 void I2SAudioSpeakerBase::finish() { this->stop_(true); }
 
 void I2SAudioSpeakerBase::stop_(bool wait_on_empty) {
-  if (this->is_failed())
+  if (!this->is_ready() || this->is_failed())
     return;
   if (this->state_ == speaker::STATE_STOPPED)
     return;
