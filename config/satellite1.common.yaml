@@ -1,3 +1,8 @@
+# Everything the locally-built variants share. Split out of satellite1.yaml so
+# config/satellite1.secure.yaml can pick it up WITHOUT dashboard_import: ESPHome
+# packages can add config but never remove it, and advertising
+# satellite1-dashboard.yaml on a hardened device would let ESPHome-dashboard
+# adoption silently convert it back to the standard build.
 substitutions:
   company_name: FutureProofHomes
   project_name: Satellite1
@@ -72,22 +77,18 @@ esp32_improv:
     - script.execute: control_leds
 
 external_components:
-  # FPH Custom Components - fetched from GitHub for remote/dashboard builds
+  # FPH Custom Components
   - source:
-      type: git
-      url: https://github.com/remcom/Satellite1-ESPHome
-      ref: main
-      path: esphome/components
+      type: local
+      path: ../esphome/components
     components:
       - memory_flasher
       - satellite1
   # i2s_audio from esphome with shared i2s bus support
   # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
   - source:
-      type: git
-      url: https://github.com/remcom/Satellite1-ESPHome
-      ref: main
-      path: components
+      type: local
+      path: ../components
     components:
       - i2s_audio
       - resampler
@@ -101,7 +102,40 @@ external_components:
       - tas2780
 
 logger:
+  deassert_rts_dtr: true
+  hardware_uart: USB_SERIAL_JTAG
+  level: info
+  logs:
+    ltr_als_ps: WARN
+    # Raise to DEBUG (and set level: debug above) when tracing the audio pipeline
+    sendspin: INFO
+    sendspin_media_source: INFO
+    speaker_source_media_player: INFO
+    i2s_audio.speaker: INFO
 
 ota:
   - platform: http_request
     id: ota_http_request
+
+update:
+  - platform: http_request
+    name: None
+    id: update_http_request
+    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json
+
+switch:
+  - platform: template
+    id: beta_firmware
+    name: Beta firmware
+    icon: "mdi:test-tube"
+    entity_category: diagnostic
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - logger.log: "OTA updates set to use Beta firmware"
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/satellite1-manifest.json");
+      - component.update: update_http_request
+    on_turn_off:
+      - logger.log: "OTA updates set to use Production firmware"
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json");
+      - component.update: update_http_request

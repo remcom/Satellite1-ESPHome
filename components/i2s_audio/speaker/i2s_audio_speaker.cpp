@@ -45,6 +45,16 @@ void I2SAudioSpeakerBase::dump_config() {
 void I2SAudioSpeakerBase::loop() {
   uint32_t event_group_bits = xEventGroupGetBits(this->event_group_);
 
+  // A stop that arrives before loop() has spawned the task cancels the pending start outright,
+  // instead of starting the driver (and taking the shared bus lock) only to tear it down again.
+  constexpr uint32_t stop_bits = SpeakerEventGroupBits::COMMAND_STOP | SpeakerEventGroupBits::COMMAND_STOP_GRACEFULLY;
+  if ((event_group_bits & stop_bits) && (this->state_ == speaker::STATE_STARTING) &&
+      (this->speaker_task_handle_ == nullptr)) {
+    xEventGroupClearBits(this->event_group_, stop_bits | SpeakerEventGroupBits::COMMAND_START);
+    event_group_bits &= ~(stop_bits | SpeakerEventGroupBits::COMMAND_START);
+    this->state_ = speaker::STATE_STOPPED;
+  }
+
   if (event_group_bits & SpeakerEventGroupBits::TASK_STARTING) {
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::TASK_STARTING);
   }
@@ -78,9 +88,18 @@ void I2SAudioSpeakerBase::loop() {
     this->stop_i2s_channel();
     this->on_task_stopped();
 
-    xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::ALL_BITS);
+    // ALL_BITS includes COMMAND_START. Take the bits from the clear itself, not from the snapshot at
+    // the top of loop(): the audio source's task can raise a start at any point above, including
+    // during stop_i2s_channel(), and nothing would ever re-issue it.
+    const EventBits_t bits_before_clear = xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::ALL_BITS);
     this->status_clear_error();
-    this->state_ = speaker::STATE_STOPPED;
+    if (bits_before_clear & SpeakerEventGroupBits::COMMAND_START) {
+      ESP_LOGD(TAG, "Start requested while stopping; keeping the request");
+      xEventGroupSetBits(this->event_group_, SpeakerEventGroupBits::COMMAND_START);
+      this->state_ = speaker::STATE_STARTING;
+    } else {
+      this->state_ = speaker::STATE_STOPPED;
+    }
   }
 
   if (event_group_bits & SpeakerEventGroupBits::ERR_ESP_NO_MEM) {
@@ -89,14 +108,17 @@ void I2SAudioSpeakerBase::loop() {
   }
 
   // Spawn task when COMMAND_START is received and speaker is starting
-  if ((event_group_bits & SpeakerEventGroupBits::COMMAND_START) && (this->state_ == speaker::STATE_STARTING)) {
+  // The task handle is only cleared once TASK_STOPPED has been processed above; starting the driver
+  // while a previous run is still winding down fails spuriously, so keep the request pending instead.
+  if ((event_group_bits & SpeakerEventGroupBits::COMMAND_START) && (this->state_ == speaker::STATE_STARTING) &&
+      (this->speaker_task_handle_ == nullptr)) {
     xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::COMMAND_START);
 
     if (this->start_i2s_driver(this->audio_stream_info_) != ESP_OK) {
       ESP_LOGE(TAG, "Driver failed to start; retrying in 1 second");
       this->state_ = speaker::STATE_STOPPED;
       this->status_momentary_error("driver-failure", 1000);
-    } else if (this->speaker_task_handle_ == nullptr) {
+    } else {
       xTaskCreate(I2SAudioSpeakerBase::speaker_task, "speaker_task", TASK_STACK_SIZE, (void *) this, TASK_PRIORITY,
                   &this->speaker_task_handle_);
 
@@ -171,8 +193,8 @@ size_t I2SAudioSpeakerBase::play(const uint8_t *data, size_t length, TickType_t 
 }
 
 bool I2SAudioSpeakerBase::has_buffered_data() const {
-  if (this->audio_ring_buffer_.use_count() > 0) {
-    std::shared_ptr<ring_buffer::RingBuffer> temp_ring_buffer = this->audio_ring_buffer_.lock();
+  std::shared_ptr<ring_buffer::RingBuffer> temp_ring_buffer = this->audio_ring_buffer_.lock();
+  if (temp_ring_buffer != nullptr) {
     return temp_ring_buffer->available() > 0;
   }
   return false;
@@ -198,7 +220,7 @@ void I2SAudioSpeakerBase::stop() { this->stop_(false); }
 void I2SAudioSpeakerBase::finish() { this->stop_(true); }
 
 void I2SAudioSpeakerBase::stop_(bool wait_on_empty) {
-  if (this->is_failed())
+  if (!this->is_ready() || this->is_failed())
     return;
   if (this->state_ == speaker::STATE_STOPPED)
     return;

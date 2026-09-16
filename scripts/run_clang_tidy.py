@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run clang-tidy over this repo's own components (components/, esphome/components/).
 
-Builds compiler flags from compile_commands.json, using esphome.espidf.idedata
+Builds compiler flags from compile_commands.json, using esphome.build_helpers.idedata
 (ships with the pinned esphome package). Vanilla LLVM clang-tidy has no Xtensa
 backend, so for Xtensa targets we compile in a generic 32-bit mode with the same
 flag/macro substitutions ESPHome's own script/clang-tidy uses upstream
@@ -253,7 +253,7 @@ def main() -> int:
         print(f"error: no compile database at {compile_commands}", file=sys.stderr)
         return 1
 
-    from esphome.espidf.idedata import idedata_from_build
+    from esphome.build_helpers.idedata import idedata_from_build
 
     idedata = idedata_from_build(compile_commands)
     options = clang_options(idedata, build_dir)

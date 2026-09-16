@@ -2,7 +2,7 @@
 # set -e
 
 # Configuration
-PYTHON_MIN_VERSION="3.11"
+PYTHON_MIN_VERSION="3.12"
 PYTHON_MAX_VERSION="3.15"
 VENV_DIR=".venv"
 
@@ -71,7 +71,7 @@ find_python() {
     return 1
 }
 
-PYTHON=$(find_python) || error "Python >=$PYTHON_MIN_VERSION,<$PYTHON_MAX_VERSION not found. Please install Python 3.11, 3.12, or 3.13"
+PYTHON=$(find_python) || error "Python >=$PYTHON_MIN_VERSION,<$PYTHON_MAX_VERSION not found. Please install Python 3.12, 3.13, or 3.14"
 info "Using Python: $PYTHON ($($PYTHON --version 2>&1))"
 
 # Change to project root

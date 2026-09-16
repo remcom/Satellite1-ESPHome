@@ -42,7 +42,7 @@ esphome logs config/satellite1.yaml
 - `resampler/` - Audio resampler
 - `fusb302b/` - USB-PD controller
 
-(TAS2780 amplifier comes from a pinned git source — see `external_components` in `config/satellite1.yaml`; PCM5122 DAC and dac_switcher come from ESPHome core.)
+(TAS2780 amplifier comes from a pinned git source — see `external_components` in `config/satellite1.yaml`; PCM5122 DAC comes from ESPHome core.)
 
 ### External Components (from ESPHome PRs)
 
@@ -74,9 +74,9 @@ Important IDs used across YAML configs:
 
 ## Key Conventions
 
-- ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md` (adapted from upstream ESPHome — repo-layout specifics there may not apply here)
+- ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md` (a copy of upstream ESPHome's `AGENTS.md` — repo-layout specifics there may not apply here)
 - ESPHome version pinned in `requirements.txt` (check that file for the current pin; `min_version` in `satellite1.base.yaml` is the floor for dashboard builds)
-- Python 3.11-3.13 required (ESPHome constraint)
+- Python 3.12-3.14 required (ESPHome constraint: `requires-python = ">=3.12.0,<3.15"`)
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - External components reference specific git commits for stability
 

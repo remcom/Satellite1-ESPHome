@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0f1e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)">
+  <title>Install Satellite1 Hardened Firmware — Sendspin ESPHome</title>
+  <meta name="description" content="Web-install the hardened Satellite1 Sendspin firmware — encrypted credential storage and signature-verified OTA updates. Read the permanent, irreversible consequences before flashing.">
+  <link rel="canonical" href="https://remcom.github.io/Satellite1-ESPHome/site/secure.html">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Install Satellite1 Hardened Firmware — Sendspin ESPHome">
+  <meta property="og:description" content="Encrypted credential storage and signature-verified OTA updates for the Satellite1. Permanent, one-way changes — read before flashing.">
+  <meta property="og:url" content="https://remcom.github.io/Satellite1-ESPHome/site/secure.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <div class="wrap narrow">
+    <a href="index.html" class="back-link">&larr; Back to overview</a>
+
+    <header class="hero">
+      <div class="badge-row">
+        <span class="badge live">v1.3.0 · Stable</span>
+        <span class="badge">Hardened</span>
+        <span class="badge">No radar</span>
+      </div>
+      <h1>Satellite1 Hardened</h1>
+      <p>The default firmware, with encrypted credential storage and signature-verified OTA updates. Every feature of the standard build is present — this is not a stripped-down variant.</p>
+    </header>
+
+    <div class="card">
+      <h2>What's different</h2>
+      <p>Two changes, both aimed at the same thing: keeping what's on the device readable only by the device, and keeping firmware installable only by you.</p>
+
+      <h3 class="section-gap">1. Encrypted credential storage</h3>
+      <p>
+        Your Wi-Fi password, the Home Assistant API encryption key and every saved setting normally sit in a plain-text region of the chip's flash. On this build they are encrypted with keys derived from a hardware key inside the chip, which is never written to flash and cannot be read back by software.
+      </p>
+      <p>
+        The practical effect: dumping the flash chip no longer reveals your Wi-Fi password. That matters for a device mounted on a wall, in a shared or rented space, or one you eventually resell or throw away.
+      </p>
+
+      <h3 class="section-gap">2. Signature-verified updates</h3>
+      <p>
+        Each release is signed with a private key held only by this project's build pipeline. Before installing an update the device checks that signature and refuses anything that does not match. A spoofed or compromised update server cannot install firmware on your Satellite1.
+      </p>
+
+      <div class="note">
+        <strong>Kept, not removed:</strong> the voice assistant, Sendspin multi-room audio, wake word detection, Wi-Fi provisioning over USB and Bluetooth, the ESPHome dashboard OTA path, the beta update channel and the USB serial console all behave exactly as on the standard build.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Before you flash <span class="tag warn">One-way</span></h2>
+      <p>Some of this is permanent, and getting back off this build needs a USB cable rather than a click in Home Assistant. Please read this rather than skim it.</p>
+
+      <ul class="consequences">
+        <li>
+          <strong>A hardware key is burned in on first boot, permanently.</strong>
+          The device generates its own encryption key and writes it into a one-time-programmable block inside the chip. That block can never be erased, reused or read out. It is unique to each device.
+        </li>
+        <li>
+          <strong>Your settings are wiped once, on the first hardened boot.</strong>
+          Existing settings were saved unencrypted and cannot be read once encryption is on. The device comes up needing Wi-Fi provisioning again, and Home Assistant will ask you to re-adopt it.
+        </li>
+        <li>
+          <strong>Going back to a standard build requires a USB cable.</strong>
+          This device installs only firmware carrying a valid signature, and the standard releases are unsigned — so it will refuse them. The switch back <em>cannot</em> be done over the air from Home Assistant or the ESPHome dashboard. You will need physical access to the device and a computer running Chrome or Edge. Nothing is bricked and USB flashing is never restricted, but decide before you mount the device somewhere you would rather not reach again.
+        </li>
+        <li>
+          <strong>Going back wipes your settings a second time.</strong>
+          A standard build cannot read the encrypted storage, so switching in either direction is a re-provisioning event. The burned key is simply left unused afterwards.
+        </li>
+        <li>
+          <strong>This device will not appear as adoptable in the ESPHome dashboard.</strong>
+          Dashboard adoption would hand it the standard configuration and quietly undo both protections, so it is deliberately switched off. Updates arrive through the update entity in Home Assistant as usual.
+        </li>
+        <li>
+          <strong>Updates come only from this project's signed releases.</strong>
+          A firmware you build yourself will not install over the air unless you sign it with the same key. USB flashing is never restricted, so you always have a way in.
+        </li>
+      </ul>
+
+      <div class="note warn">
+        <strong>If you build your own firmware</strong> — from this repository or with your own modifications — install the standard variant instead, or generate your own signing key and use it in <code>config/satellite1.secure.yaml</code>. Otherwise your first self-built update will be refused by the device.
+      </div>
+    </div>
+
+    <div class="card center">
+      <h2>Install Firmware</h2>
+      <p>Connect your Satellite1 via USB and click below. This build has no radar support.</p>
+
+      <esp-web-install-button manifest="manifests/satellite1-secure.json">
+        <button slot="activate" type="button">Install Satellite1 Hardened</button>
+        <span slot="unsupported" class="note unsupported-note">
+          Your browser does not support Web Serial.<br>
+          Please use Google Chrome or Microsoft Edge.
+        </span>
+      </esp-web-install-button>
+    </div>
+
+    <div class="card">
+      <h3>Installation steps</h3>
+      <ol>
+        <li>Connect your Satellite1 to your computer via USB</li>
+        <li>Click the "Install Satellite1 Hardened" button above</li>
+        <li>Select the correct serial port when prompted</li>
+        <li>Wait for the installation to complete</li>
+        <li>Enter your home Wi-Fi credentials when the installer prompts for them</li>
+        <li>Add the device to Home Assistant</li>
+      </ol>
+
+      <div class="note">
+        <strong>Note:</strong> first-time installation erases the device. Existing Satellite1 devices can move <em>to</em> this build over the air from Home Assistant, but will need re-provisioning afterwards. Moving <em>back</em> is USB-only — see the consequences above.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>What this does not protect against</h3>
+      <p>
+        Worth being straight about the limits. Neither change is enforced by the chip's hardware, so someone who can physically connect a cable can still flash firmware of their own — and firmware running on the device can ask the chip to decrypt its storage. This build raises the cost of reading your credentials from "read the flash chip" to "write and flash custom firmware to that specific device."
+      </p>
+      <p>
+        Closing that last gap needs Secure Boot or a permanently disabled USB download mode. Both are irreversible with no recovery path if anything goes wrong, and neither is enabled here — a bricked voice assistant is a worse outcome than the risk it removes.
+      </p>
+      <p>
+        This firmware is intended for home networks and is not hardened for exposure to untrusted networks. Keep the device on a trusted or dedicated IoT network segment either way.
+      </p>
+    </div>
+
+    <footer>
+      <p>
+        <a href="https://github.com/remcom/Satellite1-ESPHome" target="_blank" rel="noopener">GitHub repository</a>
+        <span class="divider">·</span>
+        <a href="https://github.com/remcom/Satellite1-ESPHome/blob/main/SECURITY.md" target="_blank" rel="noopener">Security policy</a>
+        <span class="divider">·</span>
+        <a href="https://docs.futureproofhomes.net" target="_blank" rel="noopener">Documentation</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>

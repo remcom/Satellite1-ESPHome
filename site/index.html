@@ -38,7 +38,7 @@
       <p>A maintained ESPHome firmware for the FutureProofHomes Satellite1, built around Sendspin — ESPHome's native multi-room audio sync — with close upstream ESPHome tracking and ongoing power-management and hardware-driver fixes.</p>
     </header>
 
-    <div class="grid3">
+    <div class="grid-tiles">
       <div class="tile">
         <h3>Default</h3>
         <p>Base firmware without a radar sensor. Voice assistant and Sendspin audio.</p>
@@ -56,6 +56,12 @@
         <p>With HLK-LD2450 radar for zone and multi-target tracking.</p>
         <a href="ld2450.html" class="btn">Install LD2450</a>
       </div>
+
+      <div class="tile">
+        <h3>Hardened <span class="tag warn">One-way</span></h3>
+        <p>The default firmware plus encrypted credential storage and signed updates. Permanent changes &mdash; read first.</p>
+        <a href="secure.html" class="btn">Install Hardened</a>
+      </div>
     </div>
 
     <div class="card section-card">
@@ -63,6 +69,14 @@
       <p>
         <a href="https://github.com/esphome/esphome/pull/12284" target="_blank" rel="noopener">Sendspin</a>
         is ESPHome's native protocol for synchronized multi-room audio, built into ESPHome core since 2026.6.0. Multiple Satellite1 units play audio in perfect sync throughout your home, with no external sync server to run or maintain.
+      </p>
+
+      <h2 class="section-gap">What is the hardened variant?</h2>
+      <p>
+        The <a href="secure.html">hardened build</a> is the default firmware with two additions: your Wi-Fi password and Home Assistant API key are stored encrypted, using a key held inside the chip rather than in flash, and firmware updates must carry a valid signature from this project before the device will install them. Nothing is removed &mdash; voice assistant, Sendspin audio, provisioning and the beta channel all work as usual.
+      </p>
+      <p>
+        In exchange, some of it is permanent: the device burns a unique encryption key into one-time-programmable memory on first boot, and switching to or from this build wipes saved settings once, so the device needs re-provisioning. Going <em>back</em> to a standard build also needs a USB cable — a hardened device refuses the unsigned standard releases, so it cannot be undone over the air. If you build your own firmware you will want the standard variant, or your own signing key. The <a href="secure.html">install page</a> spells all of this out &mdash; please read it before flashing.
       </p>
 
       <h2 class="section-gap">Why an independent fork?</h2>
