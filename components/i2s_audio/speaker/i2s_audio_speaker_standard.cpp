@@ -120,6 +120,24 @@ void I2SAudioSpeaker::run_speaker_task() {
         break;
       }
 
+      if (event_group_bits & SpeakerEventGroupBits::ERR_DROPPED_EVENT) {
+        // A lost completion event leaves frames_written permanently ahead of the DMA. Resync in place instead
+        // of restarting the task: stop the DMA, credit every in-flight frame as played now, and let the
+        // underflow path below preload and re-enable the channel on the next write.
+        ESP_LOGE(TAG, "ISR event queue overflow, resyncing DMA");
+        i2s_chan_handle_t handle = this->parent_->get_tx_handle();
+        i2s_channel_disable(handle);
+        const i2s_event_callbacks_t null_callbacks = {.on_sent = nullptr};
+        i2s_channel_register_event_callback(handle, &null_callbacks, this);
+        xEventGroupClearBits(this->event_group_, SpeakerEventGroupBits::ERR_DROPPED_EVENT);
+        xQueueReset(this->i2s_event_queue_);
+        if (frames_written > 0) {
+          this->audio_output_callback_(frames_written, esp_timer_get_time());
+          frames_written = 0;
+        }
+        tx_dma_underflow = true;
+      }
+
       int64_t write_timestamp;
       while (xQueueReceive(this->i2s_event_queue_, &write_timestamp, 0)) {
         uint32_t frames_sent = frames_to_fill_single_dma_buffer;

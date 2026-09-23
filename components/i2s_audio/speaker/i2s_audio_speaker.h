@@ -16,6 +16,8 @@
 #include "esphome/core/helpers.h"
 #include "esphome/components/ring_buffer/ring_buffer.h"
 
+#include <gain.h>  // esp-audio-libs
+
 namespace esphome::i2s_audio {
 
 // Shared constants for I2S audio speaker implementations
@@ -35,11 +37,7 @@ enum SpeakerEventGroupBits : uint32_t {
 
   ERR_ESP_NO_MEM = (1 << 19),
 
-  ERR_DROPPED_EVENT = (1 << 20),    // ISR overflowed the event queue, dropping a completion event
-  ERR_PARTIAL_WRITE = (1 << 21),    // a DMA write returned fewer bytes than requested (or the encoder
-                                    // failed to commit a complete block), which breaks the lockstep
-                                    // invariant for every subsequent event
-  ERR_LOCKSTEP_DESYNC = (1 << 22),  // i2s_event_queue_ and write_records_queue_ fell out of sync
+  ERR_DROPPED_EVENT = (1 << 20),  // ISR overflowed the event queue, dropping a completion event
 
   ALL_BITS = 0x00FFFFFF,  // All valid FreeRTOS event group bits
 };
@@ -71,10 +69,20 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
 
   bool has_buffered_data() const override;
 
+  /// @brief Sets the volume. Uses the configured audio dac if there is one, otherwise ramps the software gain.
+  /// @param volume between 0.0 and 1.0
   void set_volume(float volume) override;
+
+  /// @brief Mutes or unmutes. Uses the configured audio dac if there is one, otherwise ramps the software gain.
+  /// @param mute_state true for muting, false for unmuting
   void set_mute_state(bool mute_state) override;
 
  protected:
+  /// @brief Posts the ramp target derived from the current volume and mute state. No-op when an audio dac owns
+  /// volume. Main loop only.
+  /// @param rate_samples Samples the ramp takes per dB of change; 0 adopts the target at once
+  void post_software_gain_(uint32_t rate_samples);
+
   /// @brief FreeRTOS task entry point. Casts params and calls run_speaker_task().
   static void speaker_task(void *params);
 
@@ -92,6 +100,7 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
 
   static bool IRAM_ATTR i2s_on_sent_cb(i2s_chan_handle_t handle, i2s_event_data_t *event, void *user_ctx);
 
+  /// @brief Runs the samples through the gain ramp. Speaker task only.
   void apply_software_volume_(uint8_t *data, size_t bytes_read);
   void swap_esp32_mono_samples_(uint8_t *data, size_t bytes_read);
 
@@ -104,7 +113,10 @@ class I2SAudioSpeakerBase : public I2SAudioOut, public speaker::Speaker, public 
   uint32_t buffer_duration_ms_;
   optional<uint32_t> timeout_;
   bool pause_state_{false};
-  int32_t q31_volume_factor_{INT32_MAX};
+
+  // Smooths software gain changes. The main loop posts targets, the speaker task processes;
+  // GainRamp's mailbox makes that safe. The main loop is the only poster.
+  esp_audio_libs::gain::GainRamp gain_ramp_;
 
   // Lockstepped DMA buffer queues: i2s_event is outgoing, write_records is incoming
   QueueHandle_t i2s_event_queue_{nullptr};

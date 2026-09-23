@@ -96,7 +96,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: 6a7fbfce406d6bb962948e953cbf79ab9b0a7190
+      ref: 0ed0b910aaa98925d947b480d5bc1a6bf4fc78e4
     components:
       - tas2780
 

@@ -16,6 +16,10 @@ esp32:
       # Considerably speeds up mWW at the cost of using more PSRAM.
       CONFIG_SPIRAM_RODATA: "y"
       CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      # Don't hand the page-alignment gaps after irom/drom to the heap. A gap smaller than the TLSF control
+      # structure (e.g. 216 bytes) makes tlsf_add_pool printf before newlib locks exist, asserting at boot
+      # ("Uninitialized lock used"). On ESP32-S3 this option only controls that gap reclaim (<128 KB PSRAM).
+      CONFIG_SPIRAM_PRE_CONFIGURE_MEMORY_PROTECTION: "n"
 
       CONFIG_BT_ALLOCATION_FROM_SPIRAM_FIRST: "y"
       CONFIG_BT_BLE_DYNAMIC_ENV_MEMORY: "y"
