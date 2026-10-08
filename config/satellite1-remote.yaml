@@ -81,24 +81,19 @@ external_components:
     components:
       - memory_flasher
       - satellite1
-  # i2s_audio from esphome with shared i2s bus support
-  # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
-  - source:
-      type: git
-      url: https://github.com/remcom/Satellite1-ESPHome
-      ref: main
-      path: components
-    components:
-      - i2s_audio
-      - resampler
-      - fusb302b
-  # TAS2780 audio amplifier from: https://github.com/esphome/esphome/pull/15708
+  # USB-PD controller from:
+  # https://github.com/remcom/esphome/tree/fusb302b
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: 0ed0b910aaa98925d947b480d5bc1a6bf4fc78e4
+      ref: 95092835a3da75b5e4e00f6a656bcbf25e0d4c61
     components:
-      - tas2780
+      - fusb302b
+  # i2s_audio (full duplex, several speakers per bus) from esphome/esphome#19959:
+  # https://github.com/esphome/esphome/pull/19959
+  - source: github://pr#19959
+    components:
+      - i2s_audio
 
 logger:
 

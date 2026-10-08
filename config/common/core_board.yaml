@@ -54,7 +54,8 @@ i2s_audio:
     i2s_lrclk_pin: GPIO07
     i2s_bclk_pin: GPIO08
     i2s_mclk_pin: GPIO16
-    i2s_mode: secondary
+    # The microphone and both speakers share one RX/TX channel pair; the XMOS drives the clocks
+    full_duplex: true
 
 sensor:
   - platform: wifi_signal

@@ -1,2 +1,2 @@
-esphome @ git+https://github.com/esphome/esphome.git@dev
+esphome==2026.10.0b1
 setuptools
