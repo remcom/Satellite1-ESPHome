@@ -6,6 +6,9 @@
 substitutions:
   company_name: FutureProofHomes
   project_name: Satellite1
+  # Release manifest this build updates from. Variants override it with their own (e.g. satellite1.secure)
+  # instead of extending the beta switch: !extend appends automations, so both URLs would race.
+  ota_manifest: satellite1
 
 packages:
   # This is an inline package to prefix the on_client_connected with the wait_until action
@@ -127,7 +130,7 @@ update:
   - platform: http_request
     name: None
     id: update_http_request
-    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json
+    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json
 
 switch:
   - platform: template
@@ -139,9 +142,9 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       - logger.log: "OTA updates set to use Beta firmware"
-      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/satellite1-manifest.json");
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/${ota_manifest}-manifest.json");
       - component.update: update_http_request
     on_turn_off:
       - logger.log: "OTA updates set to use Production firmware"
-      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json");
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json");
       - component.update: update_http_request
