@@ -94,7 +94,10 @@ external_components:
       - fusb302b
   # i2s_audio (full duplex, several speakers per bus) from esphome/esphome#19959:
   # https://github.com/esphome/esphome/pull/19959
-  - source: github://pr#19959
+  - source:
+      type: git
+      url: https://github.com/remcom/esphome
+      ref: 4aa7a4222e80c0b7dffa82f87ff6e1014fa6f42a
     components:
       - i2s_audio
 
