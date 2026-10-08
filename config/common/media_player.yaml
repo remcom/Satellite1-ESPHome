@@ -68,9 +68,15 @@ select:
     on_value:
       - tas2780.update_config:
           channel: !lambda |-
+            // Map explicitly: ChannelSelect values are the RX_SCFG register bits, not the option order
+            static constexpr esphome::tas2780::ChannelSelect CHANNELS[] = {
+                esphome::tas2780::ChannelSelect::MONO_DWN_MIX,
+                esphome::tas2780::ChannelSelect::LEFT_CHANNEL,
+                esphome::tas2780::ChannelSelect::RIGHT_CHANNEL,
+            };
             auto index = id(tas_mode_select).active_index();
-            if (index.has_value()){
-              return static_cast<esphome::tas2780::ChannelSelect>(index.value());
+            if (index.has_value() && index.value() < 3){
+              return CHANNELS[index.value()];
             }
             ESP_LOGI("main", "No channel selected");
             return esphome::tas2780::ChannelSelect::MONO_DWN_MIX;
@@ -136,22 +142,24 @@ binary_sensor:
 
 fusb302b:
   id: pd_fusb302b
-  irq_pin: GPIO1
+  interrupt_pin: GPIO1
   request_voltage: 20
-  contract_sensor:
+  contract:
     id: pd_state_text
     name: "USB-C Power Contract"
     icon: "mdi:usb-c-port"
-    entity_category: "diagnostic"
+  voltage:
+    id: pd_contract_voltage
+    internal: true
   on_power_ready:
     then:
       - logger.log:
           format: "PD contract got accepted: %s"
-          args: ['id(pd_fusb302b).get_contract().c_str()']
+          args: ['id(pd_state_text).state.c_str()']
 
       - lambda: |-
           // Store power mode based on USB-PD contract voltage
-          if (id(pd_fusb302b).get_contract_voltage() >= 9) {
+          if (id(pd_contract_voltage).state >= 9) {
             id(tas2780_power_mode) = 2;
           } else {
             id(tas2780_power_mode) = 0;
@@ -169,6 +177,7 @@ speaker:
       allow_other_uses: true
     bits_per_sample: 32bit
     i2s_audio_id: i2s_shared
+    i2s_mode: secondary
     dac_type: external
     channel: stereo
     timeout: never
@@ -183,6 +192,7 @@ speaker:
       allow_other_uses: true
     bits_per_sample: 32bit
     i2s_audio_id: i2s_shared
+    i2s_mode: secondary
     dac_type: external
     channel: stereo
     timeout: never
@@ -191,7 +201,7 @@ speaker:
 
   - platform: router
     id: router_speaker
-    bits_per_sample: 16
+    bits_per_sample: 32
     num_channels: 2
     sample_rate: 48000
     output_speakers:
@@ -202,6 +212,7 @@ speaker:
   - platform: mixer
     id: mixing_speaker
     output_speaker: router_speaker
+    bits_per_sample: 32
     num_channels: 2
     task_stack_in_psram: true
     source_speakers:

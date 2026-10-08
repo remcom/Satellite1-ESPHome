@@ -9,6 +9,10 @@ updates:
   # and not decoration.
   - package-ecosystem: github-actions
     directory: /
+    # The GitHub default branch is `main` (release), but work lands on
+    # `develop` first, so bot PRs have to target `develop` or they'd be
+    # proposing CI changes straight onto the release branch.
+    target-branch: develop
     schedule:
       interval: weekly
       day: monday

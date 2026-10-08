@@ -37,12 +37,7 @@ esphome logs config/satellite1.yaml
 - `satellite1/` - Main board component (SPI communication with XMOS, GPIO control, audio DAC)
 - `memory_flasher/` - XMOS firmware flasher (also `satellite1/memory_flasher/` platform)
 
-**components/** - Hardware drivers and audio pipeline (local overrides):
-- `i2s_audio/` - I2S audio with shared bus support, includes `speaker/` and `microphone/`
-- `resampler/` - Audio resampler
-- `fusb302b/` - USB-PD controller
-
-(TAS2780 amplifier comes from a pinned git source — see `external_components` in `config/satellite1.yaml`; PCM5122 DAC comes from ESPHome core.)
+(i2s_audio (full duplex bus) comes from esphome/esphome PR #19959 (`remcom/esphome` `i2s_audio-full-duplex` branch), and the FUSB302B USB-PD controller from the `remcom/esphome` `fusb302b` branch — see `external_components` in `config/satellite1.common.yaml`; TAS2780 amplifier, PCM5122 DAC and the resampler microphone come from ESPHome core.)
 
 ### External Components (from ESPHome PRs)
 
@@ -85,5 +80,5 @@ Important IDs used across YAML configs:
 - **`@automation.register_action()` requires `synchronous=`** — use `synchronous=True` when `play()` completes inline (GPIO, I2C); use `synchronous=False` when work is deferred to a FreeRTOS task. Missing this produces a WARNING and disables StringRef optimization.
 - **`status_set_error()` takes `LOG_STR()`** — wrap string literals: `status_set_error(LOG_STR("msg"))`. Plain `const char*` is deprecated as of 2026.3 and breaks in 2026.6.
 - **`audio_dac` platform pattern** — TAS2780/PCM5122 schemas live in `audio_dac.py`; `__init__.py` is intentionally empty. Action classes must use `cg.Parented.template(...)` and `await cg.register_parented(...)`.
-- **XMOS is I2S primary (clock source)** — ESP32 runs as secondary (`i2s_mode: secondary`). The `add_data_callback()` on `sat1_mics_raw` delivers 48kHz stereo 32-bit, not the 16kHz mono resampler output.
+- **XMOS is I2S primary (clock source)** — ESP32 runs as secondary: `i2s_mode: secondary` is set on the microphone and on each i2s speaker (not on the bus), and the `i2s_shared` bus uses `full_duplex: true`. The full duplex TX channel is fixed at 32-bit, so the mixer and router run at `bits_per_sample: 32`. The `add_data_callback()` on `sat1_mics_raw` delivers 48kHz stereo 32-bit, not the 16kHz mono resampler output.
 - **Dashboard remote compile** — `config/satellite1-remote.yaml` uses `type: git` for local component paths (ESPHome resolves `type: local` relative to user config dir, breaking GitHub-fetched packages). Local builds use `satellite1.yaml` unchanged.
