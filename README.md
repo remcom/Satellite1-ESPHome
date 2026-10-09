@@ -26,7 +26,7 @@ This is an actively maintained ESPHome firmware fork for the [FutureProofHomes S
 
 ## Why This Fork
 
-This project tracks upstream ESPHome releases closely (currently 2026.10.0b1), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
+This project tracks upstream ESPHome releases closely (currently 2026.10.0b2), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
 
 Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and now both build on Sendspin — pick whichever release cadence and maintenance style fits your setup.
 
@@ -104,7 +104,7 @@ As more drivers land upstream, this fork gets smaller and closer to stock ESPHom
 
 ### Software
 
-- **ESPHome** 2026.10.0b1 or newer — older ESPHome versions, including the 2026.9 release, refuse to build this firmware
+- **ESPHome** 2026.10.0b2 or newer — older ESPHome versions, including the 2026.9 release, refuse to build this firmware
 - **Home Assistant** with Voice Assistant configured
 - **Chrome or Edge browser** (for the web installer)
 
