@@ -236,6 +236,21 @@ speaker:
 sendspin:
   id: sendspin_hub
   task_stack_in_psram: true
+  # Dynamic pairing: the pairing_code text sensor below makes the device offer a fresh 6-digit code
+  # for each pairing attempt, which is entered on the server (e.g. Music Assistant).
+  on_display_pairing_code:
+    - logger.log:
+        format: "Sendspin pairing code: %s"
+        args: [code.c_str()]
+  on_pairing_succeeded:
+    - logger.log:
+        format: "Sendspin server %s paired"
+        args: [server_id.c_str()]
+  on_pairing_failed:
+    - logger.log:
+        level: WARN
+        format: "Sendspin pairing with %s failed: %s"
+        args: [server_id.c_str(), reason.c_str()]
 
 audio_file:
   - id: center_button_press_sound
@@ -457,6 +472,10 @@ text_sensor:
   - platform: sendspin
     type: artist
     name: Artist
+  - platform: sendspin
+    type: pairing_code
+    name: Sendspin Pairing Code
+    icon: mdi:key-link
 
 sensor:
   - platform: sendspin
