@@ -94,7 +94,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: 4aa7a4222e80c0b7dffa82f87ff6e1014fa6f42a
+      ref: 04d475970e1835ba79ace1e5303749aac833e191
     components:
       - i2s_audio
 
