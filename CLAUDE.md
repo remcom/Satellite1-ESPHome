@@ -39,14 +39,9 @@ esphome logs config/satellite1.yaml
 
 (i2s_audio (full duplex bus) comes from esphome/esphome PR #19959 (`remcom/esphome` `i2s_audio-full-duplex` branch), and the FUSB302B USB-PD controller from the `remcom/esphome` `fusb302b` branch — see `external_components` in `config/satellite1.common.yaml`; TAS2780 amplifier, PCM5122 DAC and the resampler microphone come from ESPHome core.)
 
-### External Components (from ESPHome PRs)
+### Components from ESPHome core vs. external
 
-The firmware pulls experimental components from ESPHome PRs for Sendspin support:
-- `mixer` - Audio mixer
-- `audio` - Audio handling
-- `media_player` - Media player improvements
-- `mdns`, `sendspin` - Multi-room sync
-- `file`, `http_request`, `media_source`, `speaker_source` - Media sources
+Everything except the Satellite1-specific drivers above comes from the pinned ESPHome release: `mixer`, `audio`, `speaker_source`, `media_player`, `mdns`, `sendspin`, `http_request`, `media_source`, `tas2780`, `pcm5122` and the `resampler` microphone. Only two components are fetched from `remcom/esphome` at a pinned commit (see `external_components` in `config/satellite1.common.yaml`, mirrored in `config/satellite1-remote.yaml`): `i2s_audio` (full duplex, merged upstream only for 2026.11) and `fusb302b`. Drop each pin once the component ships in the ESPHome release we pin.
 
 ### Configuration Structure
 
@@ -79,6 +74,17 @@ Important IDs used across YAML configs:
 
 - **`@automation.register_action()` requires `synchronous=`** — use `synchronous=True` when `play()` completes inline (GPIO, I2C); use `synchronous=False` when work is deferred to a FreeRTOS task. Missing this produces a WARNING and disables StringRef optimization.
 - **`status_set_error()` takes `LOG_STR()`** — wrap string literals: `status_set_error(LOG_STR("msg"))`. Plain `const char*` is deprecated as of 2026.3 and breaks in 2026.6.
-- **`audio_dac` platform pattern** — TAS2780/PCM5122 schemas live in `audio_dac.py`; `__init__.py` is intentionally empty. Action classes must use `cg.Parented.template(...)` and `await cg.register_parented(...)`.
 - **XMOS is I2S primary (clock source)** — ESP32 runs as secondary: `i2s_mode: secondary` is set on the microphone and on each i2s speaker (not on the bus), and the `i2s_shared` bus uses `full_duplex: true`. The full duplex TX channel is fixed at 32-bit, so the mixer and router run at `bits_per_sample: 32`. The `add_data_callback()` on `sat1_mics_raw` delivers 48kHz stereo 32-bit, not the 16kHz mono resampler output.
 - **Dashboard remote compile** — `config/satellite1-remote.yaml` uses `type: git` for local component paths (ESPHome resolves `type: local` relative to user config dir, breaking GitHub-fetched packages). Local builds use `satellite1.yaml` unchanged.
+
+## Upgrading ESPHome and cutting a release
+
+Work lands on `develop`; `main` only gets merges from it at release time. `requirements.txt` is the single source of truth for the ESPHome version (the release workflow reads it), and Dependabot deliberately does not touch it.
+
+1. Read the upstream changelog (`https://esphome.io/changelog/<version>.html`) for breaking changes in components we use: `speaker`, `mixer`, `sendspin`, `i2s_audio`, `microphone`, `tas2780`, `improv_ble`, `light`, `wifi`, `ota`.
+2. `scripts/bump_release.sh --esphome <version>` updates `requirements.txt`, `min_version` and the README/site version strings.
+3. Run `esphome config` for all four variants (`satellite1`, `.ld2410`, `.ld2450`, `.secure`; the secure one needs a throwaway `secure_boot_signing_key.pem`, which is gitignored) and `esphome compile config/satellite1.yaml`. Fix every new WARNING: deprecations are removed a few releases later.
+4. If a pinned external component (`i2s_audio`, `fusb302b`) was merged or released upstream, drop the pin in both `satellite1.common.yaml` and `satellite1-remote.yaml`.
+5. Check logger levels in `satellite1.common.yaml` are back to `info`/`INFO`, compare RAM/flash against the previous release, and test on hardware (audio in/out, wake word during playback, Sendspin, line-out switching, OTA).
+6. Release commit: `scripts/bump_release.sh --esphome <stable> --firmware vX.Y.Z`, merge `develop` into `main`, then publish a GitHub release tagged `vX.Y.Z` (use `-betaN` and "pre-release" for betas). CI builds all four variants, publishes the `latest`/`beta` channel and, for stable releases only, commits `site/manifests/*.bin` back to `main`.
+7. Mention in the release notes anything users must do first (e.g. a Music Assistant update when the Sendspin protocol version changes).
