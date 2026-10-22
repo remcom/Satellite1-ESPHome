@@ -88,6 +88,7 @@ microphone:
     pdm: false
     adc_type: external
     i2s_audio_id: i2s_shared
+    i2s_mode: secondary
 
   - platform: resampler
     id: sat1_mics
@@ -95,7 +96,6 @@ microphone:
       microphone: sat1_mics_raw
       channels: [0]
     sample_rate: 16000
-    buffer_duration: 100ms
 
 micro_wake_word:
   id: mww

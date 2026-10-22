@@ -6,6 +6,9 @@
 substitutions:
   company_name: FutureProofHomes
   project_name: Satellite1
+  # Release manifest this build updates from. Variants override it with their own (e.g. satellite1.secure)
+  # instead of extending the beta switch: !extend appends automations, so both URLs would race.
+  ota_manifest: satellite1
 
 packages:
   # This is an inline package to prefix the on_client_connected with the wait_until action
@@ -64,7 +67,7 @@ esphome:
     name: ${company_name}.${project_name}
     version: ${esp32_fw_version}
 
-esp32_improv:
+improv_ble:
   authorizer: btn_action
   on_start:
     - lambda: id(improv_ble_in_progress) = true;
@@ -84,34 +87,41 @@ external_components:
     components:
       - memory_flasher
       - satellite1
-  # i2s_audio from esphome with shared i2s bus support
-  # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
+  # USB-PD controller, merged upstream in esphome/esphome#20632/#20760/#20796 (dev, not yet released):
+  # https://github.com/esphome/esphome/tree/dev/esphome/components/fusb302b
   - source:
-      type: local
-      path: ../components
+      type: git
+      url: https://github.com/esphome/esphome
+      ref: 06b585d3733d634427abb492099d1373a58598fa
     components:
-      - i2s_audio
-      - resampler
       - fusb302b
-  # TAS2780 audio amplifier from: https://github.com/esphome/esphome/pull/15708
+  # i2s_audio (full duplex, several speakers per bus), merged upstream in esphome/esphome#19959
+  # (dev, not yet released). Upstream dev needs ESPHome 2026.11 core APIs, so this uses the
+  # 2026.10 backport: https://github.com/remcom/esphome/tree/i2s_audio-dev-2026.10
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: 6a7fbfce406d6bb962948e953cbf79ab9b0a7190
+      ref: ee69f9b32ea3489dad5c51d8e0333b56084da0f4
     components:
-      - tas2780
+      - i2s_audio
 
 logger:
   deassert_rts_dtr: true
   hardware_uart: USB_SERIAL_JTAG
-  level: info
+  level: DEBUG
   logs:
     ltr_als_ps: WARN
     # Raise to DEBUG (and set level: debug above) when tracing the audio pipeline
-    sendspin: INFO
-    sendspin_media_source: INFO
-    speaker_source_media_player: INFO
-    i2s_audio.speaker: INFO
+    sendspin: DEBUG
+    sendspin_media_source: DEBUG
+    speaker_source_media_player: DEBUG
+    i2s_audio.speaker: DEBUG
+    i2s_audio.speaker.std: DEBUG
+    tas2780: DEBUG
+    pcm5122: DEBUG
+    router.speaker: DEBUG
+    mixer_speaker: DEBUG
+    audio_dac: DEBUG
 
 ota:
   - platform: http_request
@@ -121,7 +131,7 @@ update:
   - platform: http_request
     name: None
     id: update_http_request
-    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json
+    source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json
 
 switch:
   - platform: template
@@ -133,9 +143,9 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     on_turn_on:
       - logger.log: "OTA updates set to use Beta firmware"
-      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/satellite1-manifest.json");
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/${ota_manifest}-manifest.json");
       - component.update: update_http_request
     on_turn_off:
       - logger.log: "OTA updates set to use Production firmware"
-      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/satellite1-manifest.json");
+      - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json");
       - component.update: update_http_request

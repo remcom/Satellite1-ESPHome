@@ -59,7 +59,7 @@ esphome:
     name: ${company_name}.${project_name}
     version: ${esp32_fw_version}
 
-esp32_improv:
+improv_ble:
   authorizer: btn_action
   on_start:
     - lambda: id(improv_ble_in_progress) = true;
@@ -81,24 +81,23 @@ external_components:
     components:
       - memory_flasher
       - satellite1
-  # i2s_audio from esphome with shared i2s bus support
-  # resampler from esphome combined with microphone resampler from: https://github.com/esphome/esphome/pull/9675
+  # USB-PD controller, merged upstream in esphome/esphome#20632/#20760/#20796 (dev, not yet released):
+  # https://github.com/esphome/esphome/tree/dev/esphome/components/fusb302b
   - source:
       type: git
-      url: https://github.com/remcom/Satellite1-ESPHome
-      ref: main
-      path: components
+      url: https://github.com/esphome/esphome
+      ref: 06b585d3733d634427abb492099d1373a58598fa
     components:
-      - i2s_audio
-      - resampler
       - fusb302b
-  # TAS2780 audio amplifier from: https://github.com/esphome/esphome/pull/15708
+  # i2s_audio (full duplex, several speakers per bus), merged upstream in esphome/esphome#19959
+  # (dev, not yet released). Upstream dev needs ESPHome 2026.11 core APIs, so this uses the
+  # 2026.10 backport: https://github.com/remcom/esphome/tree/i2s_audio-dev-2026.10
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: 6a7fbfce406d6bb962948e953cbf79ab9b0a7190
+      ref: ee69f9b32ea3489dad5c51d8e0333b56084da0f4
     components:
-      - tas2780
+      - i2s_audio
 
 logger:
 
