@@ -16,6 +16,7 @@ from esphome.const import (
 )
 from esphome.core import CORE, HexInt
 from esphome.external_files import download_content
+from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +47,11 @@ CONF_ON_FLASHING_START = "on_flashing_start"
 CONF_ON_FLASHING_SUCCESS = "on_flashing_success"
 CONF_ON_FLASHING_FAILED = "on_flashing_failed"
 CONF_ON_ERASING_DONE = "on_erasing_done"
+
+MD5_REGEX = re.compile(r"^[a-fA-F0-9]{32}$")
+VERSION_REGEX = re.compile(
+    r"^v?(\d+)\.(\d+)\.(\d+)(-(alpha|beta|rc|dev)(\.(\d+))?)?$", re.IGNORECASE
+)
 
 flasher_ns = cg.esphome_ns.namespace("memory_flasher")
 FlashImage = flasher_ns.struct("FlashImage")
@@ -114,24 +120,32 @@ def _resolve_local_file(file_conf: dict) -> Path:
 def _validate_md5_str(value: str) -> str:
     """
     Validates whether the given string is a valid MD5 checksum.
+    Returns it in lower case, as produced by hashlib and the on-device MD5.
     """
-    if re.match(r"^[a-fA-F0-9]{32}$", value) is None:
+    value = cv.string_strict(value).strip()
+    if MD5_REGEX.match(value) is None:
         raise cv.Invalid(f"Invalid md5 string: {value}")
-    return value
+    return value.lower()
 
 
-def _get_expected_md5(flash_config: dict) -> str:
+def _get_expected_md5(flash_config: ConfigType) -> str:
     """
     Returns the expected MD5 checksum from the configuration, which can either be
-    provided directly as a string or as a file path containing the checksum.
+    provided directly as a string or as a local file / URL containing the checksum.
     """
-    if CONF_MD5 in flash_config:
-        return flash_config[CONF_MD5]
-    md5_key = CONF_MD5_FILE if CONF_MD5_FILE in flash_config else CONF_MD5_URL
-    local_file_path = _resolve_local_file(flash_config[md5_key])
-    with open(local_file_path) as f:
-        md5_str = f.readline().strip()
-    return _validate_md5_str(md5_str)
+    if (md5 := flash_config.get(CONF_MD5)) is not None:
+        return _validate_md5_str(md5)
+    if (md5_url := flash_config.get(CONF_MD5_URL)) is not None:
+        file_conf = {CONF_TYPE: TYPE_WEB, CONF_URL: md5_url}
+    else:
+        file_conf = flash_config[CONF_MD5_FILE]
+    local_file_path = _resolve_local_file(file_conf)
+    with open(local_file_path, encoding="utf-8") as f:
+        # md5sum format is "<md5>  <file name>", only the checksum is of interest
+        tokens = f.readline().split()
+    if not tokens:
+        raise cv.Invalid(f"MD5 file {local_file_path} is empty")
+    return _validate_md5_str(tokens[0])
 
 
 def _check_image_md5_sum(image_file: Path, expected_md5: str) -> bool:
@@ -140,7 +154,7 @@ def _check_image_md5_sum(image_file: Path, expected_md5: str) -> bool:
     """
     with open(image_file, "rb") as f:
         file_md5 = hashlib.md5(f.read()).hexdigest()
-    return file_md5 == expected_md5
+    return file_md5 == expected_md5.lower()
 
 
 LOCAL_FILE_SCHEMA = cv.Schema(
@@ -196,12 +210,15 @@ def _validate_embed_image_schema(image_config: dict) -> dict:
     return image_config
 
 
-def _validate_image_version_string(val):
-    match = re.match(
-        r"^v?(\d+)\.(\d+)\.(\d+)(-(alpha|beta|rc|dev)(\.(\d+))?)?$", val, re.IGNORECASE
-    )
+def _validate_image_version_string(val: str) -> str:
+    val = cv.string_strict(val)
+    match = VERSION_REGEX.match(val)
     if not match:
         raise cv.Invalid(f"Not a valid version string: {val}")
+    # Each part is stored in a single byte, see _version_to_bytes()
+    for part in (match[1], match[2], match[3], match[7]):
+        if part is not None and int(part) > 255:
+            raise cv.Invalid(f"Version parts must be between 0 and 255: {val}")
     return val
 
 
@@ -218,7 +235,10 @@ FLASH_IMAGE_SCHEMA = cv.Schema(
 EMBED_FLASH_IMAGE_SCHEMA = cv.All(
     FLASH_IMAGE_SCHEMA.extend(
         {
+            # Resolved at compile time, so these can't be templates
             cv.Required(CONF_IMAGE_FILE): _file_schema,
+            cv.Optional(CONF_MD5_URL): cv.url,
+            cv.Optional(CONF_MD5): _validate_md5_str,
             cv.Optional(CONF_MD5_FILE): _file_schema,
             cv.GenerateID(CONF_RAW_DATA_ID): cv.declare_id(cg.uint8),
         }
@@ -268,7 +288,9 @@ FLASHER_CONFIG_SCHEMA = cv.Schema(
 ).extend(cv.COMPONENT_SCHEMA)
 
 
-def _prepare_flash_image_pgm(flash_config: dict) -> tuple[str, tuple[str], int]:
+def _prepare_flash_image_pgm(
+    flash_config: ConfigType,
+) -> tuple[str, tuple[HexInt, ...], int]:
     local_flash_image = _resolve_local_file(flash_config[CONF_IMAGE_FILE])
     md5_sum = _get_expected_md5(flash_config)
     with open(local_flash_image, "rb") as f:
@@ -276,30 +298,22 @@ def _prepare_flash_image_pgm(flash_config: dict) -> tuple[str, tuple[str], int]:
     return md5_sum, hex_strings, len(hex_strings)
 
 
-pre_idx_list = ["none", "alpha", "beta", "rc", "dev"]
+# Index matches FlashImagePreRelease in memory_flasher.h
+PRE_RELEASE_NAMES = ["none", "alpha", "beta", "rc", "dev"]
 
 
-def _version_to_bytes(vers: str) -> tuple[int]:
-    match = re.match(
-        r"^v?(\d+)\.(\d+)\.(\d+)(-(alpha|beta|rc|dev)(\.(\d+))?)?$", vers, re.IGNORECASE
-    )
+def _version_to_bytes(vers: str) -> tuple[int, int, int, int, int]:
+    """Returns (major, minor, patch, pre_release, counter) as stored by the XMOS."""
+    match = VERSION_REGEX.match(vers)
     major = int(match[1])
     minor = int(match[2])
     patch = int(match[3])
     pre_idx = 0
     pre_cnter = 0
     if match[4]:
-        pre_idx = pre_idx_list.index(match[5].lower())
+        pre_idx = PRE_RELEASE_NAMES.index(match[5].lower())
         pre_cnter = int(match[7]) if match[6] else 0
-    return bytes(
-        (
-            major,
-            minor,
-            patch,
-            pre_idx,
-            pre_cnter,
-        )
-    ).decode("latin1")
+    return major, minor, patch, pre_idx, pre_cnter
 
 
 async def register_memory_flasher(var, flasher_config):
@@ -312,12 +326,12 @@ async def register_memory_flasher(var, flasher_config):
             image_conf
         )
         prog_arr = cg.progmem_array(image_conf[CONF_RAW_DATA_ID], hex_strings)
+        cg.add(var.set_embedded_image(prog_arr, num_of_bytes, expected_md5_sum))
+        # Passed as integers: a string literal would be UTF-8 encoded, turning any
+        # version byte >= 0x80 into two bytes.
         cg.add(
-            var.set_embedded_image(
-                prog_arr,
-                num_of_bytes,
-                expected_md5_sum,
-                _version_to_bytes(image_conf[CONF_FLASH_IMAGE_VERSION]),
+            var.set_embedded_image_version(
+                *_version_to_bytes(image_conf[CONF_FLASH_IMAGE_VERSION])
             )
         )
 
@@ -345,7 +359,9 @@ async def register_memory_flasher(var, flasher_config):
 FLASH_ACTION_SCHEMA = cv.All(
     FLASH_IMAGE_SCHEMA.extend(
         {cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)}
-    )
+    ),
+    # Without an expected checksum the flash would be erased before failing
+    cv.has_exactly_one_key(CONF_MD5, CONF_MD5_URL),
 )
 
 
@@ -373,7 +389,7 @@ async def flash_image_action_to_code(config, action_id, template_arg, args):
     return var
 
 
-FlASH_EMBEDDED_ACTION_SCHEMA = automation.maybe_simple_id(
+FLASH_EMBEDDED_ACTION_SCHEMA = automation.maybe_simple_id(
     {cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)}
 )
 
@@ -381,7 +397,7 @@ FlASH_EMBEDDED_ACTION_SCHEMA = automation.maybe_simple_id(
 @automation.register_action(
     "memory_flasher.write_embedded_image",
     FlashEmbeddedAction,
-    FlASH_EMBEDDED_ACTION_SCHEMA,
+    FLASH_EMBEDDED_ACTION_SCHEMA,
     synchronous=True,
 )
 async def flash_embedded_image_action_to_code(config, action_id, template_arg, args):
@@ -412,7 +428,7 @@ CONDITION_SCHEMA = automation.maybe_simple_id(
 @automation.register_condition(
     "memory_flasher.in_progress", InProgressCondition, CONDITION_SCHEMA
 )
-async def wifi_connected_to_code(config, condition_id, template_arg, args):
+async def in_progress_to_code(config, condition_id, template_arg, args):
     var = cg.new_Pvariable(condition_id, template_arg)
     await cg.register_parented(var, config[CONF_FLASHER_ID])
     return var

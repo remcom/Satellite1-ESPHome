@@ -35,7 +35,7 @@ struct FlashImage {
   const uint8_t *data{nullptr};
   size_t length{0};
   std::string md5;
-  ImageVersion version;
+  ImageVersion version{};
 };
 
 class FlashImageReader {
@@ -141,12 +141,17 @@ class MemoryFlasher : public Component {
     return memcmp(this->embedded_image_.version.bytes, to_compare, sizeof(this->embedded_image_.version.bytes)) == 0;
   }
 
-  void set_embedded_image(const uint8_t *pgm_pointer, size_t length, std::string expected_md5,
-                          const char version_bytes[5]) {
+  void set_embedded_image(const uint8_t *pgm_pointer, size_t length, const char *expected_md5) {
     this->embedded_image_.data = pgm_pointer;
     this->embedded_image_.length = length;
-    this->embedded_image_.md5 = std::move(expected_md5);
-    memcpy(this->embedded_image_.version.bytes, version_bytes, sizeof(this->embedded_image_.version.bytes));
+    this->embedded_image_.md5 = expected_md5;
+  }
+  void set_embedded_image_version(uint8_t major, uint8_t minor, uint8_t patch, uint8_t pre_release, uint8_t counter) {
+    this->embedded_image_.version.major = major;
+    this->embedded_image_.version.minor = minor;
+    this->embedded_image_.version.patch = patch;
+    this->embedded_image_.version.pre_release = static_cast<FlashImagePreRelease>(pre_release);
+    this->embedded_image_.version.counter = counter;
   }
 
   void set_http_request_component(http_request::HttpRequestComponent *http_request) {
