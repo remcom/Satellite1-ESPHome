@@ -18,11 +18,11 @@ enum class XMOSPort : uint8_t {
 
 class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
  public:
-  void setup() override {};
+  void setup() override {}
   void pin_mode(gpio::Flags flags) override {}
   bool digital_read() override;
   void digital_write(bool value) override;
-  size_t dump_summary(char *buffer, size_t len) const override { return 0; }
+  size_t dump_summary(char *buffer, size_t len) const override;
 
   void set_pin(XMOSPort port, uint8_t pin) {
     this->port_ = port;

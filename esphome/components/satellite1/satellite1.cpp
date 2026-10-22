@@ -1,10 +1,18 @@
 #include "satellite1.h"
-#include "esp_rom_gpio.h"
+#include "esphome/core/application.h"
+#include "esphome/core/hal.h"
 #include "esphome/core/log.h"
+
+#include <cstring>
 
 namespace esphome::satellite1 {
 
 static const char *const TAG = "Satellite1";
+
+static constexpr uint32_t CONNECTION_RETRY_INTERVAL_MS = 1000;
+static constexpr uint32_t XMOS_RESET_PULSE_MS = 100;
+static constexpr uint32_t XMOS_RESET_TIMEOUT_ID = 0;
+static constexpr size_t FW_VERSION_STR_MAX_LEN = 32;
 
 void Satellite1::setup() {
   this->spi_setup();
@@ -12,47 +20,53 @@ void Satellite1::setup() {
   this->transfer_byte(0);
   this->disable();
 
-  if (this->xmos_rst_pin_) {
+  if (this->xmos_rst_pin_ != nullptr) {
     this->xmos_rst_pin_->setup();
   }
 
-  memset(this->xmos_fw_version_, 0, 5);
+  memset(this->xmos_fw_version_, 0, sizeof(this->xmos_fw_version_));
   this->dfu_get_fw_version_();
 }
 
 void Satellite1::dump_config() {
-  esph_log_config(TAG, "Satellite1 config:");
-  if (this->xmos_rst_pin_) {
-    char buffer[64];
-    this->xmos_rst_pin_->dump_summary(buffer, sizeof(buffer));
-    esph_log_config(TAG, "    xmos_rst_pin: %s", buffer);
-  } else {
-    esph_log_config(TAG, "    xmos_rst_pin not set up properly.");
-  }
+  ESP_LOGCONFIG(TAG, "Satellite1:");
+  LOG_PIN("  XMOS Reset Pin: ", this->xmos_rst_pin_);
+  ESP_LOGCONFIG(TAG, "  XMOS Status: %s", this->status_string().c_str());
 }
 
 void Satellite1::loop() {
-  switch (this->state_) {
-    case SAT_DETACHED_STATE:
-      if (this->connection_attempts_ <= MAX_CONNECTION_ATTEMPTS && (millis() - this->last_attempt_timestamp_) > 1000) {
-        if (this->connection_attempts_ == MAX_CONNECTION_ATTEMPTS) {
-          this->state_callback_.call();
-        } else if (this->check_for_xmos_()) {
-          this->state_ = SAT_XMOS_CONNECTED_STATE;
-          this->connection_attempts_ = 0;
-          this->state_callback_.call();
-        }
-        this->last_attempt_timestamp_ = millis();
-        this->connection_attempts_++;
-      }
-      break;
-    case SAT_XMOS_CONNECTED_STATE:
-    case SAT_FLASH_CONNECTED_STATE:
-      break;
+  // Only the detection phase needs the loop; it is re-enabled by restart_detection_().
+  if (this->state_ != SAT_DETACHED_STATE) {
+    this->disable_loop();
+    return;
+  }
+
+  const uint32_t now = App.get_loop_component_start_time();
+  if (now - this->last_attempt_timestamp_ <= CONNECTION_RETRY_INTERVAL_MS) {
+    return;
+  }
+  this->last_attempt_timestamp_ = now;
+
+  if (this->connection_attempts_ >= MAX_CONNECTION_ATTEMPTS) {
+    // Give up. connection_attempts_ stays at MAX_CONNECTION_ATTEMPTS, which is what
+    // XMOSNoResponseStateTrigger checks for. Disable the loop before notifying so a callback
+    // that restarts detection synchronously isn't overridden.
+    ESP_LOGW(TAG, "XMOS not responding after %u attempts", MAX_CONNECTION_ATTEMPTS);
+    this->disable_loop();
+    this->state_callback_.call();
+    return;
+  }
+
+  this->connection_attempts_++;
+  if (this->check_for_xmos_()) {
+    this->state_ = SAT_XMOS_CONNECTED_STATE;
+    this->connection_attempts_ = 0;
+    this->disable_loop();
+    this->state_callback_.call();
   }
 }
 
-static std::string prerelease_str(uint8_t pre_idx) {
+static const char *prerelease_str(uint8_t pre_idx) {
   switch (pre_idx) {
     case 1:
       return "alpha";
@@ -68,20 +82,29 @@ static std::string prerelease_str(uint8_t pre_idx) {
   }
 }
 
+void Satellite1::format_fw_version_(char *buffer, size_t len) const {
+  const uint8_t *v = this->xmos_fw_version_;
+  size_t pos = buf_append_printf(buffer, len, 0, "v%u.%u.%u", v[0], v[1], v[2]);
+  if (v[3]) {
+    pos = buf_append_printf(buffer, len, pos, "-%s", prerelease_str(v[3]));
+  }
+  if (v[4]) {
+    buf_append_printf(buffer, len, pos, ".%u", v[4]);
+  }
+}
+
 std::string Satellite1::status_string() {
   switch (this->state_) {
-    case SAT_DETACHED_STATE:
-      return "XMOS not responding";
-
-    case SAT_XMOS_CONNECTED_STATE:
-      return ("v" + std::to_string(this->xmos_fw_version_[0]) + "." + std::to_string(this->xmos_fw_version_[1]) + "." +
-              std::to_string(this->xmos_fw_version_[2]) +
-              (this->xmos_fw_version_[3] ? "-" + prerelease_str(this->xmos_fw_version_[3]) : "") +
-              (this->xmos_fw_version_[4] ? "." + std::to_string(this->xmos_fw_version_[4]) : ""));
+    case SAT_XMOS_CONNECTED_STATE: {
+      char buffer[FW_VERSION_STR_MAX_LEN];
+      this->format_fw_version_(buffer, sizeof(buffer));
+      return buffer;
+    }
     case SAT_FLASH_CONNECTED_STATE:
       return "Flashing Mode";
+    case SAT_DETACHED_STATE:
     default:
-      return "";
+      return "XMOS not responding";
   }
 }
 
@@ -92,6 +115,9 @@ bool Satellite1::request_status_register_update() {
 
 bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload, uint8_t payload_len) {
   if (this->spi_flash_direct_access_enabled_) {
+    return false;
+  }
+  if (payload == nullptr && payload_len > 0) {
     return false;
   }
 
@@ -106,7 +132,9 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
     send_recv_buf[0] = resource_id;
     send_recv_buf[1] = command;
     send_recv_buf[2] = payload_len + !!(command & CONTROL_CMD_READ_BIT);
-    memcpy(&send_recv_buf[3], payload, payload_len);
+    if (payload_len > 0) {
+      memcpy(&send_recv_buf[3], payload, payload_len);
+    }
     this->enable();
     this->transfer_array(&send_recv_buf[0], payload_len + 3 + status_report_dummies);
     this->disable();
@@ -141,33 +169,53 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
       return false;
     }
 
-    memcpy(payload, &send_recv_buf[1], payload_len);
+    if (payload_len > 0) {
+      memcpy(payload, &send_recv_buf[1], payload_len);
+    }
   }
 
   return true;
 }
 
 void Satellite1::set_spi_flash_direct_access_mode(bool enable) {
+  if (this->xmos_rst_pin_ == nullptr) {
+    ESP_LOGE(TAG, "XMOS reset pin not set, can't switch flash access mode");
+    return;
+  }
+  // Holding the XMOS in reset hands the SPI flash over to the ESP32.
+  this->cancel_timeout(XMOS_RESET_TIMEOUT_ID);
   this->xmos_rst_pin_->digital_write(enable);
+  const bool was_enabled = this->spi_flash_direct_access_enabled_;
+  this->spi_flash_direct_access_enabled_ = enable;
   if (enable) {
     this->state_ = SAT_FLASH_CONNECTED_STATE;
-  } else if (this->spi_flash_direct_access_enabled_) {
-    this->state_ = SAT_DETACHED_STATE;
-    this->connection_attempts_ = 0;
+  } else if (was_enabled) {
+    this->restart_detection_();
   }
-  this->spi_flash_direct_access_enabled_ = enable;
   this->state_callback_.call();
 }
 
+void Satellite1::restart_detection_() {
+  this->state_ = SAT_DETACHED_STATE;
+  this->connection_attempts_ = 0;
+  // Give the XMOS time to boot before the first probe.
+  this->last_attempt_timestamp_ = millis();
+  this->enable_loop();
+}
+
 bool Satellite1::dfu_get_fw_version_() {
-  uint8_t version_resp[5];
-  if (!this->transfer(DC_RESOURCE::DFU_CONTROLLER, DC_DFU_CMD::GET_VERSION, version_resp, 5)) {
+  // Read command: the payload is only used as receive buffer, but it is clocked out
+  // first, so don't send uninitialized stack memory.
+  uint8_t version_resp[XMOS_FW_VERSION_LEN]{};
+  if (!this->transfer(DC_RESOURCE::DFU_CONTROLLER, DC_DFU_CMD::GET_VERSION, version_resp, sizeof(version_resp))) {
     ESP_LOGW(TAG, "Requesting XMOS version failed");
     return false;
   }
 
-  memcpy(this->xmos_fw_version_, version_resp, 5);
-  ESP_LOGI(TAG, "XMOS Firmware Version: %s ", this->status_string().c_str());
+  memcpy(this->xmos_fw_version_, version_resp, sizeof(this->xmos_fw_version_));
+  char buffer[FW_VERSION_STR_MAX_LEN];
+  this->format_fw_version_(buffer, sizeof(buffer));
+  ESP_LOGI(TAG, "XMOS Firmware Version: %s", buffer);
 
   return true;
 }
@@ -176,15 +224,26 @@ bool Satellite1::check_for_xmos_() {
   if (!this->dfu_get_fw_version_()) {
     return false;
   }
-  const uint8_t compare_zeros[5] = {0};
-  return (memcmp(this->xmos_fw_version_, compare_zeros, 5) != 0);
+  const uint8_t compare_zeros[XMOS_FW_VERSION_LEN] = {0};
+  return (memcmp(this->xmos_fw_version_, compare_zeros, sizeof(compare_zeros)) != 0);
 }
 
 void Satellite1::xmos_hardware_reset() {
+  if (this->xmos_rst_pin_ == nullptr) {
+    ESP_LOGE(TAG, "XMOS reset pin not set, can't reset XMOS");
+    return;
+  }
+  if (this->spi_flash_direct_access_enabled_) {
+    ESP_LOGW(TAG, "XMOS flash is being accessed, refusing to reset XMOS");
+    return;
+  }
+
+  ESP_LOGI(TAG, "Resetting XMOS");
   this->xmos_rst_pin_->digital_write(true);
-  delay(100);
-  this->xmos_rst_pin_->digital_write(false);
-  delay(100);
+  this->set_timeout(XMOS_RESET_TIMEOUT_ID, XMOS_RESET_PULSE_MS, [this]() {
+    this->xmos_rst_pin_->digital_write(false);
+    this->restart_detection_();
+  });
 }
 
 }  // namespace esphome::satellite1

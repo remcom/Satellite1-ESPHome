@@ -7,7 +7,7 @@ namespace esphome::satellite1 {
 
 template<typename... Ts> class XMOSHardwareResetAction : public Action<Ts...>, public Parented<Satellite1> {
  public:
-  void play(Ts... x) override { this->parent_->xmos_hardware_reset(); }
+  void play(const Ts &...x) override { this->parent_->xmos_hardware_reset(); }
 };
 
 template<Satellite1State State> class Satellite1StateTrigger : public Trigger<> {

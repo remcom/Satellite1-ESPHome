@@ -3,6 +3,10 @@
 #include "esphome/components/spi/spi.h"
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
+#include "esphome/core/helpers.h"
+
+#include <cassert>
+#include <string>
 
 namespace esphome::satellite1 {
 
@@ -20,6 +24,8 @@ static const uint8_t GPIO_SERVICER_RESID_PORT_OUT_A = 221;
 static const uint8_t DFU_CONTROLLER_SERVICER_RESID = 240;
 
 static const uint8_t MAX_CONNECTION_ATTEMPTS = 3;
+
+static const uint8_t XMOS_FW_VERSION_LEN = 5;
 
 namespace DC_RESOURCE {
 enum DcResourceEnum {
@@ -140,7 +146,7 @@ class Satellite1 : public Component,
    * @return             The cached value of the requested status register as an 8-bit
    *                     unsigned integer.
    */
-  uint8_t get_dc_status(DC_STATUS_REGISTER::RegisterId reg) {
+  uint8_t get_dc_status(DC_STATUS_REGISTER::RegisterId reg) const {
     assert(reg < DC_STATUS_REGISTER::REGISTER_LEN);
     return this->dc_status_register_[reg];
   }
@@ -153,20 +159,30 @@ class Satellite1 : public Component,
     this->state_callback_.add(std::forward<F>(callback));
   }
 
+  /**
+   * @brief Pulses the XMOS reset line and re-detects the XMOS afterwards.
+   *
+   * Non-blocking: the reset line is released from a scheduler timeout. Refused while the
+   * XMOS flash is being accessed directly, since that holds the XMOS in reset itself.
+   */
   void xmos_hardware_reset();
 
  protected:
   bool dfu_get_fw_version_();
   bool check_for_xmos_();
+  /// Restart XMOS detection from scratch (used after leaving flash mode or after a reset).
+  void restart_detection_();
+  /// Writes the cached XMOS firmware version as "vX.Y.Z[-pre][.N]" into buffer.
+  void format_fw_version_(char *buffer, size_t len) const;
   CallbackManager<void()> state_callback_{};
 
   Satellite1State state_{SAT_DETACHED_STATE};
-  uint8_t xmos_fw_version_[5]{};
+  uint8_t xmos_fw_version_[XMOS_FW_VERSION_LEN]{};
   uint8_t connection_attempts_{0};
 
   uint32_t last_attempt_timestamp_{0};
 
-  uint8_t dc_status_register_[DC_STATUS_REGISTER::REGISTER_LEN];
+  uint8_t dc_status_register_[DC_STATUS_REGISTER::REGISTER_LEN]{};
   bool spi_flash_direct_access_enabled_{false};
 
   uint8_t spi_transfer_buffer_[256 + 3];  // Reusable buffer for SPI transfers
@@ -175,16 +191,10 @@ class Satellite1 : public Component,
 };
 
 class Satellite1SPIService : public Parented<Satellite1> {
- public:
-  virtual bool handle_response(uint8_t status, uint8_t res_id, uint8_t cmd, uint8_t *payload, uint8_t payload_len) {
-    return false;
-  }
-
  protected:
   uint8_t transfer_byte_(uint8_t byte) { return this->parent_->transfer_byte(byte); }
   void enable_() { this->parent_->enable(); }
   void disable_() { this->parent_->disable(); }
-  uint8_t servicer_id_;
 };
 
 }  // namespace esphome::satellite1
