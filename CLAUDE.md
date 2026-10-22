@@ -37,7 +37,7 @@ esphome logs config/satellite1.yaml
 - `satellite1/` - Main board component (SPI communication with XMOS, GPIO control, audio DAC)
 - `memory_flasher/` - XMOS firmware flasher (also `satellite1/memory_flasher/` platform)
 
-(i2s_audio (full duplex bus) comes from esphome/esphome PR #19959 (`remcom/esphome` `i2s_audio-full-duplex` branch), and the FUSB302B USB-PD controller from the `remcom/esphome` `fusb302b` branch — see `external_components` in `config/satellite1.common.yaml`; TAS2780 amplifier, PCM5122 DAC and the resampler microphone come from ESPHome core.)
+(i2s_audio (full duplex bus, esphome/esphome #19959) and the FUSB302B USB-PD controller are merged in upstream ESPHome dev but not yet released: fusb302b is pinned to an esphome/esphome dev commit, i2s_audio to the `remcom/esphome` `i2s_audio-dev-2026.10` branch (upstream dev backported to the 2026.10 core APIs) — see `external_components` in `config/satellite1.common.yaml` and `config/satellite1-remote.yaml`; TAS2780 amplifier, PCM5122 DAC and the resampler microphone come from ESPHome core.)
 
 ### External Components (from ESPHome PRs)
 
