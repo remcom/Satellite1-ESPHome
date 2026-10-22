@@ -1,6 +1,11 @@
 #include "xmos_flashing.h"
+#include "esphome/core/application.h"
+#include "esphome/core/hal.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
+#include <algorithm>
+#include <cinttypes>
 #include <endian.h>
 
 namespace esphome::satellite1 {
@@ -15,6 +20,8 @@ constexpr size_t FLASH_TOTAL_NUMBER_OF_SECTORS = 8388608 / FLASH_SECTOR_SIZE;
 void XMOSFlasher::loop() {
   switch (this->state_) {
     case FLASHER_IDLE:
+      // Nothing to do until an action is requested, see start_action_() / fail_action_().
+      this->disable_loop();
       break;
 
     case FLASHER_INITIALIZING:
@@ -35,6 +42,9 @@ void XMOSFlasher::loop() {
       } else if (remaining == 0) {
         this->state_ = FLASHER_FLASHING;
       } else if (remaining < 0) {
+        // Release the flash again, otherwise the XMOS stays in reset and all XMOS
+        // communication (buttons, status) is blocked until reboot.
+        this->deinit_flashing_();
         this->state_ = FLASHER_ERROR_STATE;
       }
       break;
@@ -44,6 +54,7 @@ void XMOSFlasher::loop() {
       int remaining = this->flashing_step_();
       this->publish_progress();
       if (remaining == 0) {
+        ESP_LOGI(TAG, "Flashing finished in %" PRIu32 " s", (millis() - this->flashing_start_time_) / 1000);
         this->deinit_flashing_();
         this->state_ = FLASHER_SUCCESS_STATE;
       } else if (remaining < 0) {
@@ -55,6 +66,9 @@ void XMOSFlasher::loop() {
 
     case FLASHER_SUCCESS_STATE:
     case FLASHER_ERROR_STATE:
+      if (this->state_ == FLASHER_ERROR_STATE) {
+        ESP_LOGE(TAG, "Failed with error code %u", this->error_code_);
+      }
       this->publish();
       this->state_ = FLASHER_IDLE;
       break;
@@ -64,26 +78,51 @@ void XMOSFlasher::loop() {
   }
 }
 
-void XMOSFlasher::publish_progress() {
-  uint32_t now = millis();
+void XMOSFlasher::start_action_(FlasherAction action) {
+  this->requested_action_ = action;
+  this->error_code_ = FLASHER_OK;
+  this->state_ = FLASHER_INITIALIZING;
+  this->enable_loop();
+}
 
-  if ((now - this->last_published_) > 1000) {
-    if (this->requested_action_ == ACTION_FULL_ERASE) {
-      this->flashing_progress_ = this->current_sector_ * 100 / this->total_sectors_to_erase_;
-    } else {
-      this->flashing_progress_ = ((this->current_sector_ + this->total_number_of_bytes_ - this->bytes_remaining_) *
-                                  100 / (this->total_number_of_bytes_ + this->total_sectors_to_erase_));
-    }
-    this->last_published_ = now;
-    ESP_LOGD(TAG, "Progress: %d%%", this->flashing_progress_);
-    this->publish();
+void XMOSFlasher::fail_action_(FlasherAction action, FlasherError error) {
+  this->requested_action_ = action;
+  this->error_code_ = error;
+  this->state_ = FLASHER_ERROR_STATE;
+  this->enable_loop();
+}
+
+void XMOSFlasher::publish_progress() {
+  const uint32_t now = App.get_loop_component_start_time();
+  if ((now - this->last_published_) <= 1000) {
+    return;
   }
+
+  size_t sectors_done = this->current_sector_ < 0 ? 0 : static_cast<size_t>(this->current_sector_);
+  size_t done;
+  size_t total;
+  if (this->requested_action_ == ACTION_FULL_ERASE) {
+    done = sectors_done;
+    total = this->total_sectors_to_erase_;
+  } else {
+    done = sectors_done + this->total_number_of_bytes_ - this->bytes_remaining_;
+    total = this->total_number_of_bytes_ + this->total_sectors_to_erase_;
+  }
+  uint32_t progress = total == 0 ? 0 : done * 100 / total;
+  this->flashing_progress_ = progress > 100 ? 100 : progress;
+
+  this->last_published_ = now;
+  ESP_LOGD(TAG, "Progress: %u%%", this->flashing_progress_);
+  this->publish();
 }
 
 bool XMOSFlasher::init_flasher() {
   ESP_LOGD(TAG, "Setting up XMOS flasher...");
   this->parent_->set_spi_flash_direct_access_mode(true);
-  this->read_jedec_id_();
+  if (!this->read_jedec_id_()) {
+    ESP_LOGE(TAG, "Couldn't read JEDEC ID, XMOS flash not accessible");
+    return false;
+  }
   this->dump_flash_info();
   this->total_number_of_sectors_ = FLASH_TOTAL_NUMBER_OF_SECTORS;
   return true;
@@ -96,21 +135,36 @@ bool XMOSFlasher::deinit_flasher() {
 }
 
 void XMOSFlasher::dump_flash_info() {
-  ESP_LOGCONFIG(TAG, "Satellite1-Flasher:");
-  ESP_LOGCONFIG(TAG, "  JEDEC-manufacturer_id %hhu", this->manufacturer_id_);
-  ESP_LOGCONFIG(TAG, "  JEDEC-memory_type_id %hhu", this->memory_type_id_);
-  ESP_LOGCONFIG(TAG, "  JEDEC-capacity_id %hhu", this->capacity_id_);
-  ESP_LOGCONFIG(TAG, "  JEDEC-capacity: %hhu", 1 << this->capacity_id_);
+  ESP_LOGCONFIG(TAG,
+                "Satellite1-Flasher:\n"
+                "  JEDEC-manufacturer_id: 0x%02X\n"
+                "  JEDEC-memory_type_id: 0x%02X\n"
+                "  JEDEC-capacity_id: 0x%02X",
+                this->manufacturer_id_, this->memory_type_id_, this->capacity_id_);
+  if (this->capacity_id_ < 32) {
+    ESP_LOGCONFIG(TAG, "  JEDEC-capacity: %" PRIu32 " bytes", static_cast<uint32_t>(1) << this->capacity_id_);
+  }
+}
+
+bool XMOSFlasher::flash_accessible() {
+  if (this->state_ != FLASHER_IDLE) {
+    // Toggling the direct access mode would release the XMOS reset in the middle of an operation.
+    ESP_LOGW(TAG, "XMOS flasher is busy, not probing the flash");
+    return false;
+  }
+  this->parent_->set_spi_flash_direct_access_mode(true);
+  bool got_id = this->read_jedec_id_();
+  this->parent_->set_spi_flash_direct_access_mode(false);
+  return got_id;
 }
 
 void XMOSFlasher::erase_memory() {
   if (this->state_ != FLASHER_IDLE) {
-    ESP_LOGE(TAG, "XMOS flasher is busy, can't inititate erasing");
+    ESP_LOGE(TAG, "XMOS flasher is busy, can't initiate erasing");
     return;
   }
 
-  this->requested_action_ = ACTION_FULL_ERASE;
-  this->state_ = FLASHER_INITIALIZING;
+  this->start_action_(ACTION_FULL_ERASE);
 }
 
 void XMOSFlasher::flash_remote_image() {
@@ -121,62 +175,62 @@ void XMOSFlasher::flash_remote_image() {
 
   if (this->url_.empty()) {
     ESP_LOGE(TAG, "URL not set; cannot start flashing");
-    this->error_code_ = BAD_URL;
-    this->state_ = FLASHER_ERROR_STATE;
+    this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, BAD_URL);
     return;
   }
 
   if (this->md5_expected_.empty() && !this->http_get_md5_()) {
     ESP_LOGE(TAG, "Couldn't receive expected md5 sum.");
-    this->error_code_ = MD5_INVALID;
-    this->state_ = FLASHER_ERROR_STATE;
+    this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, MD5_INVALID);
     return;
   }
 
-  this->requested_action_ = ACTION_FLASH_REMOTE_IMAGE;
-  this->state_ = FLASHER_INITIALIZING;
+  // Check before erasing anything: a bad checksum would only be detected after the flash was overwritten.
+  if (!is_valid_md5_(this->md5_expected_)) {
+    ESP_LOGE(TAG, "Invalid expected md5 sum: '%s'", this->md5_expected_.c_str());
+    this->md5_expected_.clear();
+    this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, MD5_INVALID);
+    return;
+  }
+
+  this->start_action_(ACTION_FLASH_REMOTE_IMAGE);
 }
 
 void XMOSFlasher::flash_embedded_image() {
   if (this->state_ != FLASHER_IDLE) {
-    ESP_LOGE(TAG, "XMOS flasher is busy, can't inititate new flash");
+    ESP_LOGE(TAG, "XMOS flasher is busy, can't initiate new flash");
     return;
   }
 
   if (this->embedded_image_.length == 0) {
     ESP_LOGE(TAG, "Didn't find embedded image!");
-    this->error_code_ = NO_EMBEDDED_IMAGE_ERROR;
-    this->state_ = FLASHER_ERROR_STATE;
+    this->fail_action_(ACTION_FLASH_EMBEDDED_IMAGE, NO_EMBEDDED_IMAGE_ERROR);
     return;
   }
 
   this->md5_expected_ = this->embedded_image_.md5;
-  this->requested_action_ = ACTION_FLASH_EMBEDDED_IMAGE;
-  this->state_ = FLASHER_INITIALIZING;
+  this->start_action_(ACTION_FLASH_EMBEDDED_IMAGE);
 }
 
 bool XMOSFlasher::read_jedec_id_() {
-  uint8_t manufacturer = 0;
-  uint8_t memory_type = 0;
-  uint8_t capcacity = 0;
   this->enable_();
   this->transfer_byte_(0x9F);
-  manufacturer = this->transfer_byte_(0);
-  memory_type = this->transfer_byte_(0);
-  capcacity = this->transfer_byte_(0);
+  uint8_t manufacturer = this->transfer_byte_(0);
+  uint8_t memory_type = this->transfer_byte_(0);
+  uint8_t capacity = this->transfer_byte_(0);
   this->disable_();
 
-  if (manufacturer && memory_type && capcacity) {
+  if (manufacturer && memory_type && capacity) {
     this->manufacturer_id_ = manufacturer;
     this->memory_type_id_ = memory_type;
-    this->capacity_id_ = capcacity;
+    this->capacity_id_ = capacity;
     return true;
   }
   return false;
 }
 
 bool XMOSFlasher::wait_while_flash_busy_(uint32_t timeout_ms) {
-  int32_t timeout_invoke = millis();
+  const uint32_t timeout_invoke = millis();
   const uint8_t busy = 1;
 
   while ((millis() - timeout_invoke) < timeout_ms) {
@@ -249,7 +303,7 @@ bool XMOSFlasher::chip_erase_() {
 
 bool XMOSFlasher::write_page_(uint32_t byte_addr, const uint8_t *buffer) {
   if ((byte_addr & (FLASH_PAGE_SIZE - 1)) != 0) {
-    ESP_LOGE(TAG, "Address needs to be page aligned (%d).", FLASH_PAGE_SIZE);
+    ESP_LOGE(TAG, "Address needs to be page aligned (%zu).", FLASH_PAGE_SIZE);
     return false;
   }
   if (!this->enable_writing_()) {
@@ -264,7 +318,7 @@ bool XMOSFlasher::write_page_(uint32_t byte_addr, const uint8_t *buffer) {
   this->transfer_byte_(*(u8_ptr + 2));
   this->transfer_byte_(*(u8_ptr + 1));
   this->transfer_byte_(*(u8_ptr));
-  for (int pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
+  for (size_t pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
     this->transfer_byte_(*(buffer + pos));
   }
   this->disable_();
@@ -289,7 +343,7 @@ bool XMOSFlasher::read_page_(uint32_t byte_addr, uint8_t *buffer) {
   this->transfer_byte_(*(u8_ptr + 1));
   this->transfer_byte_(*(u8_ptr));
   this->transfer_byte_(0x00);
-  for (int pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
+  for (size_t pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
     *(buffer + pos) = this->transfer_byte_(0x00);
   }
   this->disable_();
@@ -314,8 +368,9 @@ bool XMOSFlasher::init_flashing_() {
     case ACTION_FULL_ERASE:
       this->total_sectors_to_erase_ = this->total_number_of_sectors_;
       this->current_sector_ = -1;
+      this->flashing_progress_ = 0;
       return true;
-  };
+  }
 
   if (!this->reader_->init_reader()) {
     this->error_code_ = INIT_READER_ERROR;
@@ -346,6 +401,17 @@ bool XMOSFlasher::init_flashing_() {
   this->md5_receive_.init();
 
   size_t size_in_bytes = this->reader_->get_image_size();
+  if (size_in_bytes == 0) {
+    // e.g. HTTP response without Content-Length; the image size is needed to know what to erase
+    ESP_LOGE(TAG, "Image size unknown or empty");
+    this->error_code_ = INIT_READER_ERROR;
+    return false;
+  }
+  if (size_in_bytes > this->total_number_of_sectors_ * FLASH_SECTOR_SIZE) {
+    ESP_LOGE(TAG, "Image size %zu exceeds flash size", size_in_bytes);
+    this->error_code_ = INIT_READER_ERROR;
+    return false;
+  }
   size_t size_in_pages = ((size_in_bytes + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE);
   size_t size_in_sectors = ((size_in_pages * FLASH_PAGE_SIZE + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE);
 
@@ -402,29 +468,31 @@ int XMOSFlasher::erasing_step_() {
 }
 
 int XMOSFlasher::flashing_step_() {
-  // read a maximum of chunk_size bytes into buf. (real read size returned)
-  int bytes_read = this->reader_->read_image_block(this->reader_buffer_, FLASH_PAGE_SIZE);
+  // Never read past the announced image size, bytes_remaining_ must not underflow.
+  size_t to_read = std::min(FLASH_PAGE_SIZE, this->bytes_remaining_);
+  int bytes_read = this->reader_->read_image_block(this->reader_buffer_, to_read);
   if (bytes_read < 0) {
     ESP_LOGE(TAG, "Stream closed");
+    this->error_code_ = CONNECTION_ERROR;
+    return -1;
+  }
+  if (static_cast<size_t>(bytes_read) != to_read) {
+    ESP_LOGE(TAG, "Image ended early, %zu bytes missing", this->bytes_remaining_ - bytes_read);
     this->error_code_ = CONNECTION_ERROR;
     return -1;
   }
 
   this->md5_receive_.add(this->reader_buffer_, bytes_read);
   this->bytes_remaining_ -= bytes_read;
-  if (bytes_read != FLASH_PAGE_SIZE) {
-    if (this->bytes_remaining_ != 0) {
-      this->error_code_ = CONNECTION_ERROR;
-      return -1;
-    }
+  if (static_cast<size_t>(bytes_read) != FLASH_PAGE_SIZE) {
     // it's the last page to flash
     // fill it up with zeros
     memset(this->reader_buffer_ + bytes_read, 0, FLASH_PAGE_SIZE - bytes_read);
   }
 
-  int page_pos = this->page_pos_;
+  uint32_t page_pos = this->page_pos_;
   if (!this->write_page_(page_pos, this->reader_buffer_)) {
-    ESP_LOGE(TAG, "Error while writing page %d, retrying...", page_pos);
+    ESP_LOGE(TAG, "Error while writing page %" PRIu32 ", retrying...", page_pos);
   }
 
   // read back the page that has just been written
@@ -433,14 +501,14 @@ int XMOSFlasher::flashing_step_() {
   if (memcmp(this->reader_buffer_, this->compare_buffer_, FLASH_PAGE_SIZE) != 0) {
     // not equal, give it a second try
     if (!this->write_page_(page_pos, this->reader_buffer_)) {
-      ESP_LOGE(TAG, "Error while writing page %d, giving up...", page_pos);
+      ESP_LOGE(TAG, "Error while writing page %" PRIu32 ", giving up...", page_pos);
       this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
     }
 
     this->read_page_(page_pos, this->compare_buffer_);
     if (memcmp(this->reader_buffer_, this->compare_buffer_, FLASH_PAGE_SIZE) != 0) {
-      ESP_LOGE(TAG, "Read page mismatch, page addr: %d", page_pos);
+      ESP_LOGE(TAG, "Read page mismatch, page addr: %" PRIu32, page_pos);
       this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
     }
@@ -449,12 +517,12 @@ int XMOSFlasher::flashing_step_() {
   this->page_pos_ += FLASH_PAGE_SIZE;
 
   if (this->bytes_remaining_ == 0) {
-    std::unique_ptr<char[]> md5_receive_str(new char[33]);
+    char md5_receive_str[MD5_SIZE + 1];
     this->md5_receive_.calculate();
-    this->md5_receive_.get_hex(md5_receive_str.get());
-    this->md5_computed_ = md5_receive_str.get();
+    this->md5_receive_.get_hex(md5_receive_str);
+    this->md5_computed_ = md5_receive_str;
 
-    if (strncmp(this->md5_computed_.c_str(), this->md5_expected_.c_str(), MD5_SIZE) != 0) {
+    if (!str_equals_case_insensitive(this->md5_computed_, this->md5_expected_)) {
       ESP_LOGE(TAG, "MD5 computed: %s - Aborting due to MD5 mismatch", this->md5_computed_.c_str());
       this->error_code_ = MD5_MISMATCH_ERROR;
       return -1;

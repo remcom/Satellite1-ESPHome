@@ -1,7 +1,9 @@
 #include "memory_flasher.h"
 
+#include "esphome/core/application.h"
 #include "esphome/core/log.h"
-#include "esphome/components/md5/md5.h"
+
+#include <cctype>
 
 namespace esphome::memory_flasher {
 
@@ -15,8 +17,20 @@ void MemoryFlasher::dump_config() {
   }
 }
 
+bool MemoryFlasher::is_valid_md5_(const std::string &md5) {
+  if (md5.size() != MD5_SIZE) {
+    return false;
+  }
+  for (char c : md5) {
+    if (!std::isxdigit(static_cast<unsigned char>(c))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool MemoryFlasher::http_get_md5_() {
-  if (this->md5_url_.empty()) {
+  if (this->md5_url_.empty() || this->http_request_ == nullptr) {
     return false;
   }
 
@@ -26,32 +40,44 @@ bool MemoryFlasher::http_get_md5_() {
     ESP_LOGE(TAG, "Failed to connect to MD5 URL");
     return false;
   }
-  size_t length = container->content_length;
-  if (length == 0) {
+  if (!http_request::is_success(container->status_code)) {
+    ESP_LOGE(TAG, "Failed to get MD5 file, HTTP status: %d", container->status_code);
     container->end();
     return false;
   }
-  if (length < MD5_SIZE) {
-    ESP_LOGE(TAG, "MD5 file must be %u bytes; %u bytes reported by HTTP server. Aborting", MD5_SIZE, length);
+  size_t length = container->content_length;
+  if (length > 0 && length < MD5_SIZE) {
+    ESP_LOGE(TAG, "MD5 file must be at least %u bytes; %zu bytes reported by HTTP server. Aborting", MD5_SIZE, length);
     container->end();
     return false;
   }
 
-  this->md5_expected_.resize(MD5_SIZE);
-  int read_len = 0;
-  while (container->get_bytes_read() < MD5_SIZE) {
-    read_len = container->read((uint8_t *) this->md5_expected_.data(), MD5_SIZE);
-    App.feed_wdt();
-    yield();
-  }
+  char md5_buf[MD5_SIZE];
+  auto result = http_request::http_read_fully(container.get(), reinterpret_cast<uint8_t *>(md5_buf), MD5_SIZE, MD5_SIZE,
+                                              this->http_request_->get_timeout());
+  size_t read_len = container->get_bytes_read();
   container->end();
 
-  ESP_LOGV(TAG, "Read len: %u, MD5 expected: %u", read_len, MD5_SIZE);
-  return read_len == MD5_SIZE;
+  if (result.status != http_request::HttpReadStatus::OK || read_len < MD5_SIZE) {
+    ESP_LOGE(TAG, "Failed to read MD5 file (read %zu of %u bytes)", read_len, MD5_SIZE);
+    return false;
+  }
+
+  std::string md5(md5_buf, MD5_SIZE);
+  if (!is_valid_md5_(md5)) {
+    ESP_LOGE(TAG, "MD5 file doesn't start with a valid MD5 sum");
+    return false;
+  }
+  this->md5_expected_ = std::move(md5);
+  ESP_LOGV(TAG, "MD5 expected: %s", this->md5_expected_.c_str());
+  return true;
 }
 
 bool MemoryFlasher::validate_url_(const std::string &url) {
-  // t.b.d.
+  if (!str_startswith(url, "http://") && !str_startswith(url, "https://")) {
+    ESP_LOGE(TAG, "URL must start with 'http://' or 'https://'");
+    return false;
+  }
   return true;
 }
 
@@ -73,30 +99,51 @@ void MemoryFlasher::set_md5_url(const std::string &url) {
 }
 
 bool HttpImageReader::init_reader() {
-  auto url_with_auth = this->url_;
-  if (url_with_auth.empty() || this->http_request_ == nullptr) {
+  if (this->url_.empty() || this->http_request_ == nullptr) {
     return false;
   }
 
-  ESP_LOGVV(TAG, "url_with_auth: %s", url_with_auth.c_str());
   ESP_LOGI(TAG, "Connecting to: %s", this->url_.c_str());
 
-  this->container_ = this->http_request_->get(url_with_auth);
-  return this->container_ != nullptr;
+  this->container_ = this->http_request_->get(this->url_);
+  if (this->container_ == nullptr) {
+    ESP_LOGE(TAG, "Failed to connect to image URL");
+    return false;
+  }
+  if (!http_request::is_success(this->container_->status_code)) {
+    ESP_LOGE(TAG, "Failed to get image, HTTP status: %d", this->container_->status_code);
+    return false;
+  }
+  return true;
 }
 
 bool HttpImageReader::deinit_reader() {
   if (this->container_ != nullptr) {
     this->container_->end();
+    this->container_ = nullptr;
   }
   return true;
 }
 
 int HttpImageReader::read_image_block(uint8_t *buffer, size_t block_size) {
-  int bytes_read = this->container_->read(buffer, block_size);
-  ESP_LOGVV(TAG, "bytes_read_ = %u, body_length_ = %u, bufsize = %i", this->container_->get_bytes_read(),
+  if (this->container_ == nullptr) {
+    return -1;
+  }
+  // A single read() may return less than requested, keep reading until the block is full or the transfer is done.
+  size_t bytes_read_before = this->container_->get_bytes_read();
+  auto result = http_request::http_read_fully(this->container_.get(), buffer, block_size, block_size,
+                                              this->http_request_->get_timeout());
+  if (result.status != http_request::HttpReadStatus::OK) {
+    ESP_LOGE(
+        TAG, "Reading image failed (%s, error %d)",
+        result.status == http_request::HttpReadStatus::TIMEOUT ? LOG_STR_LITERAL("timeout") : LOG_STR_LITERAL("error"),
+        result.error_code);
+    return -1;
+  }
+  size_t bytes_read = this->container_->get_bytes_read() - bytes_read_before;
+  ESP_LOGVV(TAG, "bytes_read_ = %zu, body_length_ = %zu, block = %zu", this->container_->get_bytes_read(),
             this->container_->content_length, bytes_read);
-  return bytes_read;
+  return static_cast<int>(bytes_read);
 }
 
 }  // namespace esphome::memory_flasher

@@ -12,7 +12,7 @@ template<typename... Ts> class FlashAction : public Action<Ts...> {
   TEMPLATABLE_VALUE(std::string, md5)
   TEMPLATABLE_VALUE(std::string, url)
 
-  void play(Ts... x) override {
+  void play(const Ts &...x) override {
     if (this->md5_url_.has_value()) {
       this->parent_->set_md5_url(this->md5_url_.value(x...));
     }
@@ -30,12 +30,12 @@ template<typename... Ts> class FlashAction : public Action<Ts...> {
 
 template<typename... Ts> class FlashEmbeddedAction : public Action<Ts...>, public Parented<MemoryFlasher> {
  public:
-  void play(Ts... x) override { this->parent_->flash_embedded_image(); }
+  void play(const Ts &...x) override { this->parent_->flash_embedded_image(); }
 };
 
 template<typename... Ts> class EraseMemoryAction : public Action<Ts...>, public Parented<MemoryFlasher> {
  public:
-  void play(Ts... x) override { this->parent_->erase_memory(); }
+  void play(const Ts &...x) override { this->parent_->erase_memory(); }
 };
 
 template<FlasherState State> class FlasherStateTrigger : public Trigger<> {
@@ -96,7 +96,7 @@ using FlasherFailedTrigger = FlasherStateTrigger<FLASHER_ERROR_STATE>;
 
 template<typename... Ts> class InProgressCondition : public Condition<Ts...>, public Parented<MemoryFlasher> {
  public:
-  bool check(Ts... x) override { return this->parent_->get_state() != FLASHER_IDLE; }
+  bool check(const Ts &...x) override { return this->parent_->get_state() != FLASHER_IDLE; }
 };
 
 }  // namespace esphome::memory_flasher

@@ -1,6 +1,12 @@
 #pragma once
 
 #include "esphome/components/http_request/http_request.h"
+#include "esphome/core/component.h"
+#include "esphome/core/helpers.h"
+
+#include <cstring>
+#include <memory>
+#include <string>
 
 namespace esphome::memory_flasher {
 
@@ -73,8 +79,9 @@ class EmbeddedImageReader : public FlashImageReader {
   size_t get_image_size() override { return this->image_.length; }
 
   int read_image_block(uint8_t *buffer, size_t block_size) override {
-    size_t to_read = ((this->image_.length - read_pos_) >= block_size) ? block_size : this->image_.length - read_pos_;
-    memcpy(buffer, this->image_.data + read_pos_, to_read);
+    size_t remaining = this->image_.length - this->read_pos_;
+    size_t to_read = remaining >= block_size ? block_size : remaining;
+    memcpy(buffer, this->image_.data + this->read_pos_, to_read);
     this->read_pos_ += to_read;
     return to_read;
   }
@@ -128,10 +135,10 @@ class MemoryFlasher : public Component {
   virtual void flash_embedded_image() {}
 
   virtual bool flash_accessible() { return false; }
-  bool has_image_embedded() { return this->embedded_image_.length > 0; }
+  bool has_image_embedded() const { return this->embedded_image_.length > 0; }
 
-  bool match_embedded(const uint8_t *to_compare) {
-    return memcmp(this->embedded_image_.version.bytes, to_compare, 5) == 0;
+  bool match_embedded(const uint8_t *to_compare) const {
+    return memcmp(this->embedded_image_.version.bytes, to_compare, sizeof(this->embedded_image_.version.bytes)) == 0;
   }
 
   void set_embedded_image(const uint8_t *pgm_pointer, size_t length, std::string expected_md5,
@@ -139,7 +146,7 @@ class MemoryFlasher : public Component {
     this->embedded_image_.data = pgm_pointer;
     this->embedded_image_.length = length;
     this->embedded_image_.md5 = std::move(expected_md5);
-    memcpy(this->embedded_image_.version.bytes, version_bytes, 5);
+    memcpy(this->embedded_image_.version.bytes, version_bytes, sizeof(this->embedded_image_.version.bytes));
   }
 
   void set_http_request_component(http_request::HttpRequestComponent *http_request) {
@@ -153,13 +160,12 @@ class MemoryFlasher : public Component {
   template<typename F> void add_on_state_callback(F &&callback) {
     this->state_callback_.add(std::forward<F>(callback));
   }
-  void publish() {
-    // this->defer([this]() { this->state_callback_.call(); });
-    this->state_callback_.call();
-  }
+  void publish() { this->state_callback_.call(); }
 
  protected:
   virtual void publish_progress() {}
+  /// Returns true if md5 is a 32 character hex string.
+  static bool is_valid_md5_(const std::string &md5);
   CallbackManager<void()> state_callback_{};
 
   uint8_t flashing_progress_{0};
@@ -175,13 +181,11 @@ class MemoryFlasher : public Component {
   bool validate_url_(const std::string &url);
   void cleanup_(const std::shared_ptr<http_request::HttpContainer> &container);
 
-  http_request::HttpRequestComponent *http_request_;
+  http_request::HttpRequestComponent *http_request_{nullptr};
 
   std::string md5_computed_{};
   std::string md5_expected_{};
   std::string md5_url_{};
-  std::string password_{};
-  std::string username_{};
   std::string url_{};
 };
 
