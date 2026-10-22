@@ -101,9 +101,9 @@ external_components:
   - source:
       type: git
       url: https://github.com/remcom/esphome
-      ref: ee69f9b32ea3489dad5c51d8e0333b56084da0f4
-    components:
-      - i2s_audio
+      ref: media-player-announcement-volume
+    components: [speaker, speaker_source, const]
+    refresh: 1s
 
 logger:
   deassert_rts_dtr: true
