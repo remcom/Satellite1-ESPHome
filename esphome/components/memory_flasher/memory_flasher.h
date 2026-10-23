@@ -170,7 +170,7 @@ class MemoryFlasher : public Component {
  protected:
   virtual void publish_progress() {}
   /// Returns true if md5 is a 32 character hex string.
-  static bool is_valid_md5_(const std::string &md5);
+  static bool is_valid_md5(const std::string &md5);
   CallbackManager<void(FlasherState, FlasherState, FlasherAction)> state_callback_{};
 
   uint8_t flashing_progress_{0};

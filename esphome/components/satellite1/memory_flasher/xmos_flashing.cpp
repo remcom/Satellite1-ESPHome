@@ -193,7 +193,7 @@ void XMOSFlasher::flash_remote_image(const std::string &url, const std::string &
   }
 
   // Check before erasing anything: a bad checksum would only be detected after the flash was overwritten.
-  if (!is_valid_md5_(expected_md5)) {
+  if (!is_valid_md5(expected_md5)) {
     ESP_LOGE(TAG, "Invalid expected md5 sum: '%s'", expected_md5.c_str());
     this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, MD5_INVALID);
     return;

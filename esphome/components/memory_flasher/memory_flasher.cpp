@@ -15,7 +15,7 @@ void MemoryFlasher::dump_config() {
   }
 }
 
-bool MemoryFlasher::is_valid_md5_(const std::string &md5) {
+bool MemoryFlasher::is_valid_md5(const std::string &md5) {
   uint8_t digest[MD5_SIZE / 2];
   return md5.size() == MD5_SIZE && parse_hex(md5, digest, sizeof(digest));
 }
@@ -55,7 +55,7 @@ bool MemoryFlasher::http_get_md5_(const std::string &md5_url, std::string &md5) 
   }
 
   std::string received(md5_buf, MD5_SIZE);
-  if (!is_valid_md5_(received)) {
+  if (!is_valid_md5(received)) {
     ESP_LOGE(TAG, "MD5 file doesn't start with a valid MD5 sum");
     return false;
   }
