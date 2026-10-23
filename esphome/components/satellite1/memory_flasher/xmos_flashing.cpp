@@ -111,7 +111,12 @@ void XMOSFlasher::publish_progress() {
     total = this->total_number_of_bytes_ + this->total_sectors_to_erase_;
   }
   uint32_t progress = total == 0 ? 0 : done * 100 / total;
-  this->flashing_progress_ = progress > 100 ? 100 : progress;
+  progress = progress > 100 ? 100 : progress;
+  // on_progress_update fires for every publish while flashing, only report changes
+  if (progress == this->flashing_progress_ && this->state_ == this->last_published_state_) {
+    return;
+  }
+  this->flashing_progress_ = progress;
 
   this->last_published_ = now;
   ESP_LOGD(TAG, "Progress: %u%%", this->flashing_progress_);
@@ -126,7 +131,6 @@ bool XMOSFlasher::init_flasher() {
     return false;
   }
   this->dump_flash_info();
-  this->total_number_of_sectors_ = FLASH_TOTAL_NUMBER_OF_SECTORS;
   return true;
 }
 
@@ -292,19 +296,6 @@ bool XMOSFlasher::erase_sector_(int sector) {
   return true;
 }
 
-bool XMOSFlasher::chip_erase_() {
-  if (!this->enable_writing_()) {
-    return false;
-  }
-
-  this->enable_();
-  this->transfer_byte_(0xc7);
-  this->disable_();
-
-  // this->disable_writing_();
-  return true;
-}
-
 bool XMOSFlasher::write_page_(uint32_t byte_addr, const uint8_t *buffer) {
   if ((byte_addr & (FLASH_PAGE_SIZE - 1)) != 0) {
     ESP_LOGE(TAG, "Address needs to be page aligned (%zu).", FLASH_PAGE_SIZE);
@@ -370,7 +361,7 @@ bool XMOSFlasher::init_flashing_() {
       this->reader_ = new HttpImageReader(this->http_request_, this->url_);
       break;
     case ACTION_FULL_ERASE:
-      this->total_sectors_to_erase_ = this->total_number_of_sectors_;
+      this->total_sectors_to_erase_ = FLASH_TOTAL_NUMBER_OF_SECTORS;
       this->current_sector_ = -1;
       this->flashing_progress_ = 0;
       return true;
@@ -411,7 +402,7 @@ bool XMOSFlasher::init_flashing_() {
     this->error_code_ = INIT_READER_ERROR;
     return false;
   }
-  if (size_in_bytes > this->total_number_of_sectors_ * FLASH_SECTOR_SIZE) {
+  if (size_in_bytes > FLASH_TOTAL_NUMBER_OF_SECTORS * FLASH_SECTOR_SIZE) {
     ESP_LOGE(TAG, "Image size %zu exceeds flash size", size_in_bytes);
     this->error_code_ = INIT_READER_ERROR;
     return false;
@@ -448,7 +439,6 @@ void XMOSFlasher::deinit_flashing_() {
     this->reader_ = nullptr;
   }
 
-  this->md5_computed_.clear();
   this->md5_expected_.clear();
 
   delay(5);
@@ -524,15 +514,13 @@ int XMOSFlasher::flashing_step_() {
     char md5_receive_str[MD5_SIZE + 1];
     this->md5_receive_.calculate();
     this->md5_receive_.get_hex(md5_receive_str);
-    this->md5_computed_ = md5_receive_str;
 
-    if (!str_equals_case_insensitive(this->md5_computed_, this->md5_expected_)) {
-      ESP_LOGE(TAG, "MD5 computed: %s - Aborting due to MD5 mismatch", this->md5_computed_.c_str());
+    if (!this->md5_receive_.equals_hex(this->md5_expected_.c_str())) {
+      ESP_LOGE(TAG, "MD5 computed: %s - Aborting due to MD5 mismatch", md5_receive_str);
       this->error_code_ = MD5_MISMATCH_ERROR;
       return -1;
-    } else {
-      ESP_LOGD(TAG, "MD5 computed: %s - Matches!", this->md5_computed_.c_str());
     }
+    ESP_LOGD(TAG, "MD5 computed: %s - Matches!", md5_receive_str);
   }
 
   return this->bytes_remaining_;

@@ -7,20 +7,13 @@ from esphome import automation, external_files
 import esphome.codegen as cg
 from esphome.components.http_request import CONF_HTTP_REQUEST_ID, HttpRequestComponent
 import esphome.config_validation as cv
-from esphome.const import (
-    CONF_PATH,
-    CONF_RAW_DATA_ID,
-    CONF_TRIGGER_ID,
-    CONF_TYPE,
-    CONF_URL,
-)
+from esphome.const import CONF_PATH, CONF_RAW_DATA_ID, CONF_TYPE, CONF_URL
 from esphome.core import CORE, EsphomeError, HexInt
-from esphome.external_files import download_content
 from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
-CODEOWNERS = ["@gnumpi"]
+CODEOWNERS = ["@remcom", "@gnumpi"]
 
 IS_PLATFORM_COMPONENT = True
 
@@ -30,8 +23,6 @@ DOMAIN = "file"
 
 TYPE_LOCAL = "local"
 TYPE_WEB = "web"
-TYPE_FILE = "file"
-TYPE_STRING = "string"
 
 CONF_MD5 = "md5"
 CONF_MD5_FILE = "md5_file"
@@ -64,57 +55,28 @@ FlashAction = flasher_ns.class_("FlashAction", automation.Action)
 
 FlashEmbeddedAction = flasher_ns.class_("FlashEmbeddedAction", automation.Action)
 
-FlashingStartedTrigger = flasher_ns.class_("FlashingStartedTrigger", automation.Trigger)
-
-FlashProgressUpdateTrigger = flasher_ns.class_(
-    "FlashingProgressUpdateTrigger", automation.Trigger
-)
-FlashProgressSuccessTrigger = flasher_ns.class_(
-    "FlasherSuccessTrigger", automation.Trigger
-)
-FlashProgressFailedTrigger = flasher_ns.class_(
-    "FlasherFailedTrigger", automation.Trigger
-)
-
-ErasingDoneTrigger = flasher_ns.class_("ErasingDoneTrigger", automation.Trigger)
+FlasherState = flasher_ns.enum("FlasherState")
+FlasherStateForwarder = flasher_ns.class_("FlasherStateForwarder")
+FlashingStartedForwarder = flasher_ns.class_("FlashingStartedForwarder")
+ErasingDoneForwarder = flasher_ns.class_("ErasingDoneForwarder")
 
 
 InProgressCondition = flasher_ns.class_("InProgressCondition", automation.Condition)
 
 
-def _generate_local_file_path(value: dict) -> Path:
-    """
-    Generates a local file path for a downloadable file by hashing the provided URL.
-    """
-    url = value[CONF_URL]
-    h = hashlib.new("sha256")
-    h.update(url.encode())
-    key = h.hexdigest()[:8]
-    base_dir = external_files.compute_local_file_dir(DOMAIN)
-    return base_dir / key
-
-
 def _resolve_local_file(file_conf: dict) -> Path:
     """
-    Checks if a local file exists, and if not, downloads it from a provided URL.
-    Returning the local file path if successful.
-
+    Returns the local path of the file, web files are downloaded into (or refreshed in) the cache.
     """
     if file_conf[CONF_TYPE] == TYPE_LOCAL:
         local_file = Path(CORE.relative_config_path(file_conf[CONF_PATH]))
         if not local_file.exists():
             raise cv.Invalid(f"Can't locate {local_file}.")
         return local_file
-    if file_conf[CONF_TYPE] == TYPE_WEB:
-        local_file = _generate_local_file_path(file_conf)
-        if not local_file.exists():
-            download_content(file_conf[CONF_URL], local_file)
-            if not local_file.exists():
-                raise cv.Invalid(
-                    f"Couldn't download {file_conf[CONF_URL]} to {local_file}."
-                )
-        return local_file
-    raise cv.Invalid(f"Couldn't get file for: {file_conf}")
+    url = file_conf[CONF_URL]
+    local_file = external_files.compute_local_file_path(DOMAIN, url)
+    external_files.download_content(url, local_file, return_content=False)
+    return local_file
 
 
 def _validate_md5_str(value: str) -> str:
@@ -218,7 +180,6 @@ def _validate_image_version_string(val: str) -> str:
 
 FLASH_IMAGE_SCHEMA = cv.Schema(
     {
-        cv.Required(CONF_FLASH_IMAGE_VERSION): _validate_image_version_string,
         cv.Required(CONF_IMAGE_FILE): cv.templatable(cv.url),
         cv.Optional(CONF_MD5_URL): cv.templatable(cv.url),
         cv.Optional(CONF_MD5): cv.templatable(_validate_md5_str),
@@ -229,6 +190,7 @@ FLASH_IMAGE_SCHEMA = cv.Schema(
 EMBED_FLASH_IMAGE_SCHEMA = cv.All(
     FLASH_IMAGE_SCHEMA.extend(
         {
+            cv.Required(CONF_FLASH_IMAGE_VERSION): _validate_image_version_string,
             # Resolved at compile time, so these can't be templates
             cv.Required(CONF_IMAGE_FILE): _file_schema,
             cv.Optional(CONF_MD5_URL): cv.url,
@@ -247,37 +209,11 @@ FLASHER_CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(MemoryFlasher),
         cv.GenerateID(CONF_HTTP_REQUEST_ID): cv.use_id(HttpRequestComponent),
         cv.Optional(CONF_EMBED_FLASH_IMAGE): EMBED_FLASH_IMAGE_SCHEMA,
-        cv.Optional(CONF_ON_FLASHING_START): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(FlashingStartedTrigger),
-            }
-        ),
-        cv.Optional(CONF_ON_PROGRESS_UPDATE): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
-                    FlashProgressUpdateTrigger
-                ),
-            }
-        ),
-        cv.Optional(CONF_ON_FLASHING_SUCCESS): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
-                    FlashProgressSuccessTrigger
-                ),
-            }
-        ),
-        cv.Optional(CONF_ON_FLASHING_FAILED): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
-                    FlashProgressFailedTrigger
-                ),
-            }
-        ),
-        cv.Optional(CONF_ON_ERASING_DONE): automation.validate_automation(
-            {
-                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ErasingDoneTrigger),
-            }
-        ),
+        cv.Optional(CONF_ON_FLASHING_START): automation.validate_automation({}),
+        cv.Optional(CONF_ON_PROGRESS_UPDATE): automation.validate_automation({}),
+        cv.Optional(CONF_ON_FLASHING_SUCCESS): automation.validate_automation({}),
+        cv.Optional(CONF_ON_FLASHING_FAILED): automation.validate_automation({}),
+        cv.Optional(CONF_ON_ERASING_DONE): automation.validate_automation({}),
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -316,6 +252,35 @@ def _version_to_bytes(vers: str) -> tuple[int, int, int, int, int]:
     return major, minor, patch, pre_idx, pre_cnter
 
 
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_FLASHING_START,
+        "add_on_state_callback",
+        forwarder=FlashingStartedForwarder,
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_PROGRESS_UPDATE,
+        "add_on_state_callback",
+        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_FLASHING),
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_FLASHING_SUCCESS,
+        "add_on_state_callback",
+        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_SUCCESS_STATE),
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_FLASHING_FAILED,
+        "add_on_state_callback",
+        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_ERROR_STATE),
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_ERASING_DONE,
+        "add_on_state_callback",
+        forwarder=ErasingDoneForwarder,
+    ),
+)
+
+
 async def register_memory_flasher(var, flasher_config):
     http_comp = await cg.get_variable(flasher_config[CONF_HTTP_REQUEST_ID])
     cg.add(var.set_http_request_component(http_comp))
@@ -335,25 +300,9 @@ async def register_memory_flasher(var, flasher_config):
             )
         )
 
-    for conf in flasher_config.get(CONF_ON_FLASHING_START, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
-
-    for conf in flasher_config.get(CONF_ON_PROGRESS_UPDATE, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
-
-    for conf in flasher_config.get(CONF_ON_FLASHING_SUCCESS, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
-
-    for conf in flasher_config.get(CONF_ON_FLASHING_FAILED, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
-
-    for conf in flasher_config.get(CONF_ON_ERASING_DONE, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
-        await automation.build_automation(trigger, [], conf)
+    await automation.build_callback_automations(
+        var, flasher_config, _CALLBACK_AUTOMATIONS
+    )
 
 
 FLASH_ACTION_SCHEMA = cv.All(

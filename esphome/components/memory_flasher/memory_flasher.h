@@ -109,7 +109,6 @@ enum FlasherError : uint8_t {
 
 enum FlasherState : uint8_t {
   FLASHER_IDLE,
-  FLASHER_RECEIVING_IMG_INFO,
   FLASHER_INITIALIZING,
   FLASHER_ERASING,
   FLASHER_FLASHING,
@@ -159,19 +158,24 @@ class MemoryFlasher : public Component {
     this->http_request_ = http_request;
   }
 
+  /// The callback receives the published state, the state published before and the requested action.
   template<typename F> void add_on_state_callback(F &&callback) {
     this->state_callback_.add(std::forward<F>(callback));
   }
-  void publish() { this->state_callback_.call(); }
+  void publish() {
+    this->state_callback_.call(this->state_, this->last_published_state_, this->requested_action_);
+    this->last_published_state_ = this->state_;
+  }
 
  protected:
   virtual void publish_progress() {}
   /// Returns true if md5 is a 32 character hex string.
   static bool is_valid_md5_(const std::string &md5);
-  CallbackManager<void()> state_callback_{};
+  CallbackManager<void(FlasherState, FlasherState, FlasherAction)> state_callback_{};
 
   uint8_t flashing_progress_{0};
   FlasherState state_{FLASHER_IDLE};
+  FlasherState last_published_state_{FLASHER_IDLE};
   FlasherError error_code_{FLASHER_OK};
   FlasherAction requested_action_{};
 
@@ -181,11 +185,9 @@ class MemoryFlasher : public Component {
   /* flashing remote image */
   bool http_get_md5_(const std::string &md5_url, std::string &md5);
   bool validate_url_(const std::string &url);
-  void cleanup_(const std::shared_ptr<http_request::HttpContainer> &container);
 
   http_request::HttpRequestComponent *http_request_{nullptr};
 
-  std::string md5_computed_{};
   std::string md5_expected_{};
   std::string url_{};
 };

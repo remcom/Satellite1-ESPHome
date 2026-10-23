@@ -9,7 +9,7 @@ from esphome.const import CONF_ID
 
 from .. import satellite1 as sat
 
-CODEOWNERS = ["@gnumpi"]
+CODEOWNERS = ["@remcom", "@gnumpi"]
 
 DEPENDENCIES = ["satellite1", "memory_flasher"]
 

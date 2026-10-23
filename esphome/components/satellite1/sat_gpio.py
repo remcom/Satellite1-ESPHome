@@ -8,8 +8,6 @@ from esphome.const import (
     CONF_MODE,
     CONF_NUMBER,
     CONF_OUTPUT,
-    CONF_PIN,
-    CONF_PORT,
 )
 from esphome.types import ConfigType
 
@@ -18,75 +16,39 @@ from . import satellite1 as sat
 Satellite1GPIOPin = sat.namespace.class_(
     "Satellite1GPIOPin",
     cg.GPIOPin,
-    sat.Satellite1SPIService,
     cg.Parented.template(sat.Satellite1),
 )
 
-XMOSPort = sat.namespace.enum("XMOSPort", is_class=True)
+# 8 pins per XMOS port: 0-7 INPUT_A (buttons), 8-15 INPUT_B (rotary encoder),
+# 16-23 OUTPUT_A (explorer board LEDs). Matches XMOS_GPIO_PINS_PER_PORT in satellite1.h.
+XMOS_GPIO_FIRST_OUTPUT_PIN = 16
 
 
-XMOS_PORT = {
-    "INPUT_A": XMOSPort.INPUT_A,
-    "INPUT_B": XMOSPort.INPUT_B,
-    "OUTPUT_A": XMOSPort.OUTPUT_A,
-}
-
-_XMOS_INPUT_PORTS = ("INPUT_A", "INPUT_B")
-
-_XMOS_PORT_OFFSET = {
-    "INPUT_A": 0,
-    "INPUT_B": 8,
-    "OUTPUT_A": 16,
-}
-
-
-def _inject_number(config):
-    # Inject a synthetic CONF_NUMBER so ESPHome's gpio/binary_sensor _final_validate
-    # can read it without crashing. The value is unused — satellite1 pins are expander
-    # pins and always fall back to polling mode at that validation stage.
-    port = str(config.get(CONF_PORT, "INPUT_A")).upper()
-    pin = int(config.get(CONF_PIN, 0))
-    config = dict(config)
-    config[CONF_NUMBER] = _XMOS_PORT_OFFSET.get(port, 0) + pin
-    return config
-
-
-def _validate_pin_mode(value):
-    if not (value[CONF_INPUT] or value[CONF_OUTPUT]):
-        raise cv.Invalid("Mode must be either input or output")
-    if value[CONF_INPUT] and value[CONF_OUTPUT]:
-        raise cv.Invalid("Mode must be either input or output")
-    return value
-
-
-def _validate_port_mode(config: ConfigType) -> ConfigType:
+def _validate_output_pin(config: ConfigType) -> ConfigType:
     # The input ports are read only, writes would only log an error at runtime
-    if config[CONF_MODE][CONF_OUTPUT] and config[CONF_PORT] in _XMOS_INPUT_PORTS:
+    if (
+        config[CONF_MODE][CONF_OUTPUT]
+        and config[CONF_NUMBER] < XMOS_GPIO_FIRST_OUTPUT_PIN
+    ):
         raise cv.Invalid(
-            f"Port {config[CONF_PORT]} is read only and can't be used as output",
-            path=[CONF_PORT],
+            f"Pin {config[CONF_NUMBER]} is on a read only port, only pins "
+            f"{XMOS_GPIO_FIRST_OUTPUT_PIN}-23 can be used as output",
+            path=[CONF_NUMBER],
         )
     return config
 
 
 PIN_SCHEMA = cv.All(
-    _inject_number,
-    {
-        cv.GenerateID(): cv.declare_id(Satellite1GPIOPin),
-        cv.Required(sat.CONF_SATELLITE1): cv.use_id(sat.Satellite1),
-        cv.Required(CONF_PORT): cv.enum(XMOS_PORT),
-        cv.Required(CONF_PIN): cv.int_range(min=0, max=7),
-        cv.Optional(CONF_NUMBER): cv.int_range(min=0, max=23),
-        cv.Optional(CONF_MODE, default={CONF_OUTPUT: True}): cv.All(
-            {
-                cv.Optional(CONF_INPUT, default=False): cv.boolean,
-                cv.Optional(CONF_OUTPUT, default=False): cv.boolean,
-            },
-            _validate_pin_mode,
-        ),
-        cv.Optional(CONF_INVERTED, default=False): cv.boolean,
-    },
-    _validate_port_mode,
+    pins.gpio_base_schema(
+        Satellite1GPIOPin,
+        cv.int_range(min=0, max=23),
+        modes=(CONF_INPUT, CONF_OUTPUT),
+    ).extend(
+        {
+            cv.Required(sat.CONF_SATELLITE1): cv.use_id(sat.Satellite1),
+        }
+    ),
+    _validate_output_pin,
 )
 
 
@@ -95,11 +57,8 @@ async def satellite1_pin_to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_parented(var, config[sat.CONF_SATELLITE1])
 
-    cg.add(var.set_pin(config[CONF_PORT], config[CONF_PIN]))
+    cg.add(var.set_pin(config[CONF_NUMBER]))
     cg.add(var.set_inverted(config[CONF_INVERTED]))
-    # The flags follow the port direction, the XMOS ports can't be reconfigured
-    is_input = config[CONF_PORT] in _XMOS_INPUT_PORTS
-    port_mode = {CONF_INPUT: is_input, CONF_OUTPUT: not is_input}
-    cg.add(var.set_flags(pins.gpio_flags_expr(port_mode)))
+    cg.add(var.set_flags(pins.gpio_flags_expr(config[CONF_MODE])))
 
     return var

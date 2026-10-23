@@ -1,5 +1,6 @@
 #pragma once
 
+#include "esphome/components/gpio_expander/cached_gpio.h"
 #include "esphome/components/spi/spi.h"
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
@@ -11,10 +12,7 @@
 
 namespace esphome::satellite1 {
 
-static const uint8_t CONTROL_RESOURCE_CNTRL_ID = 1;
 static const uint8_t CONTROL_CMD_READ_BIT = 0x80;
-
-static const uint8_t RET_STATUS_PAYLOAD_AVAIL = 23;
 
 static const uint8_t CONTROL_COMMAND_IGNORED_IN_DEVICE = 7;
 
@@ -28,6 +26,13 @@ static const uint8_t MAX_CONNECTION_ATTEMPTS = 3;
 
 static const uint8_t XMOS_FW_VERSION_LEN = 5;
 
+static const uint8_t GPIO_SERVICER_CMD_SET_PIN = 0x02;
+
+/// GPIO pin numbers: 8 pins per XMOS port, in the order INPUT_A, INPUT_B, OUTPUT_A.
+static const uint8_t XMOS_GPIO_PINS_PER_PORT = 8;
+static const uint8_t XMOS_GPIO_NUM_PINS = 3 * XMOS_GPIO_PINS_PER_PORT;
+static const uint8_t XMOS_GPIO_FIRST_OUTPUT_PIN = 2 * XMOS_GPIO_PINS_PER_PORT;
+
 namespace DC_RESOURCE {
 enum DcResourceEnum {
   CNTRL_ID = 1,
@@ -39,7 +44,7 @@ enum DcResourceEnum {
 }
 
 namespace DC_RET_STATUS {
-enum DcRetStatusEnum { CMD_SUCCESS = 0, DEVICE_BUSY = 7, PAYLOAD_AVAILABLE = 23 };
+enum DcRetStatusEnum { CMD_SUCCESS = 0, PAYLOAD_AVAILABLE = 23 };
 }
 
 namespace DC_STATUS_REGISTER {
@@ -67,7 +72,9 @@ enum Satellite1State : uint8_t {
 
 class Satellite1 : public Component,
                    public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING,
-                                         spi::DATA_RATE_1KHZ> {
+                                         spi::DATA_RATE_1KHZ>,
+                   // One bank per XMOS GPIO port, all banks are read with a single status register update.
+                   public gpio_expander::CachedGpioExpander<uint8_t, XMOS_GPIO_NUM_PINS> {
  public:
   std::string status_string();
 
@@ -156,6 +163,7 @@ class Satellite1 : public Component,
 
   void set_xmos_rst_pin(GPIOPin *xmos_rst_pin) { this->xmos_rst_pin_ = xmos_rst_pin; }
 
+  /// The callback receives the new state and the number of connection attempts made so far.
   template<typename F> void add_on_state_callback(F &&callback) {
     this->state_callback_.add(std::forward<F>(callback));
   }
@@ -182,7 +190,14 @@ class Satellite1 : public Component,
   void finish_xmos_reset_();
   /// Writes the cached XMOS firmware version as "vX.Y.Z[-pre][.N]" into buffer.
   void format_fw_version_(char *buffer, size_t len) const;
-  CallbackManager<void()> state_callback_{};
+  void notify_state_() { this->state_callback_.call(this->state_, this->connection_attempts_); }
+
+  // CachedGpioExpander
+  bool digital_read_hw(uint8_t pin) override;
+  bool digital_read_cache(uint8_t pin) override;
+  void digital_write_hw(uint8_t pin, bool value) override;
+
+  CallbackManager<void(Satellite1State, uint8_t)> state_callback_{};
 
   Satellite1State state_{SAT_DETACHED_STATE};
   uint8_t xmos_fw_version_[XMOS_FW_VERSION_LEN]{};

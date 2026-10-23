@@ -3,6 +3,8 @@
 
 #include "esphome/core/automation.h"
 
+#include <type_traits>
+
 namespace esphome::memory_flasher {
 
 template<typename... Ts> class FlashAction : public Action<Ts...> {
@@ -31,61 +33,38 @@ template<typename... Ts> class EraseMemoryAction : public Action<Ts...>, public 
   void play(const Ts &...x) override { this->parent_->erase_memory(); }
 };
 
-template<FlasherState State> class FlasherStateTrigger : public Trigger<> {
- public:
-  explicit FlasherStateTrigger(MemoryFlasher *xflash) {
-    xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->get_state() == State)
-        this->trigger();
-    });
+/// Callback forwarders for build_callback_automation(), must stay pointer-sized (see TriggerForwarder).
+template<FlasherState State> struct FlasherStateForwarder {
+  Automation<> *automation;
+  void operator()(FlasherState state, FlasherState previous_state, FlasherAction action) const {
+    if (state == State)
+      this->automation->trigger();
   }
 };
 
-class FlashingStartedTrigger : public Trigger<> {
- public:
-  explicit FlashingStartedTrigger(MemoryFlasher *xflash) {
-    xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->get_state() == FLASHER_ERASING && this->last_reported_ != FLASHER_ERASING) {
-        this->last_reported_ = FLASHER_ERASING;
-        this->trigger();
-      } else {
-        this->last_reported_ = xflash->get_state();
-      }
-    });
-  }
-
- protected:
-  FlasherState last_reported_{FLASHER_IDLE};
-};
-
-class ErasingDoneTrigger : public Trigger<> {
- public:
-  explicit ErasingDoneTrigger(MemoryFlasher *xflash) {
-    xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->get_state() == FLASHER_SUCCESS_STATE && xflash->get_requested_action() == ACTION_FULL_ERASE) {
-        this->trigger();
-      }
-    });
+/// Fires once when erasing starts, not for the progress updates published while erasing.
+struct FlashingStartedForwarder {
+  Automation<> *automation;
+  void operator()(FlasherState state, FlasherState previous_state, FlasherAction action) const {
+    if (state == FLASHER_ERASING && previous_state != FLASHER_ERASING)
+      this->automation->trigger();
   }
 };
 
-class FlashingProgressUpdateTrigger : public Trigger<> {
- public:
-  explicit FlashingProgressUpdateTrigger(MemoryFlasher *xflash) {
-    xflash->add_on_state_callback([this, xflash]() {
-      if (xflash->get_state() == FLASHER_FLASHING && xflash->get_flashing_progress() != this->last_reported_) {
-        this->last_reported_ = xflash->get_flashing_progress();
-        this->trigger();
-      }
-    });
+struct ErasingDoneForwarder {
+  Automation<> *automation;
+  void operator()(FlasherState state, FlasherState previous_state, FlasherAction action) const {
+    if (state == FLASHER_SUCCESS_STATE && action == ACTION_FULL_ERASE)
+      this->automation->trigger();
   }
-
- protected:
-  uint8_t last_reported_{0};
 };
 
-using FlasherSuccessTrigger = FlasherStateTrigger<FLASHER_SUCCESS_STATE>;
-using FlasherFailedTrigger = FlasherStateTrigger<FLASHER_ERROR_STATE>;
+static_assert(sizeof(FlasherStateForwarder<FLASHER_FLASHING>) <= sizeof(void *));
+static_assert(std::is_trivially_copyable_v<FlasherStateForwarder<FLASHER_FLASHING>>);
+static_assert(sizeof(FlashingStartedForwarder) <= sizeof(void *));
+static_assert(std::is_trivially_copyable_v<FlashingStartedForwarder>);
+static_assert(sizeof(ErasingDoneForwarder) <= sizeof(void *));
+static_assert(std::is_trivially_copyable_v<ErasingDoneForwarder>);
 
 template<typename... Ts> class InProgressCondition : public Condition<Ts...>, public Parented<MemoryFlasher> {
  public:

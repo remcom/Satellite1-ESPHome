@@ -53,7 +53,7 @@ void Satellite1::loop() {
     // that restarts detection synchronously isn't overridden.
     ESP_LOGW(TAG, "XMOS not responding after %u attempts", MAX_CONNECTION_ATTEMPTS);
     this->disable_loop();
-    this->state_callback_.call();
+    this->notify_state_();
     this->finish_xmos_reset_();
     return;
   }
@@ -63,7 +63,7 @@ void Satellite1::loop() {
     this->state_ = SAT_XMOS_CONNECTED_STATE;
     this->connection_attempts_ = 0;
     this->disable_loop();
-    this->state_callback_.call();
+    this->notify_state_();
     this->finish_xmos_reset_();
   }
 }
@@ -183,6 +183,29 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
   return true;
 }
 
+bool Satellite1::digital_read_hw(uint8_t pin) {
+  // A failed update keeps the last known port values, which digital_read_cache() returns. Reporting
+  // a failure instead would read as low, i.e. as pressed for the inverted buttons.
+  this->request_status_register_update();
+  return true;
+}
+
+bool Satellite1::digital_read_cache(uint8_t pin) {
+  // The GPIO_PORT_* status registers follow the pin banks: INPUT_A, INPUT_B, OUTPUT_A
+  const uint8_t port_value =
+      this->dc_status_register_[DC_STATUS_REGISTER::GPIO_PORT_IN_A + pin / XMOS_GPIO_PINS_PER_PORT];
+  return (port_value & (1 << (pin % XMOS_GPIO_PINS_PER_PORT))) != 0;
+}
+
+void Satellite1::digital_write_hw(uint8_t pin, bool value) {
+  if (pin < XMOS_GPIO_FIRST_OUTPUT_PIN) {
+    ESP_LOGE(TAG, "Pin %u is on a read only port", pin);
+    return;
+  }
+  uint8_t payload[2] = {static_cast<uint8_t>(pin % XMOS_GPIO_PINS_PER_PORT), value};
+  this->transfer(DC_RESOURCE::GPIO_PORT_OUT_A, GPIO_SERVICER_CMD_SET_PIN, payload, sizeof(payload));
+}
+
 void Satellite1::set_spi_flash_direct_access_mode(bool enable) {
   if (this->xmos_rst_pin_ == nullptr) {
     ESP_LOGE(TAG, "XMOS reset pin not set, can't switch flash access mode");
@@ -195,7 +218,7 @@ void Satellite1::set_spi_flash_direct_access_mode(bool enable) {
   this->spi_flash_direct_access_enabled_ = enable;
   if (enable) {
     this->state_ = SAT_FLASH_CONNECTED_STATE;
-    this->state_callback_.call();
+    this->notify_state_();
     // The XMOS is held in reset for flash access, a pending reset won't be followed by a detection.
     this->finish_xmos_reset_();
   } else if (was_enabled) {
@@ -209,7 +232,7 @@ void Satellite1::restart_detection_() {
   // Give the XMOS time to boot before the first probe.
   this->last_attempt_timestamp_ = millis();
   this->enable_loop();
-  this->state_callback_.call();
+  this->notify_state_();
 }
 
 void Satellite1::finish_xmos_reset_() {

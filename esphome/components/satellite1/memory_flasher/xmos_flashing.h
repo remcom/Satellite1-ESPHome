@@ -32,7 +32,6 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   bool read_jedec_id_();
   bool enable_writing_();
   bool disable_writing_();
-  bool chip_erase_();
   bool erase_sector_(int sector);
   bool wait_while_flash_busy_(uint32_t timeout_ms);
   bool read_page_(uint32_t byte_addr, uint8_t *buffer);
@@ -41,7 +40,6 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   uint8_t manufacturer_id_{0};
   uint8_t memory_type_id_{0};
   uint8_t capacity_id_{0};
-  size_t total_number_of_sectors_{0};
 
   bool init_flashing_();
   void deinit_flashing_();

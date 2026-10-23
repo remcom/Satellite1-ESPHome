@@ -30,8 +30,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       satellite1:
-      port: INPUT_A
-      pin: 0
+      number: 0  # INPUT_A pin 0
       inverted: true
     name: "Button Up (Vol+)"
     icon: "mdi:volume-plus"
@@ -47,8 +46,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       satellite1:
-      port: INPUT_A
-      pin: 2
+      number: 2  # INPUT_A pin 2
       inverted: true
     name: "Button Down (Vol-)"
     icon: "mdi:volume-minus"
@@ -67,8 +65,7 @@ binary_sensor:
     # control_leds, which drives the LED ring before its buffer exists during setup().
     pin:
       satellite1:
-      port: INPUT_A
-      pin: 3
+      number: 3  # INPUT_A pin 3
       inverted: false
     name: "Button Left (HW Mute)"
     icon: "mdi:microphone-off"
