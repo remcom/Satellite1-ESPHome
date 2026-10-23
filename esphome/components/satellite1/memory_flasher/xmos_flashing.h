@@ -18,7 +18,7 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   void dump_flash_info() override;
 
   void erase_memory() override;
-  void flash_remote_image() override;
+  void flash_remote_image(const std::string &url, const std::string &md5, const std::string &md5_url) override;
   void flash_embedded_image() override;
 
   bool flash_accessible() override;
@@ -62,6 +62,9 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
 
   uint8_t *reader_buffer_{nullptr};
   uint8_t *compare_buffer_{nullptr};
+
+  /// Keeps the loop running without delay while an action is in progress, every loop call handles one page/sector.
+  HighFrequencyLoopRequester high_freq_;
 };
 
 }  // namespace esphome::satellite1

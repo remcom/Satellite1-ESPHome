@@ -71,6 +71,7 @@ void XMOSFlasher::loop() {
       }
       this->publish();
       this->state_ = FLASHER_IDLE;
+      this->high_freq_.stop();
       break;
 
     default:
@@ -82,6 +83,7 @@ void XMOSFlasher::start_action_(FlasherAction action) {
   this->requested_action_ = action;
   this->error_code_ = FLASHER_OK;
   this->state_ = FLASHER_INITIALIZING;
+  this->high_freq_.start();
   this->enable_loop();
 }
 
@@ -167,32 +169,34 @@ void XMOSFlasher::erase_memory() {
   this->start_action_(ACTION_FULL_ERASE);
 }
 
-void XMOSFlasher::flash_remote_image() {
+void XMOSFlasher::flash_remote_image(const std::string &url, const std::string &md5, const std::string &md5_url) {
+  // Nothing may be stored before this check, it would change the url / checksum of the running action.
   if (this->state_ != FLASHER_IDLE) {
     ESP_LOGE(TAG, "XMOS flasher is busy, can't initiate new flash");
     return;
   }
 
-  if (this->url_.empty()) {
-    ESP_LOGE(TAG, "URL not set; cannot start flashing");
+  if (!this->validate_url_(url)) {
     this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, BAD_URL);
     return;
   }
 
-  if (this->md5_expected_.empty() && !this->http_get_md5_()) {
+  std::string expected_md5 = md5;
+  if (expected_md5.empty() && (!this->validate_url_(md5_url) || !this->http_get_md5_(md5_url, expected_md5))) {
     ESP_LOGE(TAG, "Couldn't receive expected md5 sum.");
     this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, MD5_INVALID);
     return;
   }
 
   // Check before erasing anything: a bad checksum would only be detected after the flash was overwritten.
-  if (!is_valid_md5_(this->md5_expected_)) {
-    ESP_LOGE(TAG, "Invalid expected md5 sum: '%s'", this->md5_expected_.c_str());
-    this->md5_expected_.clear();
+  if (!is_valid_md5_(expected_md5)) {
+    ESP_LOGE(TAG, "Invalid expected md5 sum: '%s'", expected_md5.c_str());
     this->fail_action_(ACTION_FLASH_REMOTE_IMAGE, MD5_INVALID);
     return;
   }
 
+  this->url_ = url;
+  this->md5_expected_ = std::move(expected_md5);
   this->start_action_(ACTION_FLASH_REMOTE_IMAGE);
 }
 

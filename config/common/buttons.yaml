@@ -252,9 +252,18 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: return id(xflash).flash_accessible();
+                # flash_accessible() is false while flashing, rebooting then would leave a partially written XMOS flash
+                memory_flasher.in_progress:
               then:
-                - lambda: id(factory_reset_requested) = true;
-                - memory_flasher.erase:
+                - logger.log:
+                    level: WARN
+                    format: "XMOS flasher is busy, factory reset skipped"
               else:
-                - button.press: factory_reset_button
+                - if:
+                    condition:
+                      - lambda: return id(xflash).flash_accessible();
+                    then:
+                      - lambda: id(factory_reset_requested) = true;
+                      - memory_flasher.erase:
+                    else:
+                      - button.press: factory_reset_button

@@ -122,6 +122,12 @@ satellite1:
           id: xmos_firmware_version_text
           state: !lambda 'return id(satellite1_id).status_string();'
 
+  on_xmos_detached:
+    then:
+      - text_sensor.template.publish:
+          id: xmos_firmware_version_text
+          state: !lambda 'return id(satellite1_id).status_string();'
+
 memory_flasher:
   - platform: satellite1
     id: xflash

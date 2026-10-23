@@ -6,6 +6,7 @@
 #include "esphome/core/helpers.h"
 
 #include <cassert>
+#include <functional>
 #include <string>
 
 namespace esphome::satellite1 {
@@ -163,15 +164,22 @@ class Satellite1 : public Component,
    * @brief Pulses the XMOS reset line and re-detects the XMOS afterwards.
    *
    * Non-blocking: the reset line is released from a scheduler timeout. Refused while the
-   * XMOS flash is being accessed directly, since that holds the XMOS in reset itself.
+   * XMOS flash is being accessed directly, since that holds the XMOS in reset itself, and
+   * while a previous reset is still in progress.
+   *
+   * @param on_done  Called once detection after the reset has finished (XMOS connected or
+   *                 not responding), when the reset is aborted by entering flash access mode,
+   *                 or right away if the reset is refused.
    */
-  void xmos_hardware_reset();
+  void xmos_hardware_reset(std::function<void()> &&on_done = nullptr);
 
  protected:
   bool dfu_get_fw_version_();
   bool check_for_xmos_();
   /// Restart XMOS detection from scratch (used after leaving flash mode or after a reset).
   void restart_detection_();
+  /// Ends a pending XMOS reset and calls its on_done callback.
+  void finish_xmos_reset_();
   /// Writes the cached XMOS firmware version as "vX.Y.Z[-pre][.N]" into buffer.
   void format_fw_version_(char *buffer, size_t len) const;
   CallbackManager<void()> state_callback_{};
@@ -188,6 +196,8 @@ class Satellite1 : public Component,
   uint8_t spi_transfer_buffer_[256 + 3];  // Reusable buffer for SPI transfers
 
   GPIOPin *xmos_rst_pin_{nullptr};
+  bool xmos_reset_in_progress_{false};
+  std::function<void()> xmos_reset_done_callback_{};
 };
 
 class Satellite1SPIService : public Parented<Satellite1> {

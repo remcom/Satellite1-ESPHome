@@ -131,7 +131,8 @@ class MemoryFlasher : public Component {
   virtual void dump_flash_info() {}
 
   virtual void erase_memory() {}
-  virtual void flash_remote_image() {}
+  /// Flashes the image at url. The expected checksum is md5, or fetched from md5_url if md5 is empty.
+  virtual void flash_remote_image(const std::string &url, const std::string &md5, const std::string &md5_url) {}
   virtual void flash_embedded_image() {}
 
   virtual bool flash_accessible() { return false; }
@@ -158,10 +159,6 @@ class MemoryFlasher : public Component {
     this->http_request_ = http_request;
   }
 
-  void set_md5_url(const std::string &md5_url);
-  void set_md5(const std::string &md5) { this->md5_expected_ = md5; }
-  void set_url(const std::string &url);
-
   template<typename F> void add_on_state_callback(F &&callback) {
     this->state_callback_.add(std::forward<F>(callback));
   }
@@ -182,7 +179,7 @@ class MemoryFlasher : public Component {
   FlashImage embedded_image_;
 
   /* flashing remote image */
-  bool http_get_md5_();
+  bool http_get_md5_(const std::string &md5_url, std::string &md5);
   bool validate_url_(const std::string &url);
   void cleanup_(const std::shared_ptr<http_request::HttpContainer> &container);
 
@@ -190,7 +187,6 @@ class MemoryFlasher : public Component {
 
   std::string md5_computed_{};
   std::string md5_expected_{};
-  std::string md5_url_{};
   std::string url_{};
 };
 

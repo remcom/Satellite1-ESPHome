@@ -25,12 +25,17 @@ XMOSNoResponseStateTrigger = namespace.class_(
     "XMOSNoResponseStateTrigger", automation.Trigger
 )
 
+XMOSDetachedStateTrigger = namespace.class_(
+    "XMOSDetachedStateTrigger", automation.Trigger
+)
+
 
 CONF_SATELLITE1 = "satellite1"
 CONF_XMOS_RST_PIN = "xmos_rst_pin"
 CONF_ON_XMOS_NO_RESPONSE = "on_xmos_no_response"
 CONF_ON_XMOS_CONNECTED = "on_xmos_connected"
 CONF_ON_FLASH_CONNECTED = "on_flash_connected"
+CONF_ON_XMOS_DETACHED = "on_xmos_detached"
 
 SAT1_CONFIG_SCHEMA = cv.Schema(
     {
@@ -57,6 +62,11 @@ SAT1_CONFIG_SCHEMA = cv.Schema(
                 ),
             }
         ),
+        cv.Optional(CONF_ON_XMOS_DETACHED): automation.validate_automation(
+            {
+                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(XMOSDetachedStateTrigger),
+            }
+        ),
     }
 ).extend(spi_device_schema(True, "1Hz"))
 
@@ -81,6 +91,10 @@ async def register_satellite1(config):
         trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
         await automation.build_automation(trigger, [], conf)
 
+    for conf in config.get(CONF_ON_XMOS_DETACHED, []):
+        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var)
+        await automation.build_automation(trigger, [], conf)
+
     return var
 
 
@@ -93,7 +107,7 @@ RESET_XMOS_ACTION_SCHEMA = automation.maybe_simple_id(
     "satellite1.xmos_hardware_reset",
     XMOSHardwareResetAction,
     RESET_XMOS_ACTION_SCHEMA,
-    synchronous=True,
+    synchronous=False,
 )
 async def xmos_hardware_reset_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)

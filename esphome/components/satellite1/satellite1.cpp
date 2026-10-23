@@ -54,6 +54,7 @@ void Satellite1::loop() {
     ESP_LOGW(TAG, "XMOS not responding after %u attempts", MAX_CONNECTION_ATTEMPTS);
     this->disable_loop();
     this->state_callback_.call();
+    this->finish_xmos_reset_();
     return;
   }
 
@@ -63,6 +64,7 @@ void Satellite1::loop() {
     this->connection_attempts_ = 0;
     this->disable_loop();
     this->state_callback_.call();
+    this->finish_xmos_reset_();
   }
 }
 
@@ -85,8 +87,9 @@ static const char *prerelease_str(uint8_t pre_idx) {
 void Satellite1::format_fw_version_(char *buffer, size_t len) const {
   const uint8_t *v = this->xmos_fw_version_;
   size_t pos = buf_append_printf(buffer, len, 0, "v%u.%u.%u", v[0], v[1], v[2]);
-  if (v[3]) {
-    pos = buf_append_printf(buffer, len, pos, "-%s", prerelease_str(v[3]));
+  const char *pre_release = prerelease_str(v[3]);
+  if (pre_release[0] != '\0') {
+    pos = buf_append_printf(buffer, len, pos, "-%s", pre_release);
   }
   if (v[4]) {
     buf_append_printf(buffer, len, pos, ".%u", v[4]);
@@ -104,6 +107,9 @@ std::string Satellite1::status_string() {
       return "Flashing Mode";
     case SAT_DETACHED_STATE:
     default:
+      if (this->connection_attempts_ < MAX_CONNECTION_ATTEMPTS) {
+        return "Detecting XMOS";
+      }
       return "XMOS not responding";
   }
 }
@@ -189,10 +195,12 @@ void Satellite1::set_spi_flash_direct_access_mode(bool enable) {
   this->spi_flash_direct_access_enabled_ = enable;
   if (enable) {
     this->state_ = SAT_FLASH_CONNECTED_STATE;
+    this->state_callback_.call();
+    // The XMOS is held in reset for flash access, a pending reset won't be followed by a detection.
+    this->finish_xmos_reset_();
   } else if (was_enabled) {
     this->restart_detection_();
   }
-  this->state_callback_.call();
 }
 
 void Satellite1::restart_detection_() {
@@ -201,6 +209,16 @@ void Satellite1::restart_detection_() {
   // Give the XMOS time to boot before the first probe.
   this->last_attempt_timestamp_ = millis();
   this->enable_loop();
+  this->state_callback_.call();
+}
+
+void Satellite1::finish_xmos_reset_() {
+  this->xmos_reset_in_progress_ = false;
+  if (this->xmos_reset_done_callback_) {
+    auto on_done = std::move(this->xmos_reset_done_callback_);
+    this->xmos_reset_done_callback_ = nullptr;
+    on_done();
+  }
 }
 
 bool Satellite1::dfu_get_fw_version_() {
@@ -228,22 +246,30 @@ bool Satellite1::check_for_xmos_() {
   return (memcmp(this->xmos_fw_version_, compare_zeros, sizeof(compare_zeros)) != 0);
 }
 
-void Satellite1::xmos_hardware_reset() {
+void Satellite1::xmos_hardware_reset(std::function<void()> &&on_done) {
   if (this->xmos_rst_pin_ == nullptr) {
     ESP_LOGE(TAG, "XMOS reset pin not set, can't reset XMOS");
-    return;
-  }
-  if (this->spi_flash_direct_access_enabled_) {
+  } else if (this->spi_flash_direct_access_enabled_) {
     ESP_LOGW(TAG, "XMOS flash is being accessed, refusing to reset XMOS");
+  } else if (this->xmos_reset_in_progress_) {
+    ESP_LOGW(TAG, "XMOS reset already in progress");
+  } else {
+    ESP_LOGI(TAG, "Resetting XMOS");
+    this->xmos_reset_in_progress_ = true;
+    this->xmos_reset_done_callback_ = std::move(on_done);
+    this->xmos_rst_pin_->digital_write(true);
+    // Report the XMOS as detached right away. The first probe is only sent
+    // CONNECTION_RETRY_INTERVAL_MS after the reset line was released.
+    this->restart_detection_();
+    this->set_timeout(XMOS_RESET_TIMEOUT_ID, XMOS_RESET_PULSE_MS, [this]() {
+      this->xmos_rst_pin_->digital_write(false);
+      this->last_attempt_timestamp_ = millis();
+    });
     return;
   }
-
-  ESP_LOGI(TAG, "Resetting XMOS");
-  this->xmos_rst_pin_->digital_write(true);
-  this->set_timeout(XMOS_RESET_TIMEOUT_ID, XMOS_RESET_PULSE_MS, [this]() {
-    this->xmos_rst_pin_->digital_write(false);
-    this->restart_detection_();
-  });
+  if (on_done) {
+    on_done();
+  }
 }
 
 }  // namespace esphome::satellite1

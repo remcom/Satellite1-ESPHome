@@ -14,7 +14,7 @@ from esphome.const import (
     CONF_TYPE,
     CONF_URL,
 )
-from esphome.core import CORE, HexInt
+from esphome.core import CORE, EsphomeError, HexInt
 from esphome.external_files import download_content
 from esphome.types import ConfigType
 
@@ -148,15 +148,6 @@ def _get_expected_md5(flash_config: ConfigType) -> str:
     return _validate_md5_str(tokens[0])
 
 
-def _check_image_md5_sum(image_file: Path, expected_md5: str) -> bool:
-    """
-    Calculates the MD5 checksum of the given file and compares it with the provided value.
-    """
-    with open(image_file, "rb") as f:
-        file_md5 = hashlib.md5(f.read()).hexdigest()
-    return file_md5 == expected_md5.lower()
-
-
 LOCAL_FILE_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_PATH): cv.file_,
@@ -201,12 +192,15 @@ def _file_schema(value):
 
 
 def _validate_embed_image_schema(image_config: dict) -> dict:
-    md5_sum = _get_expected_md5(image_config)
-    image_file_conf = image_config[CONF_IMAGE_FILE]
-    img_local_path = _resolve_local_file(image_file_conf)
-    if not _check_image_md5_sum(img_local_path, md5_sum):
-        raise cv.Invalid("Flash-Image: md5 sum does not match.")
-
+    """
+    Makes sure the image is available locally and resolves md5_file / md5_url into md5,
+    so the checksum is only read once. The (large) image itself is read and checked
+    once, when it gets embedded, see _prepare_flash_image_pgm().
+    """
+    _resolve_local_file(image_config[CONF_IMAGE_FILE])
+    image_config[CONF_MD5] = _get_expected_md5(image_config)
+    image_config.pop(CONF_MD5_FILE, None)
+    image_config.pop(CONF_MD5_URL, None)
     return image_config
 
 
@@ -292,9 +286,15 @@ def _prepare_flash_image_pgm(
     flash_config: ConfigType,
 ) -> tuple[str, tuple[HexInt, ...], int]:
     local_flash_image = _resolve_local_file(flash_config[CONF_IMAGE_FILE])
-    md5_sum = _get_expected_md5(flash_config)
+    md5_sum = flash_config[CONF_MD5]
     with open(local_flash_image, "rb") as f:
-        hex_strings = tuple(map(HexInt, f.read()))
+        image = f.read()
+    # Checked on the bytes that get embedded
+    if hashlib.md5(image).hexdigest() != md5_sum:
+        raise EsphomeError(
+            f"Flash-Image: md5 sum of {local_flash_image} does not match {md5_sum}."
+        )
+    hex_strings = tuple(map(HexInt, image))
     return md5_sum, hex_strings, len(hex_strings)
 
 

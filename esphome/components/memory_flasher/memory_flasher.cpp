@@ -3,8 +3,6 @@
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
 
-#include <cctype>
-
 namespace esphome::memory_flasher {
 
 static const char *const TAG = "memory_flasher";
@@ -18,24 +16,17 @@ void MemoryFlasher::dump_config() {
 }
 
 bool MemoryFlasher::is_valid_md5_(const std::string &md5) {
-  if (md5.size() != MD5_SIZE) {
-    return false;
-  }
-  for (char c : md5) {
-    if (!std::isxdigit(static_cast<unsigned char>(c))) {
-      return false;
-    }
-  }
-  return true;
+  uint8_t digest[MD5_SIZE / 2];
+  return md5.size() == MD5_SIZE && parse_hex(md5, digest, sizeof(digest));
 }
 
-bool MemoryFlasher::http_get_md5_() {
-  if (this->md5_url_.empty() || this->http_request_ == nullptr) {
+bool MemoryFlasher::http_get_md5_(const std::string &md5_url, std::string &md5) {
+  if (md5_url.empty() || this->http_request_ == nullptr) {
     return false;
   }
 
-  ESP_LOGI(TAG, "Connecting to: %s", this->md5_url_.c_str());
-  auto container = this->http_request_->get(this->md5_url_);
+  ESP_LOGI(TAG, "Connecting to: %s", md5_url.c_str());
+  auto container = this->http_request_->get(md5_url);
   if (container == nullptr) {
     ESP_LOGE(TAG, "Failed to connect to MD5 URL");
     return false;
@@ -63,13 +54,13 @@ bool MemoryFlasher::http_get_md5_() {
     return false;
   }
 
-  std::string md5(md5_buf, MD5_SIZE);
-  if (!is_valid_md5_(md5)) {
+  std::string received(md5_buf, MD5_SIZE);
+  if (!is_valid_md5_(received)) {
     ESP_LOGE(TAG, "MD5 file doesn't start with a valid MD5 sum");
     return false;
   }
-  this->md5_expected_ = std::move(md5);
-  ESP_LOGV(TAG, "MD5 expected: %s", this->md5_expected_.c_str());
+  md5 = std::move(received);
+  ESP_LOGV(TAG, "MD5 expected: %s", md5.c_str());
   return true;
 }
 
@@ -79,23 +70,6 @@ bool MemoryFlasher::validate_url_(const std::string &url) {
     return false;
   }
   return true;
-}
-
-void MemoryFlasher::set_url(const std::string &url) {
-  if (!this->validate_url_(url)) {
-    this->url_.clear();  // URL was not valid; prevent flashing until it is
-    return;
-  }
-  this->url_ = url;
-}
-
-void MemoryFlasher::set_md5_url(const std::string &url) {
-  if (!this->validate_url_(url)) {
-    this->md5_url_.clear();  // URL was not valid; prevent flashing until it is
-    return;
-  }
-  this->md5_url_ = url;
-  this->md5_expected_.clear();  // to be retrieved later
 }
 
 bool HttpImageReader::init_reader() {
