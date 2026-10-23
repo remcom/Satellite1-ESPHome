@@ -117,8 +117,6 @@ micro_wake_word:
       internal: true
   vad:
   on_wake_word_detected:
-    # Locate the talker from the wake word itself, before the wake sound freezes the XMOS DOA
-    - script.execute: update_doa_led
     # If the wake word is detected when the device is muted (Possible with the software mute switch): Do nothing
     - if:
         condition:
@@ -149,6 +147,9 @@ micro_wake_word:
                                 id: external_media_player
                           # Start the voice assistant and play the wake sound, if enabled
                           else:
+                            # Locate the talker from the wake word itself, before the wake sound freezes the
+                            # XMOS DOA. Only here, so the direction is always reset by the on_end that follows.
+                            - script.execute: update_doa_led
                             - if:
                                 condition:
                                   switch.is_on: wake_sound

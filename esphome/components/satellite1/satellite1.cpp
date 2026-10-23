@@ -232,7 +232,12 @@ bool Satellite1::read_doa(DoaResult &result) {
   result.confidence = resp[2];
   result.valid = (resp[3] & AUDIO_DOA_FLAG_VALID) != 0;
   result.updated = (resp[3] & AUDIO_DOA_FLAG_UPDATED) != 0;
-  return result.azimuth < 360;
+  if (result.azimuth >= 360) {
+    // The transfer worked but the payload is garbage, treat it as no direction.
+    ESP_LOGD(TAG, "Ignoring direction with invalid azimuth %u", result.azimuth);
+    result.valid = false;
+  }
+  return true;
 }
 
 bool Satellite1::set_mic_gain(uint8_t gain_db) {

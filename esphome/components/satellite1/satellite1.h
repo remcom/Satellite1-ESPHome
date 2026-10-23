@@ -199,7 +199,8 @@ class Satellite1 : public Component,
    *
    * The XMOS only updates the DOA during speech while no audio is played back.
    *
-   * @return  false if the transfer failed or the XMOS firmware has no audio servicer.
+   * @return  false if the transfer failed or the XMOS firmware has no audio servicer. A result with an
+   *          out of range azimuth is returned as not valid.
    */
   bool read_doa(DoaResult &result);
 

@@ -51,7 +51,8 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 20
-    # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it
+    # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it. The call
+    # from restoring the value at boot runs before the XMOS is connected and fails silently.
     on_value:
       - lambda: id(satellite1_id).set_mic_gain(static_cast<uint8_t>(x));
 
@@ -70,18 +71,19 @@ select:
       - "Average"
       - "Follow talker"
     initial_option: "East/West pair"
-    # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it
+    # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it. The call
+    # from restoring the option at boot runs before the XMOS is connected and fails silently.
     on_value:
       - lambda: id(satellite1_id).set_mic_mode(static_cast<satellite1::XMOSMicMode>(i));
 
 script:
   # Reads the DOA and points doa_led_index at the talker. Keeps the last direction if the XMOS
   # has no recent result (silence, or audio playing back).
+  # Reads without publishing, so the 200 ms interval does not flood Home Assistant.
   - id: update_doa_led
     then:
-      - component.update: sat1_doa
       - lambda: |-
-          if (!id(doa_indicator).state || !id(sat1_doa).is_valid()) {
+          if (!id(doa_indicator).state || !id(sat1_doa).read_direction() || !id(sat1_doa).is_valid()) {
             return;
           }
           int step = (id(sat1_doa).get_azimuth() * 24 + 180) / 360;

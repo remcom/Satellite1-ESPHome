@@ -13,6 +13,9 @@ class Satellite1DoaSensor : public PollingComponent, public Parented<Satellite1>
   void update() override;
   void dump_config() override;
 
+  /// Reads the direction from the XMOS without publishing it. Returns false if the read failed.
+  bool read_direction();
+
   void set_direction_sensor(sensor::Sensor *sensor) { this->direction_sensor_ = sensor; }
   void set_confidence_sensor(sensor::Sensor *sensor) { this->confidence_sensor_ = sensor; }
 
