@@ -175,8 +175,24 @@ bool Satellite1::transfer(uint8_t resource_id, uint8_t command, uint8_t *payload
       return false;
     }
 
+    // Device control protocol 0x11 frames read responses as [PAYLOAD_AVAILABLE, status, data...],
+    // older XMOS firmware as [status, data...]. A rejected read (e.g. an unknown resource) gets a
+    // status-only frame.
+    if (send_recv_buf[0] == DC_RET_STATUS::STATUS_ONLY_FRAME) {
+      ESP_LOGV(TAG, "Read %u/0x%02X failed with status %u", resource_id, command, send_recv_buf[1]);
+      return false;
+    }
+    const uint8_t *data = &send_recv_buf[1];
+    if (send_recv_buf[0] == DC_RET_STATUS::PAYLOAD_AVAILABLE) {
+      if (send_recv_buf[1] != DC_RET_STATUS::CMD_SUCCESS) {
+        ESP_LOGV(TAG, "Read %u/0x%02X failed with status %u", resource_id, command, send_recv_buf[1]);
+        return false;
+      }
+      data = &send_recv_buf[2];
+    }
+
     if (payload_len > 0) {
-      memcpy(payload, &send_recv_buf[1], payload_len);
+      memcpy(payload, data, payload_len);
     }
   }
 
@@ -204,6 +220,36 @@ void Satellite1::digital_write_hw(uint8_t pin, bool value) {
   }
   uint8_t payload[2] = {static_cast<uint8_t>(pin % XMOS_GPIO_PINS_PER_PORT), value};
   this->transfer(DC_RESOURCE::GPIO_PORT_OUT_A, GPIO_SERVICER_CMD_SET_PIN, payload, sizeof(payload));
+}
+
+bool Satellite1::read_doa(DoaResult &result) {
+  // Read command: the payload is only used as receive buffer, but it is clocked out first.
+  uint8_t resp[AUDIO_DOA_PAYLOAD_LEN]{};
+  if (!this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::GET_DOA, resp, sizeof(resp))) {
+    return false;
+  }
+  result.azimuth = encode_uint16(resp[1], resp[0]);
+  result.confidence = resp[2];
+  result.valid = (resp[3] & AUDIO_DOA_FLAG_VALID) != 0;
+  result.updated = (resp[3] & AUDIO_DOA_FLAG_UPDATED) != 0;
+  return result.azimuth < 360;
+}
+
+bool Satellite1::set_mic_gain(uint8_t gain_db) {
+  if (gain_db > XMOS_MIC_GAIN_DB_MAX) {
+    ESP_LOGE(TAG, "Mic gain %u dB out of range (max %u dB)", gain_db, XMOS_MIC_GAIN_DB_MAX);
+    return false;
+  }
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_MIC_GAIN, &gain_db, 1);
+}
+
+bool Satellite1::set_mic_mode(XMOSMicMode mode) {
+  if (mode > MIC_MODE_LAST) {
+    ESP_LOGE(TAG, "Unknown mic mode %u", mode);
+    return false;
+  }
+  uint8_t payload = mode;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_MIC_MODE, &payload, 1);
 }
 
 void Satellite1::set_spi_flash_direct_access_mode(bool enable) {

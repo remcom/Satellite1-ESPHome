@@ -117,6 +117,8 @@ micro_wake_word:
       internal: true
   vad:
   on_wake_word_detected:
+    # Locate the talker from the wake word itself, before the wake sound freezes the XMOS DOA
+    - script.execute: update_doa_led
     # If the wake word is detected when the device is muted (Possible with the software mute switch): Do nothing
     - if:
         condition:
@@ -254,8 +256,10 @@ voice_assistant:
           lambda: return id(voice_assistant_phase) == ${voice_assist_error_phase_id};
         then:
           - delay: 1s
-    # Reset the voice assistant phase id and reset the LED animations.
-    - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+    # Reset the voice assistant phase id, the talker direction and the LED animations.
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+        id(doa_led_index) = -1;
     - script.execute: control_leds
 
   on_timer_finished:

@@ -13,7 +13,7 @@ substitutions:
   component_name: Core
 
   esp32_fw_version: dev
-  xmos_fw_version: "v1.0.3"
+  xmos_fw_version: "v2.0.0-alpha.2"
 
 globals:
   # Global initialisation variable. Initialized to true and set to false once everything is connected. Only used to have a smooth "plugging" experience
@@ -83,6 +83,8 @@ packages:
   va: !include common/voice_assistant.yaml
   timer: !include common/timer.yaml
   led_ring: !include common/led_ring.yaml
+  xmos_audio: !include common/xmos_audio.yaml
+  debug: !include common/debug.yaml
 
   ## OPTIONAL COMPONENTS
   # mmwave_ld2410: !include common/mmwave_ld2410.yaml
@@ -121,6 +123,7 @@ satellite1:
       - text_sensor.template.publish:
           id: xmos_firmware_version_text
           state: !lambda 'return id(satellite1_id).status_string();'
+      - script.execute: apply_xmos_mic_settings
 
   on_xmos_detached:
     then:
@@ -133,8 +136,8 @@ memory_flasher:
     id: xflash
     embed_flash_image:
       image_version: ${xmos_fw_version}
-      image_file: https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/assets/firmware/xmos/${xmos_fw_version}/satellite1_firmware_fixed_delay.factory.bin
-      md5_file: https://raw.githubusercontent.com/FutureProofHomes/Documentation/refs/heads/main/assets/firmware/xmos/${xmos_fw_version}/satellite1_firmware_fixed_delay.factory.md5
+      image_file: https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}/satellite1_xmos.factory.bin
+      md5_file: https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}/satellite1_xmos.factory.md5
 
     on_flashing_start:
       then:

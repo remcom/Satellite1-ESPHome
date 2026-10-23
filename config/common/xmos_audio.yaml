@@ -1,0 +1,113 @@
+# XMOS audio front end: direction of arrival (DOA), mic gain and mic mode.
+# Requires XMOS firmware with the audio servicer (device-control resource 230). With older
+# firmware the DOA sensor logs a single warning and the mic settings have no effect.
+
+substitutions:
+  # LED that faces the North mic, and whether increasing azimuth (North -> East) runs clockwise
+  # over the LED indices. Calibrate by talking from a known direction and watching the ring.
+  doa_led_offset: "0"
+  doa_led_clockwise: "true"
+
+globals:
+  # LED pointing at the talker during the command phases, -1 if no direction is known
+  - id: doa_led_index
+    type: int
+    restore_value: no
+    initial_value: '-1'
+
+sensor:
+  - platform: satellite1
+    id: sat1_doa
+    update_interval: 1s
+    direction:
+      name: "Voice Direction"
+      id: voice_direction
+    confidence:
+      name: "Voice Direction Confidence"
+      id: voice_direction_confidence
+
+switch:
+  - platform: template
+    name: "Direction Indicator"
+    id: doa_indicator
+    icon: "mdi:compass-outline"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_off:
+      - lambda: id(doa_led_index) = -1;
+
+number:
+  - platform: template
+    name: "Mic Gain"
+    id: xmos_mic_gain
+    icon: "mdi:microphone-plus"
+    entity_category: config
+    unit_of_measurement: "dB"
+    min_value: 0
+    max_value: 30
+    step: 1
+    mode: slider
+    optimistic: true
+    restore_value: true
+    initial_value: 20
+    # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it
+    on_value:
+      - lambda: id(satellite1_id).set_mic_gain(static_cast<uint8_t>(x));
+
+select:
+  - platform: template
+    name: "Mic Mode"
+    id: xmos_mic_mode
+    icon: "mdi:microphone-settings"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    # Order matches satellite1::XMOSMicMode
+    options:
+      - "East/West pair"
+      - "North/South pair"
+      - "Average"
+      - "Follow talker"
+    initial_option: "East/West pair"
+    # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it
+    on_value:
+      - lambda: id(satellite1_id).set_mic_mode(static_cast<satellite1::XMOSMicMode>(i));
+
+script:
+  # Reads the DOA and points doa_led_index at the talker. Keeps the last direction if the XMOS
+  # has no recent result (silence, or audio playing back).
+  - id: update_doa_led
+    then:
+      - component.update: sat1_doa
+      - lambda: |-
+          if (!id(doa_indicator).state || !id(sat1_doa).is_valid()) {
+            return;
+          }
+          int step = (id(sat1_doa).get_azimuth() * 24 + 180) / 360;
+          if (!${doa_led_clockwise}) {
+            step = -step;
+          }
+          id(doa_led_index) = ((step + ${doa_led_offset}) % 24 + 24) % 24;
+
+  # Re-applies the mic settings after the XMOS (re)connected
+  - id: apply_xmos_mic_settings
+    then:
+      - lambda: |-
+          id(satellite1_id).set_mic_gain(static_cast<uint8_t>(id(xmos_mic_gain).state));
+          auto mode = id(xmos_mic_mode).active_index();
+          if (mode.has_value()) {
+            id(satellite1_id).set_mic_mode(static_cast<satellite1::XMOSMicMode>(mode.value()));
+          }
+
+interval:
+  # Follow the talker while the voice assistant waits for or listens to a command
+  - interval: 200ms
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(voice_assistant_phase) == ${voice_assist_waiting_for_command_phase_id} ||
+                     id(voice_assistant_phase) == ${voice_assist_listening_for_command_phase_id};
+          then:
+            - script.execute: update_doa_led

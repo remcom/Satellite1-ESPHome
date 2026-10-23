@@ -55,14 +55,31 @@ light:
         from: 0
         to: 23
     effects:
-      # Clockwise spin, shared by the two command phases; only the speed differs.
+      # Shared by the two command phases; only the speed differs. Points at the talker when the
+      # XMOS located them (doa_led_index, see xmos_audio.yaml), clockwise spin otherwise.
       - addressable_lambda:
           name: "Waiting for Command"
           update_interval: 100ms
-          lambda: &clockwise_spin |-
+          lambda: &command_phase_effect |-
             auto light_color = id(led_ring).current_values;
             Color color(light_color.get_red() * 255, light_color.get_green() * 255,
                   light_color.get_blue() * 255);
+            if (id(doa_led_index) >= 0) {
+              for (int i = 0; i < 24; i++) {
+                int distance = std::abs(i - id(doa_led_index));
+                distance = std::min(distance, 24 - distance);
+                if (distance == 0) {
+                  it[i] = color;
+                } else if (distance == 1) {
+                  it[i] = color * 128;
+                } else if (distance == 2) {
+                  it[i] = color * 32;
+                } else {
+                  it[i] = Color::BLACK;
+                }
+              }
+              return;
+            }
             for (int i = 0; i < 24; i++) {
               if (i == id(global_led_animation_index) % 24) {
                 it[i] = color;
@@ -84,7 +101,7 @@ light:
       - addressable_lambda:
           name: "Listening For Command"
           update_interval: 50ms
-          lambda: *clockwise_spin
+          lambda: *command_phase_effect
       - addressable_lambda:
           name: "Thinking"
           update_interval: 10ms
