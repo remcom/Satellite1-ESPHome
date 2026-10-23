@@ -6,34 +6,21 @@
 
 namespace esphome::satellite1 {
 
-static const uint8_t GPIO_SERVICER_CMD_READ_PORT = 0x00;
-static const uint8_t GPIO_SERVICER_CMD_WRITE_PORT = 0x01;
-static const uint8_t GPIO_SERVICER_CMD_SET_PIN = 0x02;
-
-enum class XMOSPort : uint8_t {
-  INPUT_A = 0,  // buttons
-  INPUT_B,      // rotary encoder
-  OUTPUT_A      // explorer board LEDs
-};
-
-class Satellite1GPIOPin : public GPIOPin, public Satellite1SPIService {
+/// A pin on one of the XMOS GPIO ports, see XMOS_GPIO_PINS_PER_PORT for the pin numbering.
+class Satellite1GPIOPin : public GPIOPin, public Parented<Satellite1> {
  public:
-  void setup() override {};
+  void setup() override {}
   void pin_mode(gpio::Flags flags) override {}
-  bool digital_read() override;
-  void digital_write(bool value) override;
-  size_t dump_summary(char *buffer, size_t len) const override { return 0; }
+  bool digital_read() override { return this->parent_->digital_read(this->pin_) != this->inverted_; }
+  void digital_write(bool value) override { this->parent_->digital_write(this->pin_, value != this->inverted_); }
+  size_t dump_summary(char *buffer, size_t len) const override;
 
-  void set_pin(XMOSPort port, uint8_t pin) {
-    this->port_ = port;
-    this->pin_ = pin;
-  }
+  void set_pin(uint8_t pin) { this->pin_ = pin; }
   void set_inverted(bool inverted) { this->inverted_ = inverted; }
   void set_flags(gpio::Flags flags) { this->flags_ = flags; }
   gpio::Flags get_flags() const override { return this->flags_; }
 
  protected:
-  XMOSPort port_{XMOSPort::INPUT_A};
   uint8_t pin_{0};
   bool inverted_{false};
   gpio::Flags flags_{};

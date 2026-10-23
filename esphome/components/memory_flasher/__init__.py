@@ -3,32 +3,17 @@ import logging
 from pathlib import Path
 import re
 
-import esphome.codegen as cg
-import esphome.config_validation as cv
 from esphome import automation, external_files
-from esphome.const import (
-    CONF_FILE,
-    CONF_ID,
-    CONF_PATH,
-    CONF_RAW_DATA_ID,
-    CONF_TRIGGER_ID,
-    CONF_TYPE,
-    CONF_URL,
-)
-
-from esphome.components.http_request import (
-    CONF_HTTP_REQUEST_ID,
-    HttpRequestComponent,
-)
-
-
-from esphome.core import CORE, HexInt
-from esphome.external_files import download_content
-
+import esphome.codegen as cg
+from esphome.components.http_request import CONF_HTTP_REQUEST_ID, HttpRequestComponent
+import esphome.config_validation as cv
+from esphome.const import CONF_PATH, CONF_RAW_DATA_ID, CONF_TYPE, CONF_URL
+from esphome.core import CORE, EsphomeError, HexInt
+from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
-CODEOWNERS = ["@gnumpi"]
+CODEOWNERS = ["@remcom", "@gnumpi"]
 
 IS_PLATFORM_COMPONENT = True
 
@@ -38,8 +23,6 @@ DOMAIN = "file"
 
 TYPE_LOCAL = "local"
 TYPE_WEB = "web"
-TYPE_FILE = "file"
-TYPE_STRING = "string"
 
 CONF_MD5 = "md5"
 CONF_MD5_FILE = "md5_file"
@@ -56,112 +39,75 @@ CONF_ON_FLASHING_SUCCESS = "on_flashing_success"
 CONF_ON_FLASHING_FAILED = "on_flashing_failed"
 CONF_ON_ERASING_DONE = "on_erasing_done"
 
+MD5_REGEX = re.compile(r"^[a-fA-F0-9]{32}$")
+VERSION_REGEX = re.compile(
+    r"^v?(\d+)\.(\d+)\.(\d+)(-(alpha|beta|rc|dev)(\.(\d+))?)?$", re.IGNORECASE
+)
+
 flasher_ns = cg.esphome_ns.namespace("memory_flasher")
 FlashImage = flasher_ns.struct("FlashImage")
-MemoryFlasher = flasher_ns.class_("MemoryFlasher", cg.Component )
+MemoryFlasher = flasher_ns.class_("MemoryFlasher", cg.Component)
 
 
-EraseAction = flasher_ns.class_(
-    "EraseMemoryAction", automation.Action
-)
+EraseAction = flasher_ns.class_("EraseMemoryAction", automation.Action)
 
-FlashAction = flasher_ns.class_(
-    "FlashAction", automation.Action
-)
+FlashAction = flasher_ns.class_("FlashAction", automation.Action)
 
-FlashEmbeddedAction = flasher_ns.class_(
-    "FlashEmbeddedAction", automation.Action
-)
+FlashEmbeddedAction = flasher_ns.class_("FlashEmbeddedAction", automation.Action)
 
-FlashingStartedTrigger = flasher_ns.class_(
-    "FlashingStartedTrigger", automation.Trigger
-)
-
-FlashProgressUpdateTrigger = flasher_ns.class_(
-    "FlashingProgressUpdateTrigger", automation.Trigger
-)
-FlashProgressSuccessTrigger = flasher_ns.class_(
-    "FlasherSuccessTrigger", automation.Trigger
-)
-FlashProgressFailedTrigger = flasher_ns.class_(
-    "FlasherFailedTrigger", automation.Trigger
-)
-
-ErasingDoneTrigger = flasher_ns.class_(
-    "ErasingDoneTrigger", automation.Trigger
-)
+FlasherState = flasher_ns.enum("FlasherState")
+FlasherStateForwarder = flasher_ns.class_("FlasherStateForwarder")
+FlashingStartedForwarder = flasher_ns.class_("FlashingStartedForwarder")
+ErasingDoneForwarder = flasher_ns.class_("ErasingDoneForwarder")
 
 
-InProgressCondition = flasher_ns.class_(
-    "InProgressCondition", automation.Condition
-)
+InProgressCondition = flasher_ns.class_("InProgressCondition", automation.Condition)
 
 
-
-def _generate_local_file_path(value: dict) -> Path:
+def _resolve_local_file(file_conf: dict) -> Path:
     """
-    Generates a local file path for a downloadable file by hashing the provided URL.
-    """
-    url = value[CONF_URL]
-    h = hashlib.new("sha256")
-    h.update(url.encode())
-    key = h.hexdigest()[:8]
-    base_dir = external_files.compute_local_file_dir(DOMAIN)
-    return base_dir / key
-
-
-def _resolve_local_file(file_conf:dict) -> Path:
-    """
-    Checks if a local file exists, and if not, downloads it from a provided URL. 
-    Returning the local file path if successful.
-
+    Returns the local path of the file, web files are downloaded into (or refreshed in) the cache.
     """
     if file_conf[CONF_TYPE] == TYPE_LOCAL:
         local_file = Path(CORE.relative_config_path(file_conf[CONF_PATH]))
         if not local_file.exists():
-            raise cv.Invalid( f"Can't locate {local_file}.")
+            raise cv.Invalid(f"Can't locate {local_file}.")
         return local_file
-    elif file_conf[CONF_TYPE] == TYPE_WEB:
-        local_file = _generate_local_file_path(file_conf)
-        if not local_file.exists():
-            download_content( file_conf[CONF_URL], local_file )
-            if not local_file.exists():
-                raise cv.Invalid( f"Couldn't download {file_conf[CONF_URL]} to {local_file}.")
-        return local_file
-    raise cv.Invalid( f"Couldn't get file for: {file_conf}" )
+    url = file_conf[CONF_URL]
+    local_file = external_files.compute_local_file_path(DOMAIN, url)
+    external_files.download_content(url, local_file, return_content=False)
+    return local_file
 
 
-def _validate_md5_str(value:str) -> str:
+def _validate_md5_str(value: str) -> str:
     """
     Validates whether the given string is a valid MD5 checksum.
+    Returns it in lower case, as produced by hashlib and the on-device MD5.
     """
-    if re.match(r"^[a-fA-F0-9]{32}$", value) is None:
+    value = cv.string_strict(value).strip()
+    if MD5_REGEX.match(value) is None:
         raise cv.Invalid(f"Invalid md5 string: {value}")
-    return value
+    return value.lower()
 
 
-def _get_expected_md5(flash_config:dict) -> str:
+def _get_expected_md5(flash_config: ConfigType) -> str:
     """
-    Returns the expected MD5 checksum from the configuration, which can either be 
-    provided directly as a string or as a file path containing the checksum.
+    Returns the expected MD5 checksum from the configuration, which can either be
+    provided directly as a string or as a local file / URL containing the checksum.
     """
-    if CONF_MD5 in flash_config:
-        return flash_config[CONF_MD5]
-    md5_key = CONF_MD5_FILE if CONF_MD5_FILE in flash_config else CONF_MD5_URL
-    local_file_path = _resolve_local_file(flash_config[md5_key])
-    with open(local_file_path, "r" ) as f:
-        md5_str = f.readline().strip()
-    return _validate_md5_str(md5_str)
-
-
-def _check_image_md5_sum(image_file:Path, expected_md5:str) -> bool:
-    """
-    Calculates the MD5 checksum of the given file and compares it with the provided value.
-    """
-    with open( image_file, "rb" ) as f:
-        file_md5 = hashlib.md5( f.read() ).hexdigest()
-    return file_md5 == expected_md5
-
+    if (md5 := flash_config.get(CONF_MD5)) is not None:
+        return _validate_md5_str(md5)
+    if (md5_url := flash_config.get(CONF_MD5_URL)) is not None:
+        file_conf = {CONF_TYPE: TYPE_WEB, CONF_URL: md5_url}
+    else:
+        file_conf = flash_config[CONF_MD5_FILE]
+    local_file_path = _resolve_local_file(file_conf)
+    with open(local_file_path, encoding="utf-8") as f:
+        # md5sum format is "<md5>  <file name>", only the checksum is of interest
+        tokens = f.readline().split()
+    if not tokens:
+        raise cv.Invalid(f"MD5 file {local_file_path} is empty")
+    return _validate_md5_str(tokens[0])
 
 
 LOCAL_FILE_SCHEMA = cv.Schema(
@@ -200,49 +146,61 @@ def _validate_file_shorthand(value):
         }
     )
 
+
 def _file_schema(value):
     if isinstance(value, str):
         return _validate_file_shorthand(value)
     return TYPED_FILE_SCHEMA(value)
 
 
-def _validate_embed_image_schema(image_config:dict) -> dict:
-    md5_sum = _get_expected_md5(image_config)
-    image_file_conf = image_config[CONF_IMAGE_FILE]
-    img_local_path = _resolve_local_file(image_file_conf)
-    if not _check_image_md5_sum(img_local_path, md5_sum):
-        raise cv.Invalid( f"Flash-Image: md5 sum does not match.")
-    
+def _validate_embed_image_schema(image_config: dict) -> dict:
+    """
+    Makes sure the image is available locally and resolves md5_file / md5_url into md5,
+    so the checksum is only read once. The (large) image itself is read and checked
+    once, when it gets embedded, see _prepare_flash_image_pgm().
+    """
+    _resolve_local_file(image_config[CONF_IMAGE_FILE])
+    image_config[CONF_MD5] = _get_expected_md5(image_config)
+    image_config.pop(CONF_MD5_FILE, None)
+    image_config.pop(CONF_MD5_URL, None)
     return image_config
 
-def _validate_image_version_string(val):
-    match = re.match( r"^v?(\d+)\.(\d+)\.(\d+)(-(alpha|beta|rc|dev)(\.(\d+))?)?$", val ,re.IGNORECASE )
-    if not match :
-        raise cv.Invalid( f"Not a valid version string: {val}" )
+
+def _validate_image_version_string(val: str) -> str:
+    val = cv.string_strict(val)
+    match = VERSION_REGEX.match(val)
+    if not match:
+        raise cv.Invalid(f"Not a valid version string: {val}")
+    # Each part is stored in a single byte, see _version_to_bytes()
+    for part in (match[1], match[2], match[3], match[7]):
+        if part is not None and int(part) > 255:
+            raise cv.Invalid(f"Version parts must be between 0 and 255: {val}")
     return val
 
 
-
 FLASH_IMAGE_SCHEMA = cv.Schema(
-        {
-            cv.Required(CONF_FLASH_IMAGE_VERSION): _validate_image_version_string,
-            cv.Required(CONF_IMAGE_FILE): cv.templatable(cv.url),
-            cv.Optional(CONF_MD5_URL): cv.templatable(cv.url),
-            cv.Optional(CONF_MD5): cv.templatable(_validate_md5_str),
-        }
+    {
+        cv.Required(CONF_IMAGE_FILE): cv.templatable(cv.url),
+        cv.Optional(CONF_MD5_URL): cv.templatable(cv.url),
+        cv.Optional(CONF_MD5): cv.templatable(_validate_md5_str),
+    }
 )
 
 
 EMBED_FLASH_IMAGE_SCHEMA = cv.All(
     FLASH_IMAGE_SCHEMA.extend(
         {
+            cv.Required(CONF_FLASH_IMAGE_VERSION): _validate_image_version_string,
+            # Resolved at compile time, so these can't be templates
             cv.Required(CONF_IMAGE_FILE): _file_schema,
+            cv.Optional(CONF_MD5_URL): cv.url,
+            cv.Optional(CONF_MD5): _validate_md5_str,
             cv.Optional(CONF_MD5_FILE): _file_schema,
             cv.GenerateID(CONF_RAW_DATA_ID): cv.declare_id(cg.uint8),
         }
     ),
     cv.has_exactly_one_key(CONF_MD5, CONF_MD5_FILE, CONF_MD5_URL),
-    _validate_embed_image_schema
+    _validate_embed_image_schema,
 )
 
 
@@ -251,89 +209,108 @@ FLASHER_CONFIG_SCHEMA = cv.Schema(
         cv.GenerateID(): cv.declare_id(MemoryFlasher),
         cv.GenerateID(CONF_HTTP_REQUEST_ID): cv.use_id(HttpRequestComponent),
         cv.Optional(CONF_EMBED_FLASH_IMAGE): EMBED_FLASH_IMAGE_SCHEMA,
-        
-        cv.Optional(CONF_ON_FLASHING_START): automation.validate_automation({
-            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(FlashingStartedTrigger),
-        }),
-        cv.Optional(CONF_ON_PROGRESS_UPDATE): automation.validate_automation({
-            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(FlashProgressUpdateTrigger),
-        }),
-        cv.Optional(CONF_ON_FLASHING_SUCCESS): automation.validate_automation({
-            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(FlashProgressSuccessTrigger),
-        }),
-        cv.Optional(CONF_ON_FLASHING_FAILED): automation.validate_automation({
-            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(FlashProgressFailedTrigger),
-        }),
-        cv.Optional(CONF_ON_ERASING_DONE): automation.validate_automation({
-            cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(ErasingDoneTrigger),
-        }),
+        cv.Optional(CONF_ON_FLASHING_START): automation.validate_automation({}),
+        cv.Optional(CONF_ON_PROGRESS_UPDATE): automation.validate_automation({}),
+        cv.Optional(CONF_ON_FLASHING_SUCCESS): automation.validate_automation({}),
+        cv.Optional(CONF_ON_FLASHING_FAILED): automation.validate_automation({}),
+        cv.Optional(CONF_ON_ERASING_DONE): automation.validate_automation({}),
     }
-    ).extend(cv.COMPONENT_SCHEMA)
+).extend(cv.COMPONENT_SCHEMA)
 
 
-def _prepare_flash_image_pgm(flash_config: dict) -> tuple[str, tuple[str], int]:
-    local_flash_image = _resolve_local_file(flash_config[CONF_IMAGE_FILE])    
-    md5_sum = _get_expected_md5(flash_config)
-    with open( local_flash_image, "rb" ) as f:
-        hex_strings = tuple(map(HexInt, f.read()))
+def _prepare_flash_image_pgm(
+    flash_config: ConfigType,
+) -> tuple[str, tuple[HexInt, ...], int]:
+    local_flash_image = _resolve_local_file(flash_config[CONF_IMAGE_FILE])
+    md5_sum = flash_config[CONF_MD5]
+    with open(local_flash_image, "rb") as f:
+        image = f.read()
+    # Checked on the bytes that get embedded
+    if hashlib.md5(image).hexdigest() != md5_sum:
+        raise EsphomeError(
+            f"Flash-Image: md5 sum of {local_flash_image} does not match {md5_sum}."
+        )
+    hex_strings = tuple(map(HexInt, image))
     return md5_sum, hex_strings, len(hex_strings)
 
 
+# Index matches FlashImagePreRelease in memory_flasher.h
+PRE_RELEASE_NAMES = ["none", "alpha", "beta", "rc", "dev"]
 
-pre_idx_list = ["none","alpha","beta","rc","dev"]
-def _version_to_bytes(vers:str) -> tuple[int]:
-    match = re.match( r"^v?(\d+)\.(\d+)\.(\d+)(-(alpha|beta|rc|dev)(\.(\d+))?)?$", vers ,re.IGNORECASE )
+
+def _version_to_bytes(vers: str) -> tuple[int, int, int, int, int]:
+    """Returns (major, minor, patch, pre_release, counter) as stored by the XMOS."""
+    match = VERSION_REGEX.match(vers)
     major = int(match[1])
     minor = int(match[2])
     patch = int(match[3])
     pre_idx = 0
     pre_cnter = 0
     if match[4]:
-        pre_idx = pre_idx_list.index(match[5].lower())
+        pre_idx = PRE_RELEASE_NAMES.index(match[5].lower())
         pre_cnter = int(match[7]) if match[6] else 0
-    return bytes((major, minor, patch, pre_idx, pre_cnter,)).decode('latin1')     
+    return major, minor, patch, pre_idx, pre_cnter
 
 
-
-
+_CALLBACK_AUTOMATIONS = (
+    automation.CallbackAutomation(
+        CONF_ON_FLASHING_START,
+        "add_on_state_callback",
+        forwarder=FlashingStartedForwarder,
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_PROGRESS_UPDATE,
+        "add_on_state_callback",
+        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_FLASHING),
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_FLASHING_SUCCESS,
+        "add_on_state_callback",
+        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_SUCCESS_STATE),
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_FLASHING_FAILED,
+        "add_on_state_callback",
+        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_ERROR_STATE),
+    ),
+    automation.CallbackAutomation(
+        CONF_ON_ERASING_DONE,
+        "add_on_state_callback",
+        forwarder=ErasingDoneForwarder,
+    ),
+)
 
 
 async def register_memory_flasher(var, flasher_config):
     http_comp = await cg.get_variable(flasher_config[CONF_HTTP_REQUEST_ID])
-    cg.add( var.set_http_request_component(http_comp))
+    cg.add(var.set_http_request_component(http_comp))
     await cg.register_component(var, flasher_config)
 
     if image_conf := flasher_config.get(CONF_EMBED_FLASH_IMAGE):
-        expected_md5_sum, hex_strings, num_of_bytes = _prepare_flash_image_pgm(image_conf)
+        expected_md5_sum, hex_strings, num_of_bytes = _prepare_flash_image_pgm(
+            image_conf
+        )
         prog_arr = cg.progmem_array(image_conf[CONF_RAW_DATA_ID], hex_strings)
-        cg.add( var.set_embedded_image(prog_arr, num_of_bytes, expected_md5_sum, _version_to_bytes(image_conf[CONF_FLASH_IMAGE_VERSION])) )
+        cg.add(var.set_embedded_image(prog_arr, num_of_bytes, expected_md5_sum))
+        # Passed as integers: a string literal would be UTF-8 encoded, turning any
+        # version byte >= 0x80 into two bytes.
+        cg.add(
+            var.set_embedded_image_version(
+                *_version_to_bytes(image_conf[CONF_FLASH_IMAGE_VERSION])
+            )
+        )
 
-    for conf in flasher_config.get(CONF_ON_FLASHING_START, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var )
-        await automation.build_automation(trigger, [], conf)
+    await automation.build_callback_automations(
+        var, flasher_config, _CALLBACK_AUTOMATIONS
+    )
 
-    for conf in flasher_config.get(CONF_ON_PROGRESS_UPDATE, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var )
-        await automation.build_automation(trigger, [], conf)
-    
-    for conf in flasher_config.get(CONF_ON_FLASHING_SUCCESS, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var )
-        await automation.build_automation(trigger, [], conf)
-
-    for conf in flasher_config.get(CONF_ON_FLASHING_FAILED, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var )
-        await automation.build_automation(trigger, [], conf)
-    
-    for conf in flasher_config.get(CONF_ON_ERASING_DONE, []):
-        trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID], var )
-        await automation.build_automation(trigger, [], conf)
 
 FLASH_ACTION_SCHEMA = cv.All(
     FLASH_IMAGE_SCHEMA.extend(
-        {
-            cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)    
-        }
-    )
+        {cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)}
+    ),
+    # Without an expected checksum the flash would be erased before failing
+    cv.has_exactly_one_key(CONF_MD5, CONF_MD5_URL),
 )
 
 
@@ -361,17 +338,17 @@ async def flash_image_action_to_code(config, action_id, template_arg, args):
     return var
 
 
-FlASH_EMBEDDED_ACTION_SCHEMA = automation.maybe_simple_id(
-    {
-        cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)
-    }
+FLASH_EMBEDDED_ACTION_SCHEMA = automation.maybe_simple_id(
+    {cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)}
 )
+
 
 @automation.register_action(
     "memory_flasher.write_embedded_image",
     FlashEmbeddedAction,
-    FlASH_EMBEDDED_ACTION_SCHEMA,
-    synchronous=True)
+    FLASH_EMBEDDED_ACTION_SCHEMA,
+    synchronous=True,
+)
 async def flash_embedded_image_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_FLASHER_ID])
@@ -379,32 +356,28 @@ async def flash_embedded_image_action_to_code(config, action_id, template_arg, a
 
 
 ERASE_MEMORY_ACTION_SCHEMA = automation.maybe_simple_id(
-    {
-        cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)
-    }
+    {cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)}
 )
+
+
 @automation.register_action(
-    "memory_flasher.erase",
-    EraseAction,
-    ERASE_MEMORY_ACTION_SCHEMA,
-    synchronous=True)
+    "memory_flasher.erase", EraseAction, ERASE_MEMORY_ACTION_SCHEMA, synchronous=True
+)
 async def erase_memory_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg)
     await cg.register_parented(var, config[CONF_FLASHER_ID])
     return var
 
 
-
 CONDITION_SCHEMA = automation.maybe_simple_id(
-    {
-        cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)
-    }
+    {cv.GenerateID(CONF_FLASHER_ID): cv.use_id(MemoryFlasher)}
 )
 
-@automation.register_condition("memory_flasher.in_progress", InProgressCondition, CONDITION_SCHEMA)
-async def wifi_connected_to_code(config, condition_id, template_arg, args):
+
+@automation.register_condition(
+    "memory_flasher.in_progress", InProgressCondition, CONDITION_SCHEMA
+)
+async def in_progress_to_code(config, condition_id, template_arg, args):
     var = cg.new_Pvariable(condition_id, template_arg)
     await cg.register_parented(var, config[CONF_FLASHER_ID])
     return var
-
-

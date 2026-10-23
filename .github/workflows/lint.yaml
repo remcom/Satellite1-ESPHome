@@ -59,9 +59,7 @@ jobs:
             esphome-idf-${{ runner.os }}-
 
       - name: Install ESPHome and clang-tidy
-        run: |
-          pip install -r requirements.txt
-          pip install clang-tidy==18.1.8
+        run: pip install -r requirements.txt
 
       - name: Run clang-tidy on components/ and esphome/components/
         run: python3 scripts/run_clang_tidy.py

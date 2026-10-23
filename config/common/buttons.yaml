@@ -30,8 +30,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       satellite1:
-      port: INPUT_A
-      pin: 0
+      number: 0  # INPUT_A pin 0
       inverted: true
     name: "Button Up (Vol+)"
     icon: "mdi:volume-plus"
@@ -47,8 +46,7 @@ binary_sensor:
     use_interrupt: false
     pin:
       satellite1:
-      port: INPUT_A
-      pin: 2
+      number: 2  # INPUT_A pin 2
       inverted: true
     name: "Button Down (Vol-)"
     icon: "mdi:volume-minus"
@@ -67,8 +65,7 @@ binary_sensor:
     # control_leds, which drives the LED ring before its buffer exists during setup().
     pin:
       satellite1:
-      port: INPUT_A
-      pin: 3
+      number: 3  # INPUT_A pin 3
       inverted: false
     name: "Button Left (HW Mute)"
     icon: "mdi:microphone-off"
@@ -252,9 +249,18 @@ binary_sensor:
         then:
           - if:
               condition:
-                - lambda: return id(xflash).flash_accessible();
+                # flash_accessible() is false while flashing, rebooting then would leave a partially written XMOS flash
+                memory_flasher.in_progress:
               then:
-                - lambda: id(factory_reset_requested) = true;
-                - memory_flasher.erase:
+                - logger.log:
+                    level: WARN
+                    format: "XMOS flasher is busy, factory reset skipped"
               else:
-                - button.press: factory_reset_button
+                - if:
+                    condition:
+                      - lambda: return id(xflash).flash_accessible();
+                    then:
+                      - lambda: id(factory_reset_requested) = true;
+                      - memory_flasher.erase:
+                    else:
+                      - button.press: factory_reset_button

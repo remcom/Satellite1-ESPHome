@@ -1,2 +1,7 @@
 esphome==2026.10.0
 setuptools
+
+# Lint tools, same versions as CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml
+clang-format==18.1.8
+clang-tidy==18.1.8
+ruff==0.17.1
