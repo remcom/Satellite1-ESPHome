@@ -41,7 +41,10 @@ jobs:
 
       - name: Get ESPHome version from requirements.txt
         run: |
-          ESPHOME_VERSION=$(grep -oP 'esphome==\K[^\s]+' requirements.txt)
+          ESPHOME_VERSION=$(grep -oP 'esphome==\K[^\s]+' requirements.txt || true)
+          if [ -z "$ESPHOME_VERSION" ] && grep -qP '^esphome @ git\+https://github\.com/esphome/esphome\.git@dev\s*$' requirements.txt; then
+            ESPHOME_VERSION=dev
+          fi
           if [ -z "$ESPHOME_VERSION" ]; then
             echo "Could not determine esphome version from requirements.txt"; exit 1;
           fi

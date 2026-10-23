@@ -1,4 +1,4 @@
-esphome==2026.10.0
+esphome @ git+https://github.com/esphome/esphome.git@dev
 setuptools
 
 # Lint tools, same versions as CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml
