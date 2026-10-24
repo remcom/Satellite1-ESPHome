@@ -87,23 +87,6 @@ external_components:
     components:
       - memory_flasher
       - satellite1
-  # USB-PD controller, merged upstream in esphome/esphome#20632/#20760/#20796 (dev, not yet released):
-  # https://github.com/esphome/esphome/tree/dev/esphome/components/fusb302b
-  - source:
-      type: git
-      url: https://github.com/esphome/esphome
-      ref: 06b585d3733d634427abb492099d1373a58598fa
-    components:
-      - fusb302b
-  # i2s_audio (full duplex, several speakers per bus), merged upstream in esphome/esphome#19959
-  # (dev, not yet released). Upstream dev needs ESPHome 2026.11 core APIs, so this uses the
-  # 2026.10 backport: https://github.com/remcom/esphome/tree/i2s_audio-dev-2026.10
-  - source:
-      type: git
-      url: https://github.com/remcom/esphome
-      ref: ee69f9b32ea3489dad5c51d8e0333b56084da0f4
-    components:
-      - i2s_audio
 
 logger:
   deassert_rts_dtr: true

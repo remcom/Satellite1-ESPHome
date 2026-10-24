@@ -144,13 +144,6 @@ fusb302b:
   id: pd_fusb302b
   interrupt_pin: GPIO1
   request_voltage: 20
-  contract:
-    id: pd_state_text
-    name: "USB-C Power Contract"
-    icon: "mdi:usb-c-port"
-  voltage:
-    id: pd_contract_voltage
-    internal: true
   on_power_ready:
     then:
       - logger.log:
@@ -476,6 +469,11 @@ text_sensor:
     type: pairing_code
     name: Sendspin Pairing Code
     icon: mdi:key-link
+  - platform: fusb302b
+    contract:
+      id: pd_state_text
+      name: "USB-C Power Contract"
+      icon: "mdi:usb-c-port"
 
 sensor:
   - platform: sendspin
@@ -490,6 +488,10 @@ sensor:
   - platform: sendspin
     name: "Year"
     type: year
+  - platform: fusb302b
+    voltage:
+      id: pd_contract_voltage
+      internal: true
 
 interval:
   - interval: 30s

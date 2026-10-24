@@ -37,7 +37,7 @@ esphome logs config/satellite1.yaml
 - `satellite1/` - Main board component (SPI communication with XMOS, GPIO control, audio DAC)
 - `memory_flasher/` - XMOS firmware flasher (also `satellite1/memory_flasher/` platform)
 
-(i2s_audio (full duplex bus, esphome/esphome #19959) and the FUSB302B USB-PD controller are merged in upstream ESPHome dev but not yet released: fusb302b is pinned to an esphome/esphome dev commit, i2s_audio to the `remcom/esphome` `i2s_audio-dev-2026.10` branch (upstream dev backported to the 2026.10 core APIs) — see `external_components` in `config/satellite1.common.yaml` and `config/satellite1-remote.yaml`; TAS2780 amplifier, PCM5122 DAC and the resampler microphone come from ESPHome core.)
+(i2s_audio (full duplex bus), the FUSB302B USB-PD controller, TAS2780 amplifier, PCM5122 DAC and the resampler microphone all come from ESPHome core. The full duplex i2s_audio and fusb302b are only in upstream dev (2026.11), so `requirements.txt` pins ESPHome to a `dev` commit and `min_version` is 2026.11.0. fusb302b exposes the PD contract and voltage through `text_sensor`/`sensor` platforms, not inline keys.)
 
 ### External Components (from ESPHome PRs)
 
@@ -70,7 +70,7 @@ Important IDs used across YAML configs:
 ## Key Conventions
 
 - ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md` (a copy of upstream ESPHome's `AGENTS.md` — repo-layout specifics there may not apply here)
-- ESPHome version pinned in `requirements.txt` (check that file for the current pin; `min_version` in `satellite1.base.yaml` is the floor for dashboard builds)
+- ESPHome version pinned in `requirements.txt` (currently a `dev` commit SHA whose trailing comment names the matching nightly image tag, e.g. `2026.11.0-dev20261024`, which CI's build workflow passes to build-action; bump both together from the same "Nightly Dev Release" run; `min_version` in `satellite1.base.yaml` is the floor for dashboard builds)
 - Python 3.12-3.14 required (ESPHome constraint: `requires-python = ">=3.12.0,<3.15"`)
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - External components reference specific git commits for stability

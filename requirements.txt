@@ -1,4 +1,8 @@
-esphome==2026.10.0
+# ESPHome dev, pinned to the commit the 2026.11.0-dev20261024 nightly image was
+# built from. The trailing comment is the ghcr.io/esphome/esphome image tag that
+# .github/workflows/build.yaml passes to esphome/build-action, so both stay on
+# the same code. Bump SHA and tag together, from the "Nightly Dev Release" run.
+esphome @ git+https://github.com/esphome/esphome.git@f35395b58470213d030b4218c38aa2f0ab09c06a  # 2026.11.0-dev20261024
 setuptools
 
 # Lint tools, same versions as CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml
