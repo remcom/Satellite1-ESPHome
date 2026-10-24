@@ -20,6 +20,8 @@ static const uint8_t GPIO_SERVICER_RESID_PORT_IN_A = 211;
 static const uint8_t GPIO_SERVICER_RESID_PORT_IN_B = 212;
 static const uint8_t GPIO_SERVICER_RESID_PORT_OUT_A = 221;
 
+static const uint8_t AUDIO_SERVICER_RESID = 230;
+
 static const uint8_t DFU_CONTROLLER_SERVICER_RESID = 240;
 
 static const uint8_t MAX_CONNECTION_ATTEMPTS = 3;
@@ -36,6 +38,7 @@ static const uint8_t XMOS_GPIO_FIRST_OUTPUT_PIN = 2 * XMOS_GPIO_PINS_PER_PORT;
 namespace DC_RESOURCE {
 enum DcResourceEnum {
   CNTRL_ID = 1,
+  AUDIO = AUDIO_SERVICER_RESID,
   DFU_CONTROLLER = DFU_CONTROLLER_SERVICER_RESID,
   GPIO_PORT_IN_A = GPIO_SERVICER_RESID_PORT_IN_A,
   GPIO_PORT_IN_B = GPIO_SERVICER_RESID_PORT_IN_B,
@@ -44,7 +47,7 @@ enum DcResourceEnum {
 }
 
 namespace DC_RET_STATUS {
-enum DcRetStatusEnum { CMD_SUCCESS = 0, PAYLOAD_AVAILABLE = 23 };
+enum DcRetStatusEnum { CMD_SUCCESS = 0, STATUS_ONLY_FRAME = 1, PAYLOAD_AVAILABLE = 23 };
 }
 
 namespace DC_STATUS_REGISTER {
@@ -63,6 +66,38 @@ enum DcDfuCmdId {
   GET_VERSION = (88 | CONTROL_CMD_READ_BIT),
 };
 }
+
+/// Audio servicer commands, available from the XMOS firmware with 4-mic front end and DOA.
+namespace DC_AUDIO_CMD {
+enum DcAudioCmdId {
+  SET_MIC_GAIN = 0,
+  SET_MIC_MODE = 1,
+  GET_DOA = (2 | CONTROL_CMD_READ_BIT),
+};
+}
+
+static const uint8_t XMOS_MIC_GAIN_DB_MAX = 30;
+
+static const uint8_t AUDIO_DOA_PAYLOAD_LEN = 4;
+static const uint8_t AUDIO_DOA_FLAG_VALID = 1 << 0;
+static const uint8_t AUDIO_DOA_FLAG_UPDATED = 1 << 1;
+
+/// Which mics feed the two channels of the XMOS audio pipeline.
+enum XMOSMicMode : uint8_t {
+  MIC_MODE_PAIR_EW = 0,
+  MIC_MODE_PAIR_NS = 1,
+  MIC_MODE_AVERAGE = 2,
+  MIC_MODE_AUTO_PAIR = 3,
+  MIC_MODE_LAST = MIC_MODE_AUTO_PAIR,
+};
+
+/// Direction of arrival as reported by the XMOS audio servicer.
+struct DoaResult {
+  uint16_t azimuth;    ///< 0..359 degrees, 0 = North mic, 90 = East mic
+  uint8_t confidence;  ///< 0..255
+  bool valid;          ///< a result was produced within the last ~0.5 s
+  bool updated;        ///< a result was produced in the most recent audio frame
+};
 
 enum Satellite1State : uint8_t {
   SAT_DETACHED_STATE,
@@ -158,6 +193,22 @@ class Satellite1 : public Component,
     assert(reg < DC_STATUS_REGISTER::REGISTER_LEN);
     return this->dc_status_register_[reg];
   }
+
+  /**
+   * @brief Reads the latest direction of arrival from the XMOS audio servicer.
+   *
+   * The XMOS only updates the DOA during speech while no audio is played back.
+   *
+   * @return  false if the transfer failed or the XMOS firmware has no audio servicer. A result with an
+   *          out of range azimuth is returned as not valid.
+   */
+  bool read_doa(DoaResult &result);
+
+  /// Sets the XMOS mic gain in dB (0..XMOS_MIC_GAIN_DB_MAX). Not persisted by the XMOS.
+  bool set_mic_gain(uint8_t gain_db);
+
+  /// Selects the mics feeding the XMOS audio pipeline. Not persisted by the XMOS.
+  bool set_mic_mode(XMOSMicMode mode);
 
   void set_spi_flash_direct_access_mode(bool enable);
 
