@@ -33,7 +33,7 @@ switch:
     icon: "mdi:compass-outline"
     entity_category: config
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_mode: RESTORE_DEFAULT_OFF
     on_turn_off:
       - lambda: id(doa_led_index) = -1;
 

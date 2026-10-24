@@ -13,7 +13,7 @@ substitutions:
   component_name: Core
 
   esp32_fw_version: dev
-  xmos_fw_version: "v2.0.0-alpha.2"
+  xmos_fw_version: "v2.0.0-alpha.4"
 
 globals:
   # Global initialisation variable. Initialized to true and set to false once everything is connected. Only used to have a smooth "plugging" experience
