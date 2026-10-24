@@ -3,7 +3,7 @@
 **Stable, actively maintained ESPHome firmware for the FutureProofHomes Satellite1 voice assistant, tracking upstream ESPHome closely with ongoing hardware and power-management fixes.**
 
 [![Firmware](https://img.shields.io/badge/Firmware-v1.3.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.10-blue)](https://esphome.io)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11--dev-blue)](https://esphome.io)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -26,7 +26,7 @@ This is an actively maintained ESPHome firmware fork for the [FutureProofHomes S
 
 ## Why This Fork
 
-This project tracks upstream ESPHome releases closely (currently 2026.10.0), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
+This project tracks upstream ESPHome closely (currently a pinned 2026.11 dev commit, ahead of the 2026.11.0 release), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
 
 Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and now both build on Sendspin — pick whichever release cadence and maintenance style fits your setup.
 
@@ -75,9 +75,9 @@ A long-term goal of this fork is to get the Satellite1 hardware drivers merged i
 
 - ✅ **PCM5122 DAC** — merged upstream; now used directly from ESPHome core rather than a local component
 - ✅ **TAS2780 amplifier** — merged upstream ([esphome#15708](https://github.com/esphome/esphome/pull/15708)); now used directly from ESPHome core
-- 🚧 **Full-duplex I2S** — in review ([esphome#19959](https://github.com/esphome/esphome/pull/19959)); `i2s_audio` is pulled from a pinned commit of that PR, which replaces the former local shared-bus fork
+- ✅ **Full-duplex I2S** — merged upstream ([esphome#19959](https://github.com/esphome/esphome/pull/19959)); the full-duplex `i2s_audio` bus is used directly from ESPHome core (2026.11), replacing the former local shared-bus fork
 - ✅ **Microphone resampler** — merged upstream; the `resampler` microphone platform is used directly from ESPHome core (2026.10)
-- 🚧 **FUSB302B USB-PD** — in progress; `fusb302b` is pulled from a pinned commit of the [`fusb302b`](https://github.com/remcom/esphome/tree/fusb302b) branch, replacing the former local component
+- ✅ **FUSB302B USB-PD** — merged upstream; `fusb302b` is used directly from ESPHome core (2026.11), replacing the former local component
 
 As more drivers land upstream, this fork gets smaller and closer to stock ESPHome — the ideal end state is a thin config layer on top of components everyone can use.
 
@@ -104,7 +104,7 @@ As more drivers land upstream, this fork gets smaller and closer to stock ESPHom
 
 ### Software
 
-- **ESPHome** 2026.10.0 or newer — older ESPHome versions, including the 2026.9 release, refuse to build this firmware
+- **ESPHome** 2026.11.0 or newer — until 2026.11.0 is released that means ESPHome `dev`; 2026.10 and older refuse to build this firmware
 - **Home Assistant** with Voice Assistant configured
 - **Chrome or Edge browser** (for the web installer)
 

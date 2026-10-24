@@ -36,6 +36,7 @@ updates:
           - patch
 
 # Deliberately no `pip` entry for requirements.txt: esphome is pinned to a
-# specific (often beta) release and moving it is a manual job -- bump the pin,
+# specific release or dev commit (with its matching nightly image tag), and
+# moving it is a manual job -- bump the pin,
 # rebuild all four variants, check the RAM/flash numbers -- not something to
 # merge from a bot PR. See the ESPHome upgrade steps in CLAUDE.md.
