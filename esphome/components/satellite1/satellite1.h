@@ -88,7 +88,8 @@ enum XMOSMicMode : uint8_t {
   MIC_MODE_PAIR_NS = 1,
   MIC_MODE_AVERAGE = 2,
   MIC_MODE_AUTO_PAIR = 3,
-  MIC_MODE_LAST = MIC_MODE_AUTO_PAIR,
+  MIC_MODE_BEAM = 4,
+  MIC_MODE_LAST = MIC_MODE_BEAM,
 };
 
 /// Direction of arrival as reported by the XMOS audio servicer.

@@ -70,6 +70,7 @@ select:
       - "North/South pair"
       - "Average"
       - "Follow talker"
+      - "Beam"
     initial_option: "East/West pair"
     # Also re-applied from satellite1 on_xmos_connected, the XMOS does not persist it. The call
     # from restoring the option at boot runs before the XMOS is connected and fails silently.
