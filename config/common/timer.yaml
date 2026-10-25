@@ -21,7 +21,7 @@ switch:
       # Disable stop wake word
       - micro_wake_word.disable_model: stop
       - script.execute: disable_repeat
-      # Stop any current annoucement (ie: stop the timer ring mid playback)
+      # Stop any current announcement (ie: stop the timer ring mid playback)
       - if:
           condition:
             media_player.is_announcing:
@@ -104,11 +104,11 @@ script:
   # Script executed when the timer is ringing, to repeat the timer finished sound.
   - id: enable_repeat_one
     then:
-      # Turn on the repeat mode and pause for 500 ms between playlist items/repeats
+      # Turn on the repeat mode so the sound keeps playing until the timer is stopped
       - media_player.repeat_one:
           id: external_media_player
           announcement: true
-      # Turn on the repeat mode and pause for 500 ms between playlist items/repeats
+      # Pause for 500 ms between repeats
       - speaker_source.set_playlist_delay:
           id: external_media_player
           pipeline: announcement

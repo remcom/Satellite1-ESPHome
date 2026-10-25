@@ -157,9 +157,7 @@ fusb302b:
           } else {
             id(tas2780_power_mode) = 0;
           }
-      - tas2780.activate:
-          power_mode: !lambda return id(tas2780_power_mode);
-      - lambda: id(tas2780_active) = true;
+      - script.execute: tas2780_reactivate
 
 speaker:
   - platform: i2s_audio
@@ -417,6 +415,21 @@ script:
             - logger.log:
                 format: "Activating TAS2780 with power mode %d"
                 args: ['id(tas2780_power_mode)']
+            - tas2780.activate:
+                power_mode: !lambda return id(tas2780_power_mode);
+            - lambda: id(tas2780_active) = true;
+
+  # Script to (re)apply the power mode after a new USB-PD contract or an XMOS flash. Skipped
+  # while the line-out is in use and the TAS2780 is powered down, tas2780_ensure_active then
+  # activates it once audio plays through the speaker again.
+  - id: tas2780_reactivate
+    then:
+      - if:
+          condition:
+            or:
+              - binary_sensor.is_off: line_out_sensor
+              - lambda: return id(tas2780_active);
+          then:
             - tas2780.activate:
                 power_mode: !lambda return id(tas2780_power_mode);
             - lambda: id(tas2780_active) = true;
