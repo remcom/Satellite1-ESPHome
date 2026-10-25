@@ -1,8 +1,5 @@
-# ===========================================================================================
-# # The below configuration is a PR for the LD2450 (V2.02.23090617) that is waiting to be merged with ESPHome.
-# # NOTE: This sensor only works when running V2.02.23090617 of the LD2450 firmware.
-# # https://deploy-preview-3327--esphome.netlify.app/components/sensor/ld2450.html?highlight=ld2450
-# ===========================================================================================
+# HLK-LD2450 mmWave radar, using the ESPHome core ld2450 component.
+# https://esphome.io/components/sensor/ld2450/
 
 uart:
   id: uart_ld2450
