@@ -153,10 +153,7 @@ binary_sensor:
                                       else:
                                         - if:
                                             condition:
-                                              and:
-                                                - switch.is_off: master_mute_switch
-                                                - not:
-                                                    voice_assistant.is_running
+                                              switch.is_off: master_mute_switch
                                             then:
                                               - script.execute:
                                                   id: play_sound
@@ -238,10 +235,15 @@ binary_sensor:
           - wait_until:
               binary_sensor.is_off: btn_action
           - light.turn_off: voice_assistant_leds
-          - script.execute:
-              id: play_sound
-              priority: true
-              sound_file: "factory_reset_cancelled_sound"
+          # Released after 22 s: the factory reset below is running, so it was not cancelled
+          - if:
+              condition:
+                lambda: return !id(factory_reset_requested);
+              then:
+                - script.execute:
+                    id: play_sound
+                    priority: true
+                    sound_file: "factory_reset_cancelled_sound"
 
       # Factory Reset
       - timing:
@@ -249,18 +251,34 @@ binary_sensor:
         then:
           - if:
               condition:
-                # flash_accessible() is false while flashing, rebooting then would leave a partially written XMOS flash
+                # Rebooting or erasing now would leave a partially written XMOS flash
                 memory_flasher.in_progress:
               then:
                 - logger.log:
                     level: WARN
                     format: "XMOS flasher is busy, factory reset skipped"
               else:
+                - lambda: id(factory_reset_requested) = true;
+                # Play the confirmation first: erasing holds the XMOS in reset, which stops the I2S
+                # clocks it drives, and the factory reset reboots the ESP32
+                - script.execute:
+                    id: play_sound
+                    priority: true
+                    sound_file: "factory_reset_confirmed_sound"
+                - wait_until:
+                    condition:
+                      media_player.is_announcing: external_media_player
+                    timeout: 1s
+                - wait_until:
+                    condition:
+                      not:
+                        media_player.is_announcing: external_media_player
+                    timeout: 5s
                 - if:
                     condition:
+                      # Erase the XMOS too when it is reachable, on_erasing_done then presses factory_reset_button
                       - lambda: return id(xflash).flash_accessible();
                     then:
-                      - lambda: id(factory_reset_requested) = true;
                       - memory_flasher.erase:
                     else:
                       - button.press: factory_reset_button

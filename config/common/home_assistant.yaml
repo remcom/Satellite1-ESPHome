@@ -30,7 +30,7 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
 
-    # This is the master mute switch. It is exposed to Home Assistant. The user can only turn it on and off if the hardware switch is off. (The hardware switch overrides the software one)
+  # This is the master mute switch. It is exposed to Home Assistant. The user can only turn it on and off if the hardware switch is off. (The hardware switch overrides the software one)
   - platform: template
     id: master_mute_switch
     restore_mode: RESTORE_DEFAULT_OFF

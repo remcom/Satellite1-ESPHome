@@ -4,7 +4,7 @@ substitutions:
 
 packages:
   # This is an inline package to prefix the on_client_connected with the wait_until action
-  # It must appear before the actual package so it becomes the orignal config and the
+  # It must appear before the actual package so it becomes the original config and the
   # on_client_connected list from the package config is appended onto this one.
   va_connected_wait_for_ble_and_flasher:
     voice_assistant:
@@ -83,7 +83,3 @@ external_components:
       - satellite1
 
 logger:
-
-ota:
-  - platform: http_request
-    id: ota_http_request
