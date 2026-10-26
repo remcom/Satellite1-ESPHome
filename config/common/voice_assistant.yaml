@@ -147,9 +147,10 @@ micro_wake_word:
                                 id: external_media_player
                           # Start the voice assistant and play the wake sound, if enabled
                           else:
-                            # Locate the talker from the wake word itself, before the wake sound freezes the
-                            # XMOS DOA. Only here, so the direction is always reset by the on_end that follows.
-                            - script.execute: update_doa_led
+                            # Steer to and locate the talker from the wake word itself, before the wake sound
+                            # freezes the XMOS DOA. Only here, so the on_end that follows always ends the
+                            # conversation on the XMOS and resets the direction.
+                            - script.execute: report_wake_word
                             - if:
                                 condition:
                                   switch.is_on: wake_sound
@@ -256,10 +257,12 @@ voice_assistant:
           lambda: return id(voice_assistant_phase) == ${voice_assist_error_phase_id};
         then:
           - delay: 1s
-    # Reset the voice assistant phase id, the talker direction and the LED animations.
+    # Reset the voice assistant phase id, the talker direction and the LED animations, and let the
+    # XMOS beam steering go.
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
         id(doa_led_index) = -1;
+        id(satellite1_id).notify_wake_word(false);
     - script.execute: control_leds
 
   on_timer_finished:
