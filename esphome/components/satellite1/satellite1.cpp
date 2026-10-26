@@ -257,6 +257,53 @@ bool Satellite1::set_mic_mode(XMOSMicMode mode) {
   return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_MIC_MODE, &payload, 1);
 }
 
+bool Satellite1::read_beam_azimuth(uint16_t &azimuth) {
+  // Read command: the payload is only used as receive buffer, but it is clocked out first.
+  uint8_t resp[AUDIO_BEAM_PAYLOAD_LEN]{};
+  if (!this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::GET_BEAM, resp, sizeof(resp))) {
+    return false;
+  }
+  azimuth = encode_uint16(resp[1], resp[0]);
+  if (azimuth >= 360 && azimuth != XMOS_NO_BEAM) {
+    ESP_LOGD(TAG, "Ignoring beam with invalid azimuth %u", azimuth);
+    return false;
+  }
+  return true;
+}
+
+bool Satellite1::set_ch1_tap(XMOSCh1Tap tap) {
+  if (tap > CH1_TAP_LAST) {
+    ESP_LOGE(TAG, "Unknown channel 1 tap %u", tap);
+    return false;
+  }
+  uint8_t payload = tap;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_CH1_TAP, &payload, 1);
+}
+
+bool Satellite1::set_ic_fast_hold(bool enable) {
+  uint8_t payload = enable;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_IC_FAST_HOLD, &payload, 1);
+}
+
+bool Satellite1::set_hpf(bool enable) {
+  uint8_t payload = enable;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_HPF, &payload, 1);
+}
+
+bool Satellite1::set_steer_policy(XMOSSteerPolicy policy) {
+  if (policy > STEER_POLICY_LAST) {
+    ESP_LOGE(TAG, "Unknown steering policy %u", policy);
+    return false;
+  }
+  uint8_t payload = policy;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_STEER_POLICY, &payload, 1);
+}
+
+bool Satellite1::notify_wake_word(bool detected) {
+  uint8_t payload = detected;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_WAKE_EVENT, &payload, 1);
+}
+
 void Satellite1::set_spi_flash_direct_access_mode(bool enable) {
   if (this->xmos_rst_pin_ == nullptr) {
     ESP_LOGE(TAG, "XMOS reset pin not set, can't switch flash access mode");

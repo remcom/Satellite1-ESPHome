@@ -73,6 +73,13 @@ enum DcAudioCmdId {
   SET_MIC_GAIN = 0,
   SET_MIC_MODE = 1,
   GET_DOA = (2 | CONTROL_CMD_READ_BIT),
+  GET_BEAM = (4 | CONTROL_CMD_READ_BIT),
+  // From the XMOS firmware with wake word steering. Older firmware ignores them.
+  SET_CH1_TAP = 5,
+  SET_IC_FAST_HOLD = 6,
+  SET_HPF = 7,
+  SET_STEER_POLICY = 8,
+  SET_WAKE_EVENT = 9,
 };
 }
 
@@ -81,6 +88,9 @@ static const uint8_t XMOS_MIC_GAIN_DB_MAX = 30;
 static const uint8_t AUDIO_DOA_PAYLOAD_LEN = 4;
 static const uint8_t AUDIO_DOA_FLAG_VALID = 1 << 0;
 static const uint8_t AUDIO_DOA_FLAG_UPDATED = 1 << 1;
+static const uint8_t AUDIO_BEAM_PAYLOAD_LEN = 2;
+/// Beam azimuth reported outside the beam mic mode.
+static const uint16_t XMOS_NO_BEAM = 0xFFFF;
 
 /// Which mics feed the two channels of the XMOS audio pipeline.
 enum XMOSMicMode : uint8_t {
@@ -90,6 +100,22 @@ enum XMOSMicMode : uint8_t {
   MIC_MODE_AUTO_PAIR = 3,
   MIC_MODE_BEAM = 4,
   MIC_MODE_LAST = MIC_MODE_BEAM,
+};
+
+/// Signal on the right channel (channel 1) of the XMOS output. None has the AGC of channel 0.
+enum XMOSCh1Tap : uint8_t {
+  CH1_TAP_NS = 0,   ///< AEC+IC+NS (XMOS default)
+  CH1_TAP_IC = 1,   ///< AEC+IC, before the noise suppression
+  CH1_TAP_AEC = 2,  ///< AEC only
+  CH1_TAP_LAST = CH1_TAP_AEC,
+};
+
+/// What may move the XMOS beam (and the automatic mic pair).
+enum XMOSSteerPolicy : uint8_t {
+  STEER_POLICY_FOLLOW_SPEECH = 0,  ///< any speech, and wake words at once (XMOS default)
+  STEER_POLICY_WAKE_WORD = 1,      ///< only wake words, so a TV can't pull the beam
+  STEER_POLICY_FIXED = 2,          ///< nothing
+  STEER_POLICY_LAST = STEER_POLICY_FIXED,
 };
 
 /// Direction of arrival as reported by the XMOS audio servicer.
@@ -210,6 +236,34 @@ class Satellite1 : public Component,
 
   /// Selects the mics feeding the XMOS audio pipeline. Not persisted by the XMOS.
   bool set_mic_mode(XMOSMicMode mode);
+
+  /**
+   * @brief Reads the XMOS beam steering.
+   *
+   * @param azimuth  0..359 degrees (0 = North mic, 90 = East mic), or XMOS_NO_BEAM outside the beam mic mode
+   * @return         false if the transfer failed or the XMOS firmware has no beam mode
+   */
+  bool read_beam_azimuth(uint16_t &azimuth);
+
+  /// Selects the signal on the XMOS right output channel. Not persisted by the XMOS.
+  bool set_ch1_tap(XMOSCh1Tap tap);
+
+  /// Whether the XMOS interference canceller stops adapting within ~2 frames of speech onset. Not persisted.
+  bool set_ic_fast_hold(bool enable);
+
+  /// Whether the XMOS high-passes the mics at 100 Hz before the echo canceller. Not persisted.
+  bool set_hpf(bool enable);
+
+  /// Selects what may steer the XMOS beam. Not persisted by the XMOS.
+  bool set_steer_policy(XMOSSteerPolicy policy);
+
+  /**
+   * @brief Reports a wake word, or the end of the conversation it started, to the XMOS.
+   *
+   * On a wake word the XMOS steers the beam to where the wake word came from within one
+   * audio frame (~15 ms), and holds it there until the conversation ends.
+   */
+  bool notify_wake_word(bool detected);
 
   void set_spi_flash_direct_access_mode(bool enable);
 

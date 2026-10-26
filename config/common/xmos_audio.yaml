@@ -1,6 +1,8 @@
-# XMOS audio front end: direction of arrival (DOA), mic gain and mic mode.
+# XMOS audio front end: direction of arrival (DOA), mic gain, mic mode and beam steering.
 # Requires XMOS firmware with the audio servicer (device-control resource 230). With older
-# firmware the DOA sensor logs a single warning and the mic settings have no effect.
+# firmware the DOA sensor logs a single warning and the mic settings have no effect. Beam
+# steering, the wake word channel, the IC fast hold and the high-pass filter need XMOS firmware
+# with wake word steering; older firmware ignores them.
 
 substitutions:
   # LED that faces the North mic, and whether increasing azimuth (North -> East) runs clockwise
@@ -27,6 +29,34 @@ sensor:
       id: voice_direction_confidence
 
 switch:
+  # Stops the XMOS interference canceller adapting within ~30 ms of speech onset, instead of
+  # ~400 ms into it, so it doesn't learn to cancel the start of the wake word.
+  - platform: template
+    name: "Fast Speech Hold"
+    id: xmos_ic_fast_hold
+    icon: "mdi:account-voice"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    # Also re-applied from satellite1 on_xmos_connected, like the mic settings below
+    on_turn_on:
+      - lambda: id(satellite1_id).set_ic_fast_hold(true);
+    on_turn_off:
+      - lambda: id(satellite1_id).set_ic_fast_hold(false);
+
+  # 100 Hz high-pass on the mics, removes rumble below the speech band
+  - platform: template
+    name: "Mic High-Pass Filter"
+    id: xmos_hpf
+    icon: "mdi:sine-wave"
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      - lambda: id(satellite1_id).set_hpf(true);
+    on_turn_off:
+      - lambda: id(satellite1_id).set_hpf(false);
+
   - platform: template
     name: "Direction Indicator"
     id: doa_indicator
@@ -77,21 +107,80 @@ select:
     on_value:
       - lambda: id(satellite1_id).set_mic_mode(static_cast<satellite1::XMOSMicMode>(i));
 
+  # What moves the beam ("Beam") and the mic pair ("Follow talker"). A wake word steers at once
+  # in the first two. "Wake word only" keeps a TV or radio from pulling the beam away from you:
+  # it stays in the blocking beam, where the XMOS cancels it.
+  - platform: template
+    name: "Beam Steering"
+    id: xmos_steer_policy
+    icon: "mdi:target-account"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    # Order matches satellite1::XMOSSteerPolicy
+    options:
+      - "Follow speech"
+      - "Wake word only"
+      - "Fixed"
+    initial_option: "Wake word only"
+    on_value:
+      - lambda: id(satellite1_id).set_steer_policy(static_cast<satellite1::XMOSSteerPolicy>(i));
+
+  # The XMOS channel the wake word engine listens to (channel 1, without the AGC of channel 0)
+  - platform: template
+    name: "Wake Word Channel"
+    id: xmos_ch1_tap
+    icon: "mdi:waveform"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    # Order matches satellite1::XMOSCh1Tap
+    options:
+      - "Noise suppressed"
+      - "Before noise suppression"
+      - "Echo cancelled only"
+    initial_option: "Noise suppressed"
+    on_value:
+      - lambda: id(satellite1_id).set_ch1_tap(static_cast<satellite1::XMOSCh1Tap>(i));
+
 script:
-  # Reads the DOA and points doa_led_index at the talker. Keeps the last direction if the XMOS
-  # has no recent result (silence, or audio playing back).
+  # Points doa_led_index at where the XMOS listens: the beam in the "Beam" mic mode, else the
+  # talker (DOA). Keeps the last direction if the XMOS has no recent DOA result (silence, or
+  # audio playing back).
   # Reads without publishing, so the 200 ms interval does not flood Home Assistant.
   - id: update_doa_led
     then:
       - lambda: |-
-          if (!id(doa_indicator).state || !id(sat1_doa).read_direction() || !id(sat1_doa).is_valid()) {
+          if (!id(doa_indicator).state) {
             return;
           }
-          int step = (id(sat1_doa).get_azimuth() * 24 + 180) / 360;
+          int azimuth = -1;
+          uint16_t beam;
+          auto mode = id(xmos_mic_mode).active_index();
+          if (mode.has_value() && mode.value() == satellite1::MIC_MODE_BEAM &&
+              id(satellite1_id).read_beam_azimuth(beam) && beam != satellite1::XMOS_NO_BEAM) {
+            azimuth = beam;
+          } else if (id(sat1_doa).read_direction() && id(sat1_doa).is_valid()) {
+            azimuth = id(sat1_doa).get_azimuth();
+          }
+          if (azimuth < 0) {
+            return;
+          }
+          int step = (azimuth * 24 + 180) / 360;
           if (!${doa_led_clockwise}) {
             step = -step;
           }
           id(doa_led_index) = ((step + ${doa_led_offset}) % 24 + 24) % 24;
+
+  # Tells the XMOS a wake word was just heard, so it steers the beam there, then points the LEDs
+  # at the new direction. Run before the wake sound: the XMOS DOA pauses during playback.
+  - id: report_wake_word
+    mode: restart
+    then:
+      - lambda: id(satellite1_id).notify_wake_word(true);
+      # The XMOS steers within one 15 ms audio frame
+      - delay: 30ms
+      - script.execute: update_doa_led
 
   # Re-applies the mic settings after the XMOS (re)connected
   - id: apply_xmos_mic_settings
@@ -102,6 +191,16 @@ script:
           if (mode.has_value()) {
             id(satellite1_id).set_mic_mode(static_cast<satellite1::XMOSMicMode>(mode.value()));
           }
+          auto policy = id(xmos_steer_policy).active_index();
+          if (policy.has_value()) {
+            id(satellite1_id).set_steer_policy(static_cast<satellite1::XMOSSteerPolicy>(policy.value()));
+          }
+          auto tap = id(xmos_ch1_tap).active_index();
+          if (tap.has_value()) {
+            id(satellite1_id).set_ch1_tap(static_cast<satellite1::XMOSCh1Tap>(tap.value()));
+          }
+          id(satellite1_id).set_ic_fast_hold(id(xmos_ic_fast_hold).state);
+          id(satellite1_id).set_hpf(id(xmos_hpf).state);
 
 interval:
   # Follow the talker while the voice assistant waits for or listens to a command
