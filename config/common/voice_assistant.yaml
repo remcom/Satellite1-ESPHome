@@ -28,6 +28,9 @@ substitutions:
   factory_reset_cancelled_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_cancelled.mp3
   factory_reset_confirmed_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_confirmed.mp3
   error_cloud_expired_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/error_cloud_expired.mp3
+  # Gain on XMOS channel 1 for the wake word engine. That channel has no AGC, so speech is at the
+  # XMOS mic gain level. Channel 0 is AGC'd to near full scale and clips with any gain here.
+  micro_wake_word_gain_factor: "4"
 
 globals:
   # Global variable tracking the phase of the voice assistant (defined above). Initialized to not_ready
@@ -90,19 +93,23 @@ microphone:
     i2s_audio_id: i2s_shared
     i2s_mode: secondary
 
+  # XMOS channel 0: AEC+IC+NS+AGC, channel 1: the same before the AGC (by default, see "Wake
+  # Word Channel")
   - platform: resampler
     id: sat1_mics
     microphone:
       microphone: sat1_mics_raw
-      channels: [0]
+      channels: [0, 1]
     sample_rate: 16000
 
 micro_wake_word:
   id: mww
+  # Channel 1: the AGC on channel 0 drives speech peaks to 0.7..1.0 of full scale, and any gain
+  # on top of that clipped the wake word.
   microphone:
     microphone: sat1_mics
-    channels: 0
-    gain_factor: 6
+    channels: 1
+    gain_factor: ${micro_wake_word_gain_factor}
   stop_after_detection: false
   task_stack_in_psram: true
   models:
@@ -165,9 +172,13 @@ micro_wake_word:
 
 voice_assistant:
   id: va
+  # Both XMOS channels: Home Assistant 2026.6 and later picks the better one per pipeline stage,
+  # older versions use the first.
   microphone:
-    microphone: sat1_mics
-    channels: 0
+    - microphone: sat1_mics
+      channels: 0
+    - microphone: sat1_mics
+      channels: 1
 
   media_player: external_media_player
   micro_wake_word: mww
