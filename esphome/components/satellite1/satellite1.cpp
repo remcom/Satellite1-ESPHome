@@ -14,6 +14,9 @@ static constexpr uint32_t XMOS_RESET_PULSE_MS = 100;
 static constexpr uint32_t XMOS_RESET_TIMEOUT_ID = 0;
 static constexpr size_t FW_VERSION_STR_MAX_LEN = 32;
 
+// Indexed by pin / XMOS_GPIO_PINS_PER_PORT
+static const char *const PORT_NAMES[] = {"INPUT_A", "INPUT_B", "OUTPUT_A"};
+
 void Satellite1::setup() {
   this->spi_setup();
   this->enable();
@@ -49,7 +52,7 @@ void Satellite1::loop() {
 
   if (this->connection_attempts_ >= MAX_CONNECTION_ATTEMPTS) {
     // Give up. connection_attempts_ stays at MAX_CONNECTION_ATTEMPTS, which is what
-    // XMOSNoResponseStateTrigger checks for. Disable the loop before notifying so a callback
+    // the on_xmos_no_response filter checks for. Disable the loop before notifying so a callback
     // that restarts detection synchronously isn't overridden.
     ESP_LOGW(TAG, "XMOS not responding after %u attempts", MAX_CONNECTION_ATTEMPTS);
     this->disable_loop();
@@ -394,3 +397,10 @@ void Satellite1::xmos_hardware_reset(std::function<void()> &&on_done) {
 }
 
 }  // namespace esphome::satellite1
+
+// Defined by hand instead of with ESPHOME_EXPANDER_PIN_SUMMARY, which only prints the pin number
+ESPHOME_EXPANDER_PIN_SUMMARY_DECL(esphome::satellite1::Satellite1) {
+  using namespace esphome::satellite1;
+  return buf_append_printf(buffer, len, 0, "%s pin %u via XMOS", PORT_NAMES[this->pin_ / XMOS_GPIO_PINS_PER_PORT],
+                           this->pin_ % XMOS_GPIO_PINS_PER_PORT);
+}

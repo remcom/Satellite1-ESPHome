@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esphome/components/gpio_expander/cached_gpio.h"
+#include "esphome/components/gpio_expander/expander_gpio_pin.h"
 #include "esphome/components/spi/spi.h"
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
@@ -44,11 +45,11 @@ enum DcResourceEnum {
   GPIO_PORT_IN_B = GPIO_SERVICER_RESID_PORT_IN_B,
   GPIO_PORT_OUT_A = GPIO_SERVICER_RESID_PORT_OUT_A
 };
-}
+}  // namespace DC_RESOURCE
 
 namespace DC_RET_STATUS {
 enum DcRetStatusEnum { CMD_SUCCESS = 0, STATUS_ONLY_FRAME = 1, PAYLOAD_AVAILABLE = 23 };
-}
+}  // namespace DC_RET_STATUS
 
 namespace DC_STATUS_REGISTER {
 enum RegisterId {
@@ -59,13 +60,13 @@ enum RegisterId {
 
   REGISTER_LEN = 4
 };
-}
+}  // namespace DC_STATUS_REGISTER
 
 namespace DC_DFU_CMD {
 enum DcDfuCmdId {
   GET_VERSION = (88 | CONTROL_CMD_READ_BIT),
 };
-}
+}  // namespace DC_DFU_CMD
 
 /// Audio servicer commands, available from the XMOS firmware with 4-mic front end and DOA.
 namespace DC_AUDIO_CMD {
@@ -81,7 +82,7 @@ enum DcAudioCmdId {
   SET_STEER_POLICY = 8,
   SET_WAKE_EVENT = 9,
 };
-}
+}  // namespace DC_AUDIO_CMD
 
 static const uint8_t XMOS_MIC_GAIN_DB_MAX = 30;
 
@@ -267,6 +268,9 @@ class Satellite1 : public Component,
 
   void set_spi_flash_direct_access_mode(bool enable);
 
+  /// The XMOS fixes the direction of its GPIO ports, so there is no mode to set.
+  void pin_mode(uint8_t pin, gpio::Flags flags) {}
+
   void set_xmos_rst_pin(GPIOPin *xmos_rst_pin) { this->xmos_rst_pin_ = xmos_rst_pin; }
 
   /// The callback receives the new state and the number of connection attempts made so far.
@@ -328,4 +332,9 @@ class Satellite1SPIService : public Parented<Satellite1> {
   void disable_() { this->parent_->disable(); }
 };
 
+/// A pin on one of the XMOS GPIO ports, see XMOS_GPIO_PINS_PER_PORT for the pin numbering.
+using Satellite1GPIOPin = gpio_expander::ExpanderGPIOPin<Satellite1>;
+
 }  // namespace esphome::satellite1
+
+ESPHOME_EXPANDER_PIN_SUMMARY_DECL(esphome::satellite1::Satellite1);

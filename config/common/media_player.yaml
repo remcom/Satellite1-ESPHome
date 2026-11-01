@@ -52,6 +52,28 @@ api:
             target_speaker: i2s_pcm5122_speaker
         - script.execute: tas2780_ensure_powerdown
 
+number:
+  # Volume for announcements (TTS, timers, device sounds) that start while nothing else is
+  # playing. While media plays, announcements keep the media player volume. Changing the media
+  # player volume during an announcement overrides this until the next announcement.
+  - platform: template
+    name: Announcement Volume
+    id: announcement_volume
+    icon: "mdi:bullhorn"
+    entity_category: config
+    mode: slider
+    unit_of_measurement: "%"
+    min_value: 5
+    max_value: 100
+    step: 5
+    initial_value: 50
+    optimistic: true
+    restore_value: true
+    on_value:
+      - speaker_source.set_announcement_volume:
+          id: external_media_player
+          volume: !lambda return x / 100.0f;
+
 select:
   - platform: template
     name: Speaker channel output
