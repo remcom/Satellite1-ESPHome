@@ -1,11 +1,10 @@
 # sat_gpio is imported for its side effect: it registers the satellite1 pin schema.
 from . import sat_gpio, satellite1 as sat  # noqa: F401
 
-CODEOWNERS = ["@remcom", "@gnumpi"]
-
-
 AUTO_LOAD = ["gpio_expander"]
+CODEOWNERS = ["@remcom", "@gnumpi"]
 DEPENDENCIES = ["spi"]
+DOMAIN = "satellite1"
 
 
 CONFIG_SCHEMA = sat.SAT1_CONFIG_SCHEMA

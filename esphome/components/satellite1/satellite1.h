@@ -1,6 +1,7 @@
 #pragma once
 
 #include "esphome/components/gpio_expander/cached_gpio.h"
+#include "esphome/components/gpio_expander/expander_gpio_pin.h"
 #include "esphome/components/spi/spi.h"
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
@@ -267,6 +268,9 @@ class Satellite1 : public Component,
 
   void set_spi_flash_direct_access_mode(bool enable);
 
+  /// The XMOS fixes the direction of its GPIO ports, so there is no mode to set.
+  void pin_mode(uint8_t pin, gpio::Flags flags) {}
+
   void set_xmos_rst_pin(GPIOPin *xmos_rst_pin) { this->xmos_rst_pin_ = xmos_rst_pin; }
 
   /// The callback receives the new state and the number of connection attempts made so far.
@@ -328,4 +332,9 @@ class Satellite1SPIService : public Parented<Satellite1> {
   void disable_() { this->parent_->disable(); }
 };
 
+/// A pin on one of the XMOS GPIO ports, see XMOS_GPIO_PINS_PER_PORT for the pin numbering.
+using Satellite1GPIOPin = gpio_expander::ExpanderGPIOPin<Satellite1>;
+
 }  // namespace esphome::satellite1
+
+ESPHOME_EXPANDER_PIN_SUMMARY_DECL(esphome::satellite1::Satellite1);

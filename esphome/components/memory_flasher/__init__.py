@@ -13,13 +13,12 @@ from esphome.types import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
-CODEOWNERS = ["@remcom", "@gnumpi"]
-
-IS_PLATFORM_COMPONENT = True
-
 AUTO_LOAD = ["md5"]
+CODEOWNERS = ["@remcom", "@gnumpi"]
 DEPENDENCIES = ["network", "http_request"]
-DOMAIN = "file"
+# Also names the cache folder for downloaded images (external_files)
+DOMAIN = "memory_flasher"
+IS_PLATFORM_COMPONENT = True
 
 TYPE_LOCAL = "local"
 TYPE_WEB = "web"
@@ -56,9 +55,7 @@ FlashAction = flasher_ns.class_("FlashAction", automation.Action)
 FlashEmbeddedAction = flasher_ns.class_("FlashEmbeddedAction", automation.Action)
 
 FlasherState = flasher_ns.enum("FlasherState")
-FlasherStateForwarder = flasher_ns.class_("FlasherStateForwarder")
-FlashingStartedForwarder = flasher_ns.class_("FlashingStartedForwarder")
-ErasingDoneForwarder = flasher_ns.class_("ErasingDoneForwarder")
+FlasherAction = flasher_ns.enum("FlasherAction")
 
 
 InProgressCondition = flasher_ns.class_("InProgressCondition", automation.Condition)
@@ -102,7 +99,7 @@ def _get_expected_md5(flash_config: ConfigType) -> str:
     else:
         file_conf = flash_config[CONF_MD5_FILE]
     local_file_path = _resolve_local_file(file_conf)
-    with open(local_file_path, encoding="utf-8") as f:
+    with local_file_path.open(encoding="utf-8") as f:
         # md5sum format is "<md5>  <file name>", only the checksum is of interest
         tokens = f.readline().split()
     if not tokens:
@@ -132,7 +129,7 @@ TYPED_FILE_SCHEMA = cv.typed_schema(
 
 def _validate_file_shorthand(value):
     value = cv.string_strict(value)
-    if value.startswith("http://") or value.startswith("https://"):
+    if value.startswith(("http://", "https://")):
         return _file_schema(
             {
                 CONF_TYPE: TYPE_WEB,
@@ -223,8 +220,7 @@ def _prepare_flash_image_pgm(
 ) -> tuple[str, tuple[HexInt, ...], int]:
     local_flash_image = _resolve_local_file(flash_config[CONF_IMAGE_FILE])
     md5_sum = flash_config[CONF_MD5]
-    with open(local_flash_image, "rb") as f:
-        image = f.read()
+    image = local_flash_image.read_bytes()
     # Checked on the bytes that get embedded
     if hashlib.md5(image).hexdigest() != md5_sum:
         raise EsphomeError(
@@ -252,32 +248,39 @@ def _version_to_bytes(vers: str) -> tuple[int, int, int, int, int]:
     return major, minor, patch, pre_idx, pre_cnter
 
 
-_CALLBACK_AUTOMATIONS = (
-    automation.CallbackAutomation(
+_STATE_PARAMS = [
+    (FlasherState, "state"),
+    (FlasherState, "previous"),
+    (FlasherAction, "action"),
+]
+
+# Each state trigger fires on the state change described by its filter.
+_STATE_TRIGGERS = (
+    # Once when erasing starts, not for the progress updates published while erasing.
+    (
         CONF_ON_FLASHING_START,
-        "add_on_state_callback",
-        forwarder=FlashingStartedForwarder,
+        (
+            "state == memory_flasher::FLASHER_ERASING"
+            " && previous != memory_flasher::FLASHER_ERASING"
+        ),
     ),
-    automation.CallbackAutomation(
-        CONF_ON_PROGRESS_UPDATE,
-        "add_on_state_callback",
-        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_FLASHING),
-    ),
-    automation.CallbackAutomation(
-        CONF_ON_FLASHING_SUCCESS,
-        "add_on_state_callback",
-        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_SUCCESS_STATE),
-    ),
-    automation.CallbackAutomation(
-        CONF_ON_FLASHING_FAILED,
-        "add_on_state_callback",
-        forwarder=FlasherStateForwarder.template(FlasherState.FLASHER_ERROR_STATE),
-    ),
-    automation.CallbackAutomation(
+    (CONF_ON_PROGRESS_UPDATE, "state == memory_flasher::FLASHER_FLASHING"),
+    (CONF_ON_FLASHING_SUCCESS, "state == memory_flasher::FLASHER_SUCCESS_STATE"),
+    (CONF_ON_FLASHING_FAILED, "state == memory_flasher::FLASHER_ERROR_STATE"),
+    (
         CONF_ON_ERASING_DONE,
-        "add_on_state_callback",
-        forwarder=ErasingDoneForwarder,
+        (
+            "state == memory_flasher::FLASHER_SUCCESS_STATE"
+            " && action == memory_flasher::ACTION_FULL_ERASE"
+        ),
     ),
+)
+
+_CALLBACK_AUTOMATIONS = tuple(
+    automation.CallbackAutomation(
+        key, "add_on_state_callback", params=_STATE_PARAMS, forward=[], when=when
+    )
+    for key, when in _STATE_TRIGGERS
 )
 
 

@@ -14,9 +14,6 @@ Satellite1SPIService = namespace.class_(
 XMOSHardwareResetAction = namespace.class_("XMOSHardwareResetAction", automation.Action)
 
 Satellite1State = namespace.enum("Satellite1State")
-Satellite1StateForwarder = namespace.class_("Satellite1StateForwarder")
-XMOSDetachedForwarder = namespace.class_("XMOSDetachedForwarder")
-XMOSNoResponseForwarder = namespace.class_("XMOSNoResponseForwarder")
 
 
 CONF_SATELLITE1 = "satellite1"
@@ -38,31 +35,27 @@ SAT1_CONFIG_SCHEMA = cv.Schema(
 ).extend(spi_device_schema(True, "1Hz"))
 
 
-_CALLBACK_AUTOMATIONS = (
-    automation.CallbackAutomation(
-        CONF_ON_XMOS_CONNECTED,
-        "add_on_state_callback",
-        forwarder=Satellite1StateForwarder.template(
-            Satellite1State.SAT_XMOS_CONNECTED_STATE
-        ),
-    ),
-    automation.CallbackAutomation(
-        CONF_ON_FLASH_CONNECTED,
-        "add_on_state_callback",
-        forwarder=Satellite1StateForwarder.template(
-            Satellite1State.SAT_FLASH_CONNECTED_STATE
-        ),
-    ),
-    automation.CallbackAutomation(
+_STATE_PARAMS = [(Satellite1State, "state"), (cg.uint8, "connection_attempts")]
+_DETACHED = "state == satellite1::SAT_DETACHED_STATE"
+
+# Each state trigger fires on the state change described by its filter.
+_STATE_TRIGGERS = (
+    (CONF_ON_XMOS_CONNECTED, "state == satellite1::SAT_XMOS_CONNECTED_STATE"),
+    (CONF_ON_FLASH_CONNECTED, "state == satellite1::SAT_FLASH_CONNECTED_STATE"),
+    # Detection gave up.
+    (
         CONF_ON_XMOS_NO_RESPONSE,
-        "add_on_state_callback",
-        forwarder=XMOSNoResponseForwarder,
+        f"{_DETACHED} && connection_attempts == satellite1::MAX_CONNECTION_ATTEMPTS",
     ),
+    # The XMOS dropped off (reset, leaving flash access mode) and detection restarts.
+    (CONF_ON_XMOS_DETACHED, f"{_DETACHED} && connection_attempts == 0"),
+)
+
+_CALLBACK_AUTOMATIONS = tuple(
     automation.CallbackAutomation(
-        CONF_ON_XMOS_DETACHED,
-        "add_on_state_callback",
-        forwarder=XMOSDetachedForwarder,
-    ),
+        key, "add_on_state_callback", params=_STATE_PARAMS, forward=[], when=when
+    )
+    for key, when in _STATE_TRIGGERS
 )
 
 
