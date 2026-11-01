@@ -44,11 +44,11 @@ enum DcResourceEnum {
   GPIO_PORT_IN_B = GPIO_SERVICER_RESID_PORT_IN_B,
   GPIO_PORT_OUT_A = GPIO_SERVICER_RESID_PORT_OUT_A
 };
-}
+}  // namespace DC_RESOURCE
 
 namespace DC_RET_STATUS {
 enum DcRetStatusEnum { CMD_SUCCESS = 0, STATUS_ONLY_FRAME = 1, PAYLOAD_AVAILABLE = 23 };
-}
+}  // namespace DC_RET_STATUS
 
 namespace DC_STATUS_REGISTER {
 enum RegisterId {
@@ -59,13 +59,13 @@ enum RegisterId {
 
   REGISTER_LEN = 4
 };
-}
+}  // namespace DC_STATUS_REGISTER
 
 namespace DC_DFU_CMD {
 enum DcDfuCmdId {
   GET_VERSION = (88 | CONTROL_CMD_READ_BIT),
 };
-}
+}  // namespace DC_DFU_CMD
 
 /// Audio servicer commands, available from the XMOS firmware with 4-mic front end and DOA.
 namespace DC_AUDIO_CMD {
@@ -81,7 +81,7 @@ enum DcAudioCmdId {
   SET_STEER_POLICY = 8,
   SET_WAKE_EVENT = 9,
 };
-}
+}  // namespace DC_AUDIO_CMD
 
 static const uint8_t XMOS_MIC_GAIN_DB_MAX = 30;
 
