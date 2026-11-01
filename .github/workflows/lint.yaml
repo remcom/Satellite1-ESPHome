@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   # Single source of truth: runs exactly the hooks in .pre-commit-config.yaml
-  # (yamllint over config/ + .github/, clang-format over components/), so CI
+  # (yamllint over config/ + .github/, ruff and clang-format over components/), so CI
   # and local commits can't drift apart.
   pre-commit:
     name: pre-commit

@@ -5,7 +5,7 @@
 esphome @ git+https://github.com/esphome/esphome.git@e8fe6984b7d910f4392fbbfdd833797af4b15a14  # 2026.11.0-dev20261101
 setuptools
 
-# Lint tools, same versions as CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml
-clang-format==18.1.8
-clang-tidy==18.1.8
-ruff==0.17.1
+# Lint tools, same versions as upstream ESPHome, CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml
+clang-format==23.1.3
+clang-tidy==23.1.4
+ruff==0.17.3
