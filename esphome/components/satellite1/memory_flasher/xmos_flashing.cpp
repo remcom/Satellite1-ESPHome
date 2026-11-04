@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cinttypes>
-#include <endian.h>
 
 namespace esphome::satellite1 {
 using namespace memory_flasher;
@@ -275,21 +274,23 @@ bool XMOSFlasher::disable_writing_() {
   return true;
 }
 
+void XMOSFlasher::send_address_command_(uint8_t command, uint32_t address) {
+  uint8_t frame[4]{command};
+  put_be24(&frame[1], address);
+  for (uint8_t byte : frame) {
+    this->transfer_byte_(byte);
+  }
+}
+
 bool XMOSFlasher::erase_sector_(int sector) {
   // erase 4kB sector
   assert(FLASH_SECTOR_SIZE == 4096);
-  uint32_t u32 = htole32(sector * FLASH_SECTOR_SIZE);
-  uint8_t *u8_ptr = (uint8_t *) &u32;
-
   if (!this->enable_writing_()) {
     return false;
   }
 
   this->enable_();
-  this->transfer_byte_(0x20);
-  this->transfer_byte_(*(u8_ptr + 2));
-  this->transfer_byte_(*(u8_ptr + 1));
-  this->transfer_byte_(*(u8_ptr));
+  this->send_address_command_(0x20, sector * FLASH_SECTOR_SIZE);
   this->disable_();
 
   // this->disable_writing_();
@@ -306,13 +307,8 @@ bool XMOSFlasher::write_page_(uint32_t byte_addr, const uint8_t *buffer) {
     return false;
   }
 
-  uint32_t u32 = htole32(byte_addr);
-  uint8_t *u8_ptr = (uint8_t *) &u32;
   this->enable_();
-  this->transfer_byte_(0x02);
-  this->transfer_byte_(*(u8_ptr + 2));
-  this->transfer_byte_(*(u8_ptr + 1));
-  this->transfer_byte_(*(u8_ptr));
+  this->send_address_command_(0x02, byte_addr);
   for (size_t pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
     this->transfer_byte_(*(buffer + pos));
   }
@@ -330,13 +326,8 @@ bool XMOSFlasher::read_page_(uint32_t byte_addr, uint8_t *buffer) {
   if ((byte_addr & (FLASH_PAGE_SIZE - 1)) != 0) {
     return false;
   }
-  uint32_t u32 = htole32(byte_addr);
-  uint8_t *u8_ptr = (uint8_t *) &u32;
   this->enable_();
-  this->transfer_byte_(0x0B);
-  this->transfer_byte_(*(u8_ptr + 2));
-  this->transfer_byte_(*(u8_ptr + 1));
-  this->transfer_byte_(*(u8_ptr));
+  this->send_address_command_(0x0B, byte_addr);
   this->transfer_byte_(0x00);
   for (size_t pos = 0; pos < FLASH_PAGE_SIZE; pos++) {
     *(buffer + pos) = this->transfer_byte_(0x00);

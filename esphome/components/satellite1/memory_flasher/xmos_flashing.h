@@ -32,6 +32,8 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   bool read_jedec_id_();
   bool enable_writing_();
   bool disable_writing_();
+  /// Sends a flash command followed by its 24-bit address, most significant byte first.
+  void send_address_command_(uint8_t command, uint32_t address);
   bool erase_sector_(int sector);
   bool wait_while_flash_busy_(uint32_t timeout_ms);
   bool read_page_(uint32_t byte_addr, uint8_t *buffer);

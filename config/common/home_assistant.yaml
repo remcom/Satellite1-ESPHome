@@ -28,12 +28,14 @@ switch:
     icon: "mdi:bullhorn"
     entity_category: config
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_state: all
+    initial_state: ON
 
   # This is the master mute switch. It is exposed to Home Assistant. The user can only turn it on and off if the hardware switch is off. (The hardware switch overrides the software one)
   - platform: template
     id: master_mute_switch
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_state: all
+    initial_state: OFF
     icon: "mdi:microphone-off"
     name: Mute Microphones
     entity_category: config

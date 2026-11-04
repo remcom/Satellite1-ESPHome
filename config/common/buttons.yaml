@@ -124,43 +124,35 @@ binary_sensor:
                 - event.trigger:
                     id: action_button_press_event
                     event_type: "single_press"
-                - if:
-                    condition:
-                      switch.is_on: timer_ringing
-                    then:
-                      - switch.turn_off: timer_ringing
-                    else:
-                      - if:
-                          condition:
-                            voice_assistant.is_running:
-                          then:
-                            - voice_assistant.stop:
-                          else:
-                            - if:
-                                condition:
-                                  media_player.is_announcing: external_media_player
-                                then:
-                                  - media_player.stop:
-                                      id: external_media_player
-                                      announcement: true
-                                else:
-                                  - if:
-                                      condition:
-                                        media_player.is_playing: external_media_player
-                                      then:
-                                        - media_player.pause:
-                                            id: external_media_player
-                                      else:
-                                        - if:
-                                            condition:
-                                              switch.is_off: master_mute_switch
-                                            then:
-                                              - script.execute:
-                                                  id: play_sound
-                                                  priority: true
-                                                  sound_file: "center_button_press_sound"
-                                              - delay: 300ms
-                                              - voice_assistant.start:
+                - choose:
+                    - if:
+                        switch.is_on: timer_ringing
+                      then:
+                        - switch.turn_off: timer_ringing
+                    - if:
+                        voice_assistant.is_running:
+                      then:
+                        - voice_assistant.stop:
+                    - if:
+                        media_player.is_announcing: external_media_player
+                      then:
+                        - media_player.stop:
+                            id: external_media_player
+                            announcement: true
+                    - if:
+                        media_player.is_playing: external_media_player
+                      then:
+                        - media_player.pause:
+                            id: external_media_player
+                    - if:
+                        switch.is_off: master_mute_switch
+                      then:
+                        - script.execute:
+                            id: play_sound
+                            priority: true
+                            sound_file: "center_button_press_sound"
+                        - delay: 300ms
+                        - voice_assistant.start:
       # Double Click
       #  . Exposed as an event entity. To be used in automations inside Home Assistant
       - timing:

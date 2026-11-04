@@ -13,6 +13,12 @@ sensor:
       name: Humidity
       id: humidity_sensor
       filters:
+        # The board heats the sensor, so its relative humidity reads low. Recompute it for the
+        # corrected temperature (Magnus formula) instead of adding a flat offset. Needs the
+        # temperature published first, which the AHT20 does in the same update.
+        - rh_correction:
+            sensor_id: temperature_sensor
+            temperature_offset: !lambda "return ${temp_offset} + id(temp_offset_ui).state;"
         - offset: ${humidity_offset}
         - lambda: "return x + id(humidity_offset_ui).state;"
 

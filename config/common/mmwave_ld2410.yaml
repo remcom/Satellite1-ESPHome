@@ -15,6 +15,10 @@ button:
       name: "LD2410 sensor restart"
     query_params:
       name: LD2410 update sensors
+    # Learns the room's background noise for each gate and raises the thresholds above it. Leave
+    # the room empty while it runs. Needs LD2410 firmware with background correction (2.44+).
+    background_correction:
+      name: LD2410 background correction
 
 select:
   - platform: ld2410
@@ -88,6 +92,11 @@ sensor:
       still_energy:
         name: g8 still energy
 
+text_sensor:
+  - platform: ld2410
+    calibration_result:
+      name: LD2410 background correction result
+
 binary_sensor:
   - platform: ld2410
     has_target:
@@ -96,6 +105,9 @@ binary_sensor:
       name: Moving Target
     has_still_target:
       name: Still Target
+    # On while background correction runs
+    calibration:
+      name: LD2410 background correction running
 
 number:
   - platform: ld2410

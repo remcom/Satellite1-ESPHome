@@ -123,7 +123,8 @@ switch:
     icon: "mdi:test-tube"
     entity_category: diagnostic
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_state: all
+    initial_state: OFF
     on_turn_on:
       - logger.log: "OTA updates set to use Beta firmware"
       - lambda: id(update_http_request).set_source_url("https://github.com/remcom/Satellite1-ESPHome/releases/download/beta/${ota_manifest}-manifest.json");

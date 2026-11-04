@@ -3,6 +3,10 @@
 # firmware the DOA sensor logs a single warning and the mic settings have no effect. Beam
 # steering, the wake word channel, the IC fast hold and the high-pass filter need XMOS firmware
 # with wake word steering; older firmware ignores them.
+#
+# Tuning and diagnostic entities are disabled by default, so Home Assistant only shows Mic Mode,
+# Beam Steering, Mic Gain and Direction Indicator. They still apply on the device, and can be
+# enabled in Home Assistant. This only affects devices Home Assistant adds after this change.
 
 substitutions:
   # LED that faces the North mic, and whether increasing azimuth (North -> East) runs clockwise
@@ -24,9 +28,11 @@ sensor:
     direction:
       name: "Voice Direction"
       id: voice_direction
+      disabled_by_default: true
     confidence:
       name: "Voice Direction Confidence"
       id: voice_direction_confidence
+      disabled_by_default: true
 
 switch:
   # Stops the XMOS interference canceller adapting within ~30 ms of speech onset, instead of
@@ -36,8 +42,10 @@ switch:
     id: xmos_ic_fast_hold
     icon: "mdi:account-voice"
     entity_category: config
+    disabled_by_default: true
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_state: all
+    initial_state: ON
     # Also re-applied from satellite1 on_xmos_connected, like the mic settings below
     on_turn_on:
       - lambda: id(satellite1_id).set_ic_fast_hold(true);
@@ -50,8 +58,10 @@ switch:
     id: xmos_hpf
     icon: "mdi:sine-wave"
     entity_category: config
+    disabled_by_default: true
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
+    restore_state: all
+    initial_state: ON
     on_turn_on:
       - lambda: id(satellite1_id).set_hpf(true);
     on_turn_off:
@@ -63,7 +73,8 @@ switch:
     icon: "mdi:compass-outline"
     entity_category: config
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_state: all
+    initial_state: OFF
     on_turn_off:
       - lambda: id(doa_led_index) = -1;
 
@@ -132,6 +143,7 @@ select:
     id: xmos_ch1_tap
     icon: "mdi:waveform"
     entity_category: config
+    disabled_by_default: true
     optimistic: true
     restore_value: true
     # Order matches satellite1::XMOSCh1Tap
