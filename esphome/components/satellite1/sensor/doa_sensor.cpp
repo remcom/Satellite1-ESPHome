@@ -31,12 +31,8 @@ void Satellite1DoaSensor::update() {
   }
   const DoaResult &result = this->last_result_;
   ESP_LOGV(TAG, "Direction %u deg, confidence %u", result.azimuth, result.confidence);
-  if (this->direction_sensor_ != nullptr) {
-    this->direction_sensor_->publish_state(result.azimuth);
-  }
-  if (this->confidence_sensor_ != nullptr) {
-    this->confidence_sensor_->publish_state(result.confidence * 100.0f / 255.0f);
-  }
+  PUBLISH_STATE(this->direction_sensor_, result.azimuth);
+  PUBLISH_STATE(this->confidence_sensor_, result.confidence * 100.0f / 255.0f);
 }
 
 void Satellite1DoaSensor::dump_config() {

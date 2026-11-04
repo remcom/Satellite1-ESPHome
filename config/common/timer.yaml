@@ -14,7 +14,8 @@ switch:
     id: timer_ringing
     optimistic: true
     internal: true
-    restore_mode: ALWAYS_OFF
+    restore_state: none
+    initial_state: OFF
     on_turn_off:
       # Cancel the pending 15 minute auto-off so it can't cut short a later ring
       - script.stop: timer_ring_timeout

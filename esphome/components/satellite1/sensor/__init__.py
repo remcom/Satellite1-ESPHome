@@ -50,9 +50,6 @@ async def to_code(config):
     await cg.register_component(var, config)
     await cg.register_parented(var, config[sat.CONF_SATELLITE1])
 
-    if direction_config := config.get(CONF_DIRECTION):
-        sens = await sensor.new_sensor(direction_config)
-        cg.add(var.set_direction_sensor(sens))
-    if confidence_config := config.get(CONF_CONFIDENCE):
-        sens = await sensor.new_sensor(confidence_config)
-        cg.add(var.set_confidence_sensor(sens))
+    sensors = sensor.sub_sensors(config)
+    await sensors(CONF_DIRECTION, var.set_direction_sensor)
+    await sensors(CONF_CONFIDENCE, var.set_confidence_sensor)

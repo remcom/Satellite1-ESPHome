@@ -22,6 +22,30 @@ binary_sensor:
       name: Moving Target
     has_still_target:
       name: Still Target
+    # Off when the radar stops sending frames for longer than link_timeout (5s)
+    connected:
+      name: LD2450 Connected
+    # Presence in the polygon zones below, checked on the device
+    polygon_zones:
+      - polygon_zone_id: ld2450_polygon_zone_1
+        name: Polygon Zone-1 Presence
+      - polygon_zone_id: ld2450_polygon_zone_2
+        name: Polygon Zone-2 Presence
+      - polygon_zone_id: ld2450_polygon_zone_3
+        name: Polygon Zone-3 Presence
+
+# Polygon zones, in raw radar millimetres: 3 to 23 "x,y" points separated by ";", for example
+# "-1500,0;1500,0;1500,3000;-1500,3000". Empty disables the zone. Saved on the device.
+text:
+  - platform: ld2450
+    ld2450_id: ld2450_radar
+    polygon_zones:
+      - id: ld2450_polygon_zone_1
+        name: Polygon Zone-1
+      - id: ld2450_polygon_zone_2
+        name: Polygon Zone-2
+      - id: ld2450_polygon_zone_3
+        name: Polygon Zone-3
 
 number:
   - platform: ld2450
@@ -92,12 +116,18 @@ text_sensor:
     target_1:
       direction:
         name: "Target-1 Direction"
+      xy:
+        name: "Target-1 Position"
     target_2:
       direction:
         name: "Target-2 Direction"
+      xy:
+        name: "Target-2 Position"
     target_3:
       direction:
         name: "Target-3 Direction"
+      xy:
+        name: "Target-3 Position"
 
 sensor:
   - platform: ld2450

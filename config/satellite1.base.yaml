@@ -2,9 +2,10 @@ substitutions:
   # Change to any preferred name
   friendly_name: "Satellite1"
 
-  # Change to calibrate your temperature/humidity sensor readings
+  # Change to calibrate your temperature/humidity sensor readings. Humidity is recomputed for
+  # the temperature offset automatically; humidity_offset is an extra flat trim on top.
   temp_offset: "-3"
-  humidity_offset: "5"
+  humidity_offset: "0"
 
   # Recommend leaving the following unchanged
   node_name: satellite1
@@ -88,6 +89,7 @@ packages:
   ## OPTIONAL COMPONENTS
   # mmwave_ld2410: !include common/mmwave_ld2410.yaml
   # mmwave_ld2450: !include common/mmwave_ld2450.yaml
+  # sendspin_source: !include common/sendspin_source.yaml
   # debug: !include common/debug.yaml
   # developer: !include common/developer.yaml
 

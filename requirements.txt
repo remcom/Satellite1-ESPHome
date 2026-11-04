@@ -1,8 +1,8 @@
-# ESPHome dev, pinned to the commit the 2026.11.0-dev20261101 nightly image was
-# built from. The trailing comment is the ghcr.io/esphome/esphome image tag that
-# .github/workflows/build.yaml passes to esphome/build-action, so both stay on
-# the same code. Bump SHA and tag together, from the "Nightly Dev Release" run.
-esphome @ git+https://github.com/esphome/esphome.git@e8fe6984b7d910f4392fbbfdd833797af4b15a14  # 2026.11.0-dev20261101
+# ESPHome beta. .github/workflows/build.yaml reads this version and passes it to
+# esphome/build-action as the ghcr.io/esphome/esphome image tag, so both stay on
+# the same code. To track dev instead, pin a commit SHA with the matching nightly
+# image tag as a trailing comment (e.g. 2026.11.0-dev20261101).
+esphome==2026.11.0b1
 setuptools
 
 # Lint tools, same versions as upstream ESPHome, CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml

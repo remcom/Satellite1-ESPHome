@@ -1,0 +1,56 @@
+# Sendspin source role: streams the XMOS processed microphone (channel 0: AEC+IC+NS+AGC) to the
+# Sendspin server, e.g. for an intercom or room audio. Opt-in: include this package to enable it.
+#
+# The server opens and closes the stream, the device cannot refuse it. So the stream gets its own
+# microphone, which stays muted (sends silence) unless "Share Microphone" is on and the
+# microphones are not muted.
+
+microphone:
+  - platform: resampler
+    id: sendspin_source_mic
+    microphone:
+      microphone: sat1_mics_raw
+      channels: [0]
+    sample_rate: 16000
+
+sendspin:
+  source:
+    microphone:
+      microphone: sendspin_source_mic
+      channels: [0]
+      bits_per_sample: 16
+    task_stack_in_psram: true
+    on_streaming_started:
+      - logger.log: "Sendspin server started streaming the microphone"
+    on_streaming_stopped:
+      - logger.log: "Sendspin server stopped streaming the microphone"
+
+switch:
+  - platform: template
+    id: sendspin_share_microphone
+    name: "Share Microphone"
+    icon: "mdi:microphone-message"
+    entity_category: config
+    optimistic: true
+    restore_state: all
+    initial_state: OFF
+
+binary_sensor:
+  # Whether the stream may carry audio. Evaluated every loop, so it follows both switches.
+  - platform: template
+    id: sendspin_source_allowed
+    internal: true
+    lambda: return id(sendspin_share_microphone).state && !id(master_mute_switch).state;
+    trigger_on_initial_state: true
+    on_state:
+      - if:
+          condition:
+            lambda: return x;
+          then:
+            - microphone.unmute: sendspin_source_mic
+            - sendspin.source.set_signal:
+                present: true
+          else:
+            - microphone.mute: sendspin_source_mic
+            - sendspin.source.set_signal:
+                present: false

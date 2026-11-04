@@ -16,9 +16,6 @@ class Satellite1DoaSensor : public PollingComponent, public Parented<Satellite1>
   /// Reads the direction from the XMOS without publishing it. Returns false if the read failed.
   bool read_direction();
 
-  void set_direction_sensor(sensor::Sensor *sensor) { this->direction_sensor_ = sensor; }
-  void set_confidence_sensor(sensor::Sensor *sensor) { this->confidence_sensor_ = sensor; }
-
   /// True if the last read returned a direction, i.e. speech was located within the last ~0.5 s.
   bool is_valid() const { return this->last_result_.valid; }
   /// Azimuth of the last read in degrees, 0 = North mic, 90 = East mic. Only meaningful if is_valid().
@@ -26,9 +23,10 @@ class Satellite1DoaSensor : public PollingComponent, public Parented<Satellite1>
   /// Confidence of the last read, 0..255.
   uint8_t get_confidence() const { return this->last_result_.confidence; }
 
+  SUB_SENSOR(direction)
+  SUB_SENSOR(confidence)
+
  protected:
-  sensor::Sensor *direction_sensor_{nullptr};
-  sensor::Sensor *confidence_sensor_{nullptr};
   DoaResult last_result_{};
   bool read_failed_logged_{false};
 };

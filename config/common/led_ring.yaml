@@ -1,3 +1,21 @@
+substitutions:
+  # Current the LED ring may draw, shared with the amplifier on the 5V supply
+  led_ring_max_current_ma: "1000"
+
+sensor:
+  - platform: template
+    name: "LED Ring Current"
+    id: led_ring_current
+    unit_of_measurement: "mA"
+    device_class: current
+    state_class: measurement
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    disabled_by_default: true
+    update_interval: 10s
+    lambda: |-
+      return static_cast<light::AddressableLight *>(id(hw_led_ring)->get_output())->get_estimated_current_ma();
+
 globals:
   # Global index for our LEDs. So that switching between different animation does not lead to unwanted effects.
   - id: global_led_animation_index
@@ -23,6 +41,10 @@ light:
     num_leds: 24
     channel_colors: GRB
     chipset: WS2812
+    # Estimates the ring's draw (default 20 mA per channel at full level, 1 mA idle per LED) and
+    # scales every frame down to stay under the cap. Full white on all 24 LEDs is ~1.5 A.
+    power_estimation:
+      max_current_ma: ${led_ring_max_current_ma}
 
   # User facing LED ring. Remapping of the hardware LEDs.
   # Exposed to be used by the user.

@@ -11,9 +11,10 @@ substitutions:
   # REQUIRED: Customize these for your device
   friendly_name: "Satellite1"
 
-  # OPTIONAL: Sensor calibration (adjust based on your environment)
+  # OPTIONAL: Sensor calibration (adjust based on your environment). Humidity is recomputed
+  # for the temperature offset automatically; humidity_offset is an extra flat trim on top.
   temp_offset: "-3"
-  humidity_offset: "5"
+  humidity_offset: "0"
 
 # Pull the complete Satellite1 configuration from GitHub
 packages:

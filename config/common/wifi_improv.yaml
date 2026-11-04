@@ -6,6 +6,9 @@ globals:
 
 wifi:
   id: wifi_id
+  # Reuse the DHCP lease after a reboot (kept in RTC memory, so not across power loss) to get back
+  # on the network faster
+  lease_cache: true
   on_connect:
     - lambda: id(improv_ble_in_progress) = false;
     - script.execute: control_leds
