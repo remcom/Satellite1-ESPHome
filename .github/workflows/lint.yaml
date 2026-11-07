@@ -32,6 +32,9 @@ jobs:
       - name: Run pre-commit
         uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
 
+      - name: Test firmware update lifecycle
+        run: python3 -m unittest discover -s tests
+
   clang-tidy:
     name: clang-tidy (components)
     runs-on: ubuntu-latest

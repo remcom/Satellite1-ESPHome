@@ -128,10 +128,17 @@ ota:
     id: ota_http_request
 
 update:
+  # The public entity stops wake-word inference before the HTTP transport starts OTA.
   - platform: http_request
-    name: None
+    name: Firmware transport
     id: update_http_request
+    internal: true
     source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json
+  - platform: satellite1
+    name: None
+    id: satellite1_firmware_update
+    source_id: update_http_request
+    micro_wake_word_id: mww
 
 switch:
   - platform: template
