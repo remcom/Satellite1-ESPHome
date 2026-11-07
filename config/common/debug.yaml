@@ -62,8 +62,8 @@ button:
     on_press:
       then:
         - memory_flasher.write_image:
-            image_file: https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}/satellite1_xmos.factory.bin
-            md5_url: https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}/satellite1_xmos.factory.md5
+            image_file: ${xmos_fw_release_url}/satellite1_xmos-${xmos_fw_version}.factory.bin
+            md5_url: ${xmos_fw_release_url}/satellite1_xmos-${xmos_fw_version}.factory.md5
 
   # Flashes Sat1 HAT with XMOS firmware embedded in the ESP32
   - platform: template

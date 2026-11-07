@@ -120,6 +120,11 @@ class MemoryFlasher : public Component {
  public:
   FlasherState get_state() const { return this->state_; }
   FlasherError get_error_code() const { return this->error_code_; }
+  /// Whether the last action failed after it had started to erase the flash, so the previous image is gone.
+  bool failed_after_erase() const {
+    return this->error_code_ == WRITE_TO_FLASH_ERROR || this->error_code_ == MD5_MISMATCH_ERROR ||
+           this->error_code_ == CONNECTION_ERROR;
+  }
   FlasherAction get_requested_action() const { return this->requested_action_; }
   uint8_t get_flashing_progress() const { return this->flashing_progress_; }
 

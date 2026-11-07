@@ -48,6 +48,64 @@ Install firmware directly from your browser (Chrome or Edge required, over USB):
 
 ---
 
+## XMOS Firmware: Standard or True Beamforming
+
+The XMOS audio chip on the HAT runs its own firmware, and you can choose between two variants of it:
+
+| Variant | What it does |
+|---------|--------------|
+| **Standard (fixed delay)** | The default. Echo cancellation runs on the selected mic pair. Built into the ESP firmware, so it can always be reinstalled, even offline. |
+| **True beamforming (AEC4, experimental)** | Echo cancellation runs on **all four mics before the beamformer**. The beam then gets echo-cancelled audio from every mic, and steering it no longer makes the echo canceller start over. Downloaded from the [XMOS release](https://github.com/remcom/Satellite1-XMOS/releases) when installed. **Not yet tested on hardware.** |
+
+> [!WARNING]
+> **Switching variants always reflashes the XMOS chip.** It's installed like an update, takes about a minute, the LED ring shows the progress, and voice and audio don't work until it finishes. Don't unplug the device while it runs.
+
+**To switch**, in Home Assistant, on the device page:
+
+1. Set **XMOS Firmware Variant** to the variant you want. On its own this changes nothing, but **XMOS Firmware Update** now shows an update is available, e.g. from `v2.0.0-beta.2 (fixed_delay)` to `v2.0.0-beta.2 (aec4)`.
+2. Open **XMOS Firmware Update** (also listed under *Settings → Updates*) and press **Install**.
+3. Home Assistant shows the progress bar, and the LED ring shows it too. When it's done, the update shows as up to date.
+
+To go back, select **Standard (fixed delay)** and install again.
+
+**The audio settings switch along with the firmware.** Each variant keeps its own Mic Mode, Beam Steering, Wake Word Channel, Fast Speech Hold and Mic High-Pass Filter. When the XMOS comes up with the other variant, your settings for the old one are saved and the new one's are loaded. The first time AEC4 runs it starts with **Mic Mode "Beam"**. Your standard settings stay as they were. Mic Gain is shared by both. **Reset XMOS Audio Settings** loads the recommended settings for the running variant.
+
+Good to know:
+
+- Your choice is kept across ESP firmware updates. When an update brings a new XMOS release, the device installs that release in the variant you selected. If the AEC4 download fails, for example without internet, the device installs the standard variant instead so it keeps working, and **XMOS Firmware Update** shows an update again, with the reason in its release notes. Press **Install** to retry.
+- If an install fails, **XMOS Firmware Update** shows why, e.g. *the firmware image couldn't be downloaded*.
+- If a download breaks off halfway, the standard variant is installed automatically, so the XMOS is never left without firmware.
+- AEC4 cancels against mono speaker audio. With the speaker set to "Left only" or "Right only", or on the stereo line-out, stereo music is only partly cancelled. Spoken replies and announcements are mono and unaffected.
+
+### XMOS audio settings per firmware
+
+These are the starting values for each variant. Once you change a setting, the variant keeps your value, and **Reset XMOS Audio Settings** brings back the values below.
+
+| Setting | Standard | AEC4 | What it does and why it helps | Top cover removed? |
+|---------|----------|------|-------------------------------|--------------------|
+| **Mic Mode** | East/West pair, or what you had set before | **Beam** | Which of the four mics feed the voice pipeline. See the table below | Depends on the mode |
+| **Beam Steering** | Wake word only | Wake word only | What may turn the beam (in Beam) or switch the mic pair (in Follow talker). **Wake word only** turns towards you when you say the wake word and then holds, so a TV or radio can't pull the beam away. It stays in the blocking beam, where it gets cancelled. **Follow speech** also turns towards anyone talking. **Fixed** never turns. Has no effect in the fixed pair modes or Average | **Yes**, it steers by the voice direction (except Fixed) |
+| **Wake Word Channel** | Noise suppressed | Noise suppressed | Which signal the wake word engine listens to. *Noise suppressed* is the cleanest. *Before noise suppression* and *Echo cancelled only* keep more of your voice's character, which can help if the wake word gets missed. Hidden by default | No |
+| **Fast Speech Hold** | On | On | The interference canceller stops adapting within ~30 ms of speech, instead of ~400 ms, so it doesn't learn to cancel the start of your wake word. Hidden by default | No |
+| **Mic High-Pass Filter** | On | On | Cuts rumble below 100 Hz (traffic, appliances, footsteps) before the echo canceller. Speech isn't affected. Hidden by default | No |
+| **Mic Gain** | Shared, 20 dB | Shared, 20 dB | Microphone level after echo cancellation, 0–30 dB. Not stored per variant, since the mics are the same. Raise it if the wake word only works up close | No |
+| **Direction Indicator** | Shared, off | Shared, off | LED on the ring that points at where the device listens: the beam in Beam mode, otherwise the talker. Not stored per variant | **Yes**, it shows the voice direction |
+
+**Mic Mode options:**
+
+| Mic Mode | What it does | Benefit | Top cover removed? |
+|----------|--------------|---------|--------------------|
+| **East/West pair** | Uses the east and west mics | The proven default. Predictable, because nothing depends on the voice direction | No |
+| **North/South pair** | Uses the north and south mics | Try it if the east/west mics face a wall or a noise source | No |
+| **Average** | Averages the mics in pairs, (N+E) and (S+W) | Picks up from all sides a bit more evenly, still without using the voice direction | No |
+| **Follow talker** | Picks the mic facing you and the one opposite | Uses the best-placed mics for wherever you stand | **Yes** |
+| **Beam** | Uses all four mics: one beam points at you, a second beam hears the rest of the room and serves as the noise reference | The most noise rejection, from any direction. **Recommended with AEC4**: there, echo is removed from every mic before the beam, so turning the beam doesn't make echo cancellation start over. On the standard firmware the echo canceller re-adapts each time the beam turns | **Yes** |
+
+> [!IMPORTANT]
+> **Everything that uses the voice direction needs the top cover removed for now.** That's **Beam**, **Follow talker**, **Beam Steering** (except *Fixed*) and the **Direction Indicator**. With the cover on, sound reflects inside the enclosure, so the direction is unreliable and the beam may point the wrong way. With the cover on, use **East/West pair**, **North/South pair** or **Average**. Those work the same with or without the cover. This needs more tuning, so expect it to change.
+
+---
+
 ## Sendspin Multi-Room Audio
 
 This firmware uses **Sendspin** for multi-room audio synchronization:

@@ -37,7 +37,7 @@ esphome logs config/satellite1.yaml
 - `satellite1/` - Main board component (SPI communication with XMOS, GPIO control, audio DAC)
 - `memory_flasher/` - XMOS firmware flasher (also `satellite1/memory_flasher/` platform)
 
-(i2s_audio (full duplex bus), the FUSB302B USB-PD controller, TAS2780 amplifier, PCM5122 DAC and the resampler microphone all come from ESPHome core. The full duplex i2s_audio and fusb302b are new in ESPHome 2026.11, so `requirements.txt` pins `esphome==2026.11.0b1` and `min_version` is 2026.11.0. fusb302b exposes the PD contract and voltage through `text_sensor`/`sensor` platforms, not inline keys.)
+(i2s_audio (full duplex bus), the FUSB302B USB-PD controller, TAS2780 amplifier, PCM5122 DAC and the resampler microphone all come from ESPHome core. The full duplex i2s_audio and fusb302b are new in ESPHome 2026.11, so `requirements.txt` pins `esphome==2026.11.0b2` and `min_version` is 2026.11.0. fusb302b exposes the PD contract and voltage through `text_sensor`/`sensor` platforms, not inline keys.)
 
 ### External Components (from ESPHome PRs)
 
@@ -70,7 +70,7 @@ Important IDs used across YAML configs:
 ## Key Conventions
 
 - ESPHome coding standards, C++ style, component patterns, and embedded-systems guidelines: see `.ai/instructions.md` (a copy of upstream ESPHome's `AGENTS.md` — repo-layout specifics there may not apply here)
-- ESPHome version pinned in `requirements.txt` (currently `esphome==2026.11.0b1`; CI's build workflow passes that version to build-action as the image tag. A dev commit SHA also works if its trailing comment names the matching nightly image tag, e.g. `2026.11.0-dev20261101`; `min_version` in `satellite1.base.yaml` is the floor for dashboard builds. After changing the pin, reinstall with `pip install --force-reinstall --no-deps`)
+- ESPHome version pinned in `requirements.txt` (currently `esphome==2026.11.0b2`; CI's build workflow passes that version to build-action as the image tag. A dev commit SHA also works if its trailing comment names the matching nightly image tag, e.g. `2026.11.0-dev20261101`; `min_version` in `satellite1.base.yaml` is the floor for dashboard builds. After changing the pin, reinstall with `pip install --force-reinstall --no-deps`)
 - Python 3.12-3.14 required (ESPHome constraint: `requires-python = ">=3.12.0,<3.15"`)
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - External components reference specific git commits for stability

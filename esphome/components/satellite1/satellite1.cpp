@@ -71,6 +71,19 @@ void Satellite1::loop() {
   }
 }
 
+const char *xmos_fw_variant_to_str(XMOSFwVariant variant) {
+  switch (variant) {
+    case XMOS_FW_VARIANT_FIXED_DELAY:
+      return "fixed_delay";
+    case XMOS_FW_VARIANT_BYPASS:
+      return "bypass";
+    case XMOS_FW_VARIANT_AEC4:
+      return "aec4";
+    default:
+      return "unknown";
+  }
+}
+
 static const char *prerelease_str(uint8_t pre_idx) {
   switch (pre_idx) {
     case 1:
@@ -104,7 +117,11 @@ std::string Satellite1::status_string() {
     case SAT_XMOS_CONNECTED_STATE: {
       char buffer[FW_VERSION_STR_MAX_LEN];
       this->format_fw_version_(buffer, sizeof(buffer));
-      return buffer;
+      std::string status(buffer);
+      status += " (";
+      status += xmos_fw_variant_to_str(this->xmos_fw_variant_);
+      status += ')';
+      return status;
     }
     case SAT_FLASH_CONNECTED_STATE:
       return "Flashing Mode";
@@ -355,11 +372,23 @@ bool Satellite1::dfu_get_fw_version_() {
   }
 
   memcpy(this->xmos_fw_version_, version_resp, sizeof(this->xmos_fw_version_));
+  this->dfu_get_fw_variant_();
   char buffer[FW_VERSION_STR_MAX_LEN];
   this->format_fw_version_(buffer, sizeof(buffer));
-  ESP_LOGI(TAG, "XMOS Firmware Version: %s", buffer);
+  ESP_LOGI(TAG, "XMOS Firmware Version: %s (%s)", buffer, xmos_fw_variant_to_str(this->xmos_fw_variant_));
 
   return true;
+}
+
+void Satellite1::dfu_get_fw_variant_() {
+  uint8_t variant_resp[1]{};
+  if (!this->transfer(DC_RESOURCE::DFU_CONTROLLER, DC_DFU_CMD::GET_VARIANT, variant_resp, sizeof(variant_resp))) {
+    // CONTROL_BAD_COMMAND from firmware older than v2.0.0-beta.2, which only came as fixed_delay
+    ESP_LOGD(TAG, "XMOS firmware doesn't report its variant, assuming fixed_delay");
+    this->xmos_fw_variant_ = XMOS_FW_VARIANT_FIXED_DELAY;
+    return;
+  }
+  this->xmos_fw_variant_ = static_cast<XMOSFwVariant>(variant_resp[0]);
 }
 
 bool Satellite1::check_for_xmos_() {

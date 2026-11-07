@@ -65,6 +65,8 @@ enum RegisterId {
 namespace DC_DFU_CMD {
 enum DcDfuCmdId {
   GET_VERSION = (88 | CONTROL_CMD_READ_BIT),
+  // From XMOS firmware v2.0.0-beta.2. Older firmware rejects it, which means fixed_delay.
+  GET_VARIANT = (92 | CONTROL_CMD_READ_BIT),
 };
 }  // namespace DC_DFU_CMD
 
@@ -127,6 +129,17 @@ struct DoaResult {
   bool updated;        ///< a result was produced in the most recent audio frame
 };
 
+/// XMOS firmware build variant, as reported by DC_DFU_CMD::GET_VARIANT. All variants of a release share
+/// one version string. The values are fixed by the XMOS firmware, new variants take the next free number.
+enum XMOSFwVariant : uint8_t {
+  XMOS_FW_VARIANT_FIXED_DELAY = 0,  ///< default: AEC on the selected mic pair
+  XMOS_FW_VARIANT_BYPASS = 1,       ///< not released
+  XMOS_FW_VARIANT_AEC4 = 2,         ///< experimental: AEC on all four mics before the beamformer
+};
+
+/// Short name of a firmware variant as used in the release assets, e.g. "aec4".
+const char *xmos_fw_variant_to_str(XMOSFwVariant variant);
+
 enum Satellite1State : uint8_t {
   SAT_DETACHED_STATE,
   SAT_XMOS_CONNECTED_STATE,
@@ -144,6 +157,10 @@ class Satellite1 : public Component,
   Satellite1State get_state() const { return this->state_; }
   uint8_t get_connection_attempts() const { return this->connection_attempts_; }
   const uint8_t *get_xmos_fw_version() const { return this->xmos_fw_version_; }
+  /// Variant of the running XMOS firmware, read together with the version.
+  XMOSFwVariant get_xmos_fw_variant() const { return this->xmos_fw_variant_; }
+  /// Writes the running XMOS firmware version as "vX.Y.Z[-pre][.N]" into buffer.
+  void format_fw_version(char *buffer, size_t len) const { this->format_fw_version_(buffer, len); }
 
   void setup() override;
   void dump_config() override;
@@ -293,6 +310,8 @@ class Satellite1 : public Component,
 
  protected:
   bool dfu_get_fw_version_();
+  /// Reads the firmware variant. Firmware without the command (before v2.0.0-beta.2) is fixed_delay.
+  void dfu_get_fw_variant_();
   bool check_for_xmos_();
   /// Restart XMOS detection from scratch (used after leaving flash mode or after a reset).
   void restart_detection_();
@@ -311,6 +330,7 @@ class Satellite1 : public Component,
 
   Satellite1State state_{SAT_DETACHED_STATE};
   uint8_t xmos_fw_version_[XMOS_FW_VERSION_LEN]{};
+  XMOSFwVariant xmos_fw_variant_{XMOS_FW_VARIANT_FIXED_DELAY};
   uint8_t connection_attempts_{0};
 
   uint32_t last_attempt_timestamp_{0};
