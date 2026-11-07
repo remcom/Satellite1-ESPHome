@@ -58,7 +58,23 @@ packages:
                 - lambda: return id(xflash).has_image_embedded();
                 - lambda: return !id(xflash).match_embedded( id(satellite1_id).get_xmos_fw_version() );
               then:
-                - memory_flasher.write_embedded_image:
+                # Update the XMOS to this build's release, keeping the selected firmware variant
+                - if:
+                    condition:
+                      lambda: return id(xmos_fw_variant).active_index().value_or(0) == 1;
+                    then:
+                      # The AEC4 image is downloaded. If WiFi doesn't come up or the download fails,
+                      # the standard image is installed instead (fallback 2) and "XMOS Reflash
+                      # Required" stays on until AEC4 is installed with the button.
+                      - wait_until:
+                          condition:
+                            wifi.connected:
+                          timeout: 60s
+                      - script.execute:
+                          id: xmos_install_selected_firmware
+                          fallback: 2
+                    else:
+                      - memory_flasher.write_embedded_image:
 
   home-assistant-voice: !include satellite1.base.yaml
 
