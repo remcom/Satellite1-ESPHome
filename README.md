@@ -116,6 +116,16 @@ As more drivers land upstream, this fork gets smaller and closer to stock ESPHom
 
 ---
 
+## Firmware Updates
+
+Firmware updates from Home Assistant temporarily stop wake-word detection before
+downloading and flashing. The update entity shows progress during the download;
+if installation fails, wake-word detection resumes so you can retry.
+
+If an older installed version only updates immediately after reboot, reboot it
+and start the update promptly to install this fix. The running firmware handles
+the update, so the fix takes effect on subsequent updates.
+
 ## Building from Source
 
 For developers and advanced users who want to customize the firmware:
