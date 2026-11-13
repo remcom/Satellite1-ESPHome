@@ -1,9 +1,11 @@
 # Satellite1 ESPHome Firmware — Sendspin Multi-Room Audio
 
-**Stable, actively maintained ESPHome firmware for the FutureProofHomes Satellite1 voice assistant, tracking upstream ESPHome closely with ongoing hardware and power-management fixes.**
+**Actively maintained ESPHome firmware for the FutureProofHomes Satellite1 voice assistant: local voice control, synchronized 24-bit multi-room audio, a four-mic XMOS beamforming front end, and presence detection — tracking upstream ESPHome closely.**
 
-[![Firmware](https://img.shields.io/badge/Firmware-v1.3.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11--dev-blue)](https://esphome.io)
+[![Stable](https://img.shields.io/badge/Stable-v1.4.1-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)
+[![Beta](https://img.shields.io/badge/Beta-v2.0.0--beta8-orange)](https://github.com/remcom/Satellite1-ESPHome/releases)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.0b4-blue)](https://esphome.io)
+[![XMOS](https://img.shields.io/badge/XMOS-v2.0.0--beta.2-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.0-beta.2)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -13,22 +15,18 @@
 
 This is an actively maintained ESPHome firmware fork for the [FutureProofHomes Satellite1](https://futureproofhomes.net/) (Core Board + HAT) voice assistant hardware, built around **Sendspin** — ESPHome's native, in-tree audio synchronization protocol — for synchronized multi-room music playback alongside full local voice assistant support.
 
-### Key Features
+> [!CAUTION]
+> **The 2.0 line (v2.0.0-betaN) is an early beta.** It runs on an ESPHome beta (2026.11.0b4) and on beta XMOS firmware from a fork, and much of it hasn't been tested widely on hardware yet. If you rely on your Satellite1 every day, **stay on [v1.4.1](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)** for now.
 
-- ✅ **Sendspin Multi-Room Audio** — synchronized playback across multiple Satellite1 devices, no external sync server required
-- ✅ **Home Assistant Voice Assistant** — full local voice control integration
-- ✅ **ESPHome Dashboard Support** — one-click adoption, OTA updates from stable and beta channels
-- ✅ **Presence Detection** — optional LD2410/LD2450 mmWave radar variants
-- ✅ **Power-Optimized DAC Management** — TAS2780 and PCM5122 both power down automatically when idle
-- ✅ **Hardware Diagnostics** — TAS2780 voltage/temperature monitoring, reworked FUSB302B USB-PD driver
+### Highlights
 
----
-
-## Why This Fork
-
-This project tracks upstream ESPHome closely (currently a pinned 2026.11 dev commit, ahead of the 2026.11.0 release), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
-
-Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and now both build on Sendspin — pick whichever release cadence and maintenance style fits your setup.
+- 🎶 **Sendspin multi-room audio** — synchronized playback across Satellite1s and other Sendspin players, streamed in **24-bit** FLAC or PCM from Music Assistant
+- 🎙️ **Local voice assistant** — on-device wake words, Home Assistant Assist, timers, announcements
+- 🎯 **XMOS four-mic front end** — echo cancellation, noise suppression, beamforming, direction of arrival and wake word beam steering, with a choice of **two XMOS firmware variants** ([guide](docs/XMOS.md))
+- 📡 **Presence detection** — optional LD2410 or LD2450 mmWave radar builds
+- 🔊 **Speaker and line-out** — TAS2780 amplifier and PCM5122 line-out DAC, auto power-down when idle
+- 🔁 **OTA updates** — stable and beta channels, XMOS updates as a Home Assistant update entity
+- 🔐 **Secure build** — encrypted credential storage and signature-verified OTA
 
 ---
 
@@ -38,118 +36,126 @@ Install firmware directly from your browser (Chrome or Edge required, over USB):
 
 ### [→ Install Firmware Now](https://remcom.github.io/Satellite1-ESPHome/site/)
 
-**Available Variants:**
-
 | Variant | Best For | Features |
 |---------|----------|----------|
-| **Standard** | Voice assistant + music | Base firmware without radar |
-| **LD2410** | Room presence detection | + HLK-LD2410 presence sensor |
-| **LD2450** | Advanced zone tracking | + HLK-LD2450 multi-zone radar |
+| **Standard** (`satellite1`) | Voice assistant + music | Base firmware without radar |
+| **LD2410** (`satellite1.ld2410`) | Room presence detection | + HLK-LD2410 presence sensor |
+| **LD2450** (`satellite1.ld2450`) | Zone and target tracking | + HLK-LD2450 multi-target radar |
+| **Secure** (`satellite1.secure`) | Hardened installs | Encrypted credential storage + signature-verified OTA |
+
+After installing, the device starts a **BLE Improv** session so you can set up WiFi from the Home Assistant app, then it's discovered by Home Assistant and the ESPHome Dashboard.
 
 ---
 
-## XMOS Firmware: Standard or True Beamforming
+## Features
 
-The XMOS audio chip on the HAT runs its own firmware, and you can choose between two variants of it:
+### 🎶 Music and Sendspin multi-room audio
 
-| Variant | What it does |
-|---------|--------------|
-| **Standard (fixed delay)** | The default. Echo cancellation runs on the selected mic pair. Built into the ESP firmware, so it can always be reinstalled, even offline. |
-| **True beamforming (AEC4, experimental)** | Echo cancellation runs on **all four mics before the beamformer**. The beam then gets echo-cancelled audio from every mic, and steering it no longer makes the echo canceller start over. Downloaded from the [XMOS release](https://github.com/remcom/Satellite1-XMOS/releases) when installed. **Not yet tested on hardware.** |
+- **Sendspin media source** — the Satellite1 is a Sendspin player: group it with other Satellite1s and Sendspin players (e.g. from Music Assistant) for sample-accurate synchronized playback, no separate sync server needed
+- **24-bit streaming** — FLAC (preferred) or PCM at 24 bits, through a 32-bit mixer to the speaker and the line-out. Set `media_bits_per_sample: "16"` to save memory
+- **Line-out latency compensation** — Sendspin's static delay adjustment switches on automatically when a 3.5 mm jack is plugged in
+- **Now-playing info** — **Title**, **Artist**, **Track Progress**, **Track Duration**, **Track Number** and **Year** sensors, plus the **Sendspin Pairing Code**
+- **Media player entity** — play any URL or Home Assistant media, with separate **Announcement Volume** so TTS and alerts stay audible on a quiet device
+- **Speaker channel output** — *Mono (Left + Right)*, *Left Channel Only* or *Right Channel Only*, to build stereo pairs from two devices
+- **Line-out jack detection** — **Line-Out Connected** sensor; the device switches between the TAS2780 speaker and the PCM5122 line-out automatically, with a sound and LED animation
+- **Ducking** — music lowers during announcements and voice assistant replies
 
-> [!WARNING]
-> **Switching variants always reflashes the XMOS chip.** It's installed like an update, takes about a minute, the LED ring shows the progress, and voice and audio don't work until it finishes. Don't unplug the device while it runs.
+### 🎙️ Voice assistant
 
-**To switch**, in Home Assistant, on the device page:
+- **On-device wake words** with microWakeWord: **Okay Nabu**, **Hey Jarvis**, **Hey Mycroft**, plus **Stop** to end a timer or a reply
+- **Wake word sensitivity** — *Slightly*, *Moderately* or *Very sensitive*
+- **Wake word runs during music** — full-duplex I2S keeps the mics live while the speaker plays, and the XMOS removes the device's own audio
+- **Both XMOS channels to Home Assistant** — HA 2026.6+ picks the better one per pipeline stage
+- **Timers** — voice timers with LED countdown, a ringing sound and auto-stop
+- **Wake sound** switch, **Mute Microphones** switch (follows the hardware mute switch), configurable **TTS start timeout**
 
-1. Set **XMOS Firmware Variant** to the variant you want. On its own this changes nothing, but **XMOS Firmware Update** now shows an update is available, e.g. from `v2.0.0-beta.2 (fixed_delay)` to `v2.0.0-beta.2 (aec4)`.
-2. Open **XMOS Firmware Update** (also listed under *Settings → Updates*) and press **Install**.
-3. Home Assistant shows the progress bar, and the LED ring shows it too. When it's done, the update shows as up to date.
+### 🎯 XMOS audio front end
 
-To go back, select **Standard (fixed delay)** and install again.
+The XMOS chip on the HAT processes all four microphones: high-pass filter, echo cancellation, beamforming, interference cancellation, noise suppression, AGC and direction of arrival.
 
-**The audio settings switch along with the firmware.** Each variant keeps its own Mic Mode, Beam Steering, Wake Word Channel, Fast Speech Hold and Mic High-Pass Filter. When the XMOS comes up with the other variant, your settings for the old one are saved and the new one's are loaded. The first time AEC4 runs it starts with **Mic Mode "Beam"**. Your standard settings stay as they were. Mic Gain is shared by both. **Reset XMOS Audio Settings** loads the recommended settings for the running variant.
+| Feature | Entity |
+|---------|--------|
+| Choose the mics or a beam | **Mic Mode** — East/West pair, North/South pair, Average, Follow talker, Beam |
+| Turn the beam towards a wake word, and hold it there | **Beam Steering** — Wake word only, Follow speech, Fixed |
+| Mic level | **Mic Gain** (0–30 dB) |
+| LED pointing at where it listens | **Direction Indicator** |
+| Voice direction for automations | **Voice Direction**, **Voice Direction Confidence** |
+| Fine tuning | **Wake Word Channel**, **Fast Speech Hold**, **Mic High-Pass Filter** |
+| Two XMOS firmware variants | **XMOS Firmware Variant**, **XMOS Firmware Update**, **Reset XMOS Audio Settings** |
 
-Good to know:
+**Two XMOS firmware variants:**
 
-- Your choice is kept across ESP firmware updates. When an update brings a new XMOS release, the device installs that release in the variant you selected. If the AEC4 download fails, for example without internet, the device installs the standard variant instead so it keeps working, and **XMOS Firmware Update** shows an update again, with the reason in its release notes. Press **Install** to retry.
-- If an install fails, **XMOS Firmware Update** shows why, e.g. *the firmware image couldn't be downloaded*.
-- If a download breaks off halfway, the standard variant is installed automatically, so the XMOS is never left without firmware.
-- AEC4 cancels against mono speaker audio. With the speaker set to "Left only" or "Right only", or on the stereo line-out, stereo music is only partly cancelled. Spoken replies and announcements are mono and unaffected.
+| Variant | Summary |
+|---------|---------|
+| **Standard (fixed delay)** | The default. Echo cancellation on the selected mic pair. Embedded in the ESP firmware, so it can always be reinstalled offline |
+| **True beamforming (AEC4, experimental)** | Echo cancellation on all four mics before the beamformer, so steering the beam doesn't make echo cancellation start over. Downloaded when installed. Not yet tested on hardware |
 
-### XMOS audio settings per firmware
-
-These are the starting values for each variant. Once you change a setting, the variant keeps your value, and **Reset XMOS Audio Settings** brings back the values below.
-
-| Setting | Standard | AEC4 | What it does and why it helps | Top cover removed? |
-|---------|----------|------|-------------------------------|--------------------|
-| **Mic Mode** | East/West pair, or what you had set before | **Beam** | Which of the four mics feed the voice pipeline. See the table below | Depends on the mode |
-| **Beam Steering** | Wake word only | Wake word only | What may turn the beam (in Beam) or switch the mic pair (in Follow talker). **Wake word only** turns towards you when you say the wake word and then holds, so a TV or radio can't pull the beam away. It stays in the blocking beam, where it gets cancelled. **Follow speech** also turns towards anyone talking. **Fixed** never turns. Has no effect in the fixed pair modes or Average | **Yes**, it steers by the voice direction (except Fixed) |
-| **Wake Word Channel** | Noise suppressed | Noise suppressed | Which signal the wake word engine listens to. *Noise suppressed* is the cleanest. *Before noise suppression* and *Echo cancelled only* keep more of your voice's character, which can help if the wake word gets missed. Hidden by default | No |
-| **Fast Speech Hold** | On | On | The interference canceller stops adapting within ~30 ms of speech, instead of ~400 ms, so it doesn't learn to cancel the start of your wake word. Hidden by default | No |
-| **Mic High-Pass Filter** | On | On | Cuts rumble below 100 Hz (traffic, appliances, footsteps) before the echo canceller. Speech isn't affected. Hidden by default | No |
-| **Mic Gain** | Shared, 20 dB | Shared, 20 dB | Microphone level after echo cancellation, 0–30 dB. Not stored per variant, since the mics are the same. Raise it if the wake word only works up close | No |
-| **Direction Indicator** | Shared, off | Shared, off | LED on the ring that points at where the device listens: the beam in Beam mode, otherwise the talker. Not stored per variant | **Yes**, it shows the voice direction |
-
-**Mic Mode options:**
-
-| Mic Mode | What it does | Benefit | Top cover removed? |
-|----------|--------------|---------|--------------------|
-| **East/West pair** | Uses the east and west mics | The proven default. Predictable, because nothing depends on the voice direction | No |
-| **North/South pair** | Uses the north and south mics | Try it if the east/west mics face a wall or a noise source | No |
-| **Average** | Averages the mics in pairs, (N+E) and (S+W) | Picks up from all sides a bit more evenly, still without using the voice direction | No |
-| **Follow talker** | Picks the mic facing you and the one opposite | Uses the best-placed mics for wherever you stand | **Yes** |
-| **Beam** | Uses all four mics: one beam points at you, a second beam hears the rest of the room and serves as the noise reference | The most noise rejection, from any direction. **Recommended with AEC4**: there, echo is removed from every mic before the beam, so turning the beam doesn't make echo cancellation start over. On the standard firmware the echo canceller re-adapts each time the beam turns | **Yes** |
+Each variant keeps its own audio settings, and switching is a one-click install from the **XMOS Firmware Update** entity.
 
 > [!IMPORTANT]
-> **Everything that uses the voice direction needs the top cover removed for now.** That's **Beam**, **Follow talker**, **Beam Steering** (except *Fixed*) and the **Direction Indicator**. With the cover on, sound reflects inside the enclosure, so the direction is unreliable and the beam may point the wrong way. With the cover on, use **East/West pair**, **North/South pair** or **Average**. Those work the same with or without the cover. This needs more tuning, so expect it to change.
+> Beam, Follow talker, Beam Steering and the Direction Indicator need the **top cover removed** for now; with the cover on, use a fixed mic pair or Average.
+
+📖 **Full guide: [docs/XMOS.md](docs/XMOS.md)** — how each setting works, how to switch variants, recommended setups, recovery and troubleshooting.
+
+### 💡 LED ring
+
+- **24-LED ring** with animations for every voice assistant phase (waiting, listening, thinking, replying), errors, mute, volume, timers, jack plug/unplug, XMOS flashing and factory reset
+- **LED Ring** light entity for your own use when the device is idle
+- **Current limit** — the ring is dimmed just enough to stay under 1000 mA (`led_ring_max_current_ma`), with an **LED Ring Current** diagnostic sensor
+
+### 🔘 Buttons
+
+| Button | Action |
+|--------|--------|
+| **Up / Down** | Volume up / down, shown on the LED ring |
+| **Left (hardware switch)** | Mute the microphones |
+| **Action — single press** | Stops, in order: a ringing timer, the voice assistant, an announcement, music. Otherwise starts the voice assistant |
+| **Action — double / triple / long press** | Exposed as the **Action Button Press** event entity for your own automations |
+| **Action — hold 10 s** | Factory reset warning (sound + LEDs); release to cancel |
+| **Action — hold 22 s** | Factory reset (also erases the XMOS, which is reinstalled on the next boot) |
+
+### 📡 Presence detection (radar variants)
+
+**LD2410** — presence, moving/still target, distances and energies, per-gate thresholds, light sensor, and **background noise correction** (needs LD2410 firmware V2.44+).
+
+**LD2450** — up to three tracked targets with X/Y, speed, angle, distance and direction; three rectangle zones; three **polygon zones** (3–23 points, checked on the device) with presence sensors; **LD2450 Connected** watchdog.
+
+### 🌡️ Sensors and diagnostics
+
+- **Temperature** and **Humidity** (AHT20), with humidity recomputed for the board's self-heating (Magnus formula); **Offset Temperature** / **Offset Humidity** sliders for calibration
+- **Ambient Light** (LTR-303), **Wi-Fi Signal RSSI**, **Internal Temperature**, **Uptime**
+- **USB-C Power Contract** — the USB-PD contract negotiated by the FUSB302B
+- **XMOS Firmware** version and variant
+- Debug entities (hidden by default): heap, PSRAM, loop time, reset reason, XMOS reset/flash/erase buttons, safe-mode restart
+
+### ⚙️ System
+
+- **OTA updates** from GitHub releases, with a **Beta firmware** switch to follow the beta channel
+- **XMOS firmware updates** as a regular Home Assistant update with progress, automatic fallback to the embedded image, and failure reasons
+- **ESPHome Dashboard adoption** and remote compile (`satellite1-dashboard.yaml`, `satellite1-remote.yaml`)
+- **Fast WiFi reconnect** after a reboot (DHCP lease cache)
+- **Power management** — TAS2780 and PCM5122 power down when idle
+- **Opt-in: share the microphone with Sendspin** — stream the XMOS-processed mic to a Sendspin server (intercom, room audio). Build-it-yourself only, off by default, see `common/sendspin_source.yaml`
 
 ---
 
-## Sendspin Multi-Room Audio
+## Why This Fork
 
-This firmware uses **Sendspin** for multi-room audio synchronization:
+This project tracks upstream ESPHome closely (currently the **2026.11.0b4** beta), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
 
-- **Native ESPHome integration** — no external servers required
-- **Lower latency** — tuned for the ESP32-S3 + XMOS audio pipeline
-- **Tighter Home Assistant integration** — seamless media player control
-- **Built into ESPHome core** since 2026.6.0
-
-### Additional Enhancements
-
-Beyond multi-room audio, this fork includes:
-
-- **ESPHome Dashboard adoption** — one-click setup, automatic OTA updates, and remote compile support so devices can be adopted and managed without touching a build environment
-- **OTA firmware updates** — stable and beta release channels, so you can track fixes early or stay on a settled release
-- **Hardware diagnostics** — TAS2780 voltage and temperature monitoring surfaced as Home Assistant entities, for spotting amplifier issues before they become audible
-- **Smart power management** — automatic DAC shutoff for both TAS2780 and PCM5122 when idle, cutting standby power draw without any user configuration
-- **Full-duplex I2S** — the microphones and the speaker share one I2S bus and run at the same time, so wake word detection keeps listening during music playback; the speaker amplifier and line-out DAC take turns on the bus through the router speaker
-- **Reworked FUSB302B / USB-PD driver** — a substantial internal rework of the USB-PD stack for more reliable power negotiation
-- **LED and timer fixes** — corrected mute/volume LED indication and timer auto-off behavior, found and fixed through day-to-day use of the hardware
+Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and both build on Sendspin. The main differences are the release cadence and the XMOS firmware: this fork runs its own [XMOS firmware](https://github.com/remcom/Satellite1-XMOS) with direction of arrival, beamforming and the AEC4 variant.
 
 ### Upstreaming to ESPHome
 
-A long-term goal of this fork is to get the Satellite1 hardware drivers merged into ESPHome core, so the broader community — not just Satellite1 owners — can use them directly without a fork:
+A long-term goal of this fork is to get the Satellite1 hardware drivers merged into ESPHome core, so the broader community can use them without a fork:
 
-- ✅ **PCM5122 DAC** — merged upstream; now used directly from ESPHome core rather than a local component
-- ✅ **TAS2780 amplifier** — merged upstream ([esphome#15708](https://github.com/esphome/esphome/pull/15708)); now used directly from ESPHome core
-- ✅ **Full-duplex I2S** — merged upstream ([esphome#19959](https://github.com/esphome/esphome/pull/19959)); the full-duplex `i2s_audio` bus is used directly from ESPHome core (2026.11), replacing the former local shared-bus fork
-- ✅ **Microphone resampler** — merged upstream; the `resampler` microphone platform is used directly from ESPHome core (2026.10)
-- ✅ **FUSB302B USB-PD** — merged upstream; `fusb302b` is used directly from ESPHome core (2026.11), replacing the former local component
+- ✅ **PCM5122 DAC** — merged upstream; used directly from ESPHome core
+- ✅ **TAS2780 amplifier** — merged upstream ([esphome#15708](https://github.com/esphome/esphome/pull/15708))
+- ✅ **Full-duplex I2S** — merged upstream ([esphome#19959](https://github.com/esphome/esphome/pull/19959)), ESPHome 2026.11
+- ✅ **Microphone resampler** — merged upstream, ESPHome 2026.10
+- ✅ **FUSB302B USB-PD** — merged upstream, ESPHome 2026.11
 
-As more drivers land upstream, this fork gets smaller and closer to stock ESPHome — the ideal end state is a thin config layer on top of components everyone can use.
-
----
-
-## Use Cases
-
-**Perfect for:**
-
-- 🏠 **Whole-home voice control** — control Home Assistant from any room
-- 🎶 **Multi-room music** — play synchronized music across your entire home
-- 🛏️ **Presence-based automation** — trigger actions based on room occupancy (with radar variants)
-- 🔊 **High-quality audio** — professional DAC and amplifier for excellent sound
-- 🌐 **Local voice assistant** — privacy-focused, works without cloud services
+What's left locally is the `satellite1` component (SPI link to the XMOS, its settings, DoA sensor and update entity) and the `memory_flasher` that flashes the XMOS.
 
 ---
 
@@ -158,32 +164,30 @@ As more drivers land upstream, this fork gets smaller and closer to stock ESPHom
 ### Hardware
 
 - **FutureProofHomes Satellite1** (Core Board + HAT)
-- **Optional:** LD2410 or LD2450 radar sensor for presence detection
+- **Optional:** LD2410 or LD2450 radar sensor
 
 ### Software
 
-- **ESPHome** 2026.11.0 or newer — until 2026.11.0 is released that means ESPHome `dev`; 2026.10 and older refuse to build this firmware
-- **Home Assistant** with Voice Assistant configured
-- **Chrome or Edge browser** (for the web installer)
+- **Home Assistant** with a voice assistant pipeline configured (2026.6+ recommended for dual-channel audio)
+- **Music Assistant** with Sendspin for multi-room music (optional)
+- **Chrome or Edge** for the web installer
+- **To build yourself: ESPHome 2026.11.0b1 or newer** (2026.11.0b4 is what releases are built with). ESPHome 2026.10 and older, including the current Home Assistant add-on release, refuse to build this firmware. The build downloads the XMOS image, so it needs internet
 
 ### Recommended Setup
 
-- Multiple Satellite1 devices for multi-room audio
-- Stable Wi-Fi network (2.4GHz)
+- Stable 2.4 GHz Wi-Fi
 - Home Assistant OS or Supervised installation
 
 ---
 
 ## Building from Source
 
-For developers and advanced users who want to customize the firmware:
-
 ```bash
 # Clone the repository
 git clone https://github.com/remcom/Satellite1-ESPHome.git
 cd Satellite1-ESPHome
 
-# Set up the build environment
+# Set up the build environment (creates .venv, installs the pinned ESPHome)
 source scripts/setup_build_env.sh
 
 # Compile firmware
@@ -203,65 +207,90 @@ esphome logs config/satellite1.yaml
 | `config/satellite1.yaml` | Standard variant (no radar) |
 | `config/satellite1.ld2410.yaml` | LD2410 radar variant |
 | `config/satellite1.ld2450.yaml` | LD2450 radar variant |
-| `config/satellite1.base.yaml` | Base configuration (shared by all variants) |
-| `config/common/*.yaml` | Modular components (voice, media, LEDs, buttons) |
+| `config/satellite1.secure.yaml` | Secure variant (NVS encryption, signed OTA; needs your own signing key) |
+| `config/satellite1.common.yaml` | Shared by the local builds: OTA, beta switch, boot-time XMOS update |
+| `config/satellite1.base.yaml` | Base configuration: substitutions, `satellite1` component, XMOS flasher, packages |
+| `config/satellite1-dashboard.yaml` | ESPHome Dashboard adoption |
+| `config/satellite1-remote.yaml` | Remote compile from GitHub |
 
----
+### Packages (`config/common/`)
 
-## Contributing
+| Package | Contents |
+| ------- | -------- |
+| `core_board.yaml` | ESP32-S3, I2S bus, microphones, core sensors |
+| `wifi_improv.yaml` | WiFi and BLE Improv |
+| `hat_sensors.yaml` | Temperature, humidity, illuminance |
+| `buttons.yaml` | Buttons, action button events, factory reset |
+| `home_assistant.yaml` | Restart/reset, wake sound, mute, XMOS Firmware sensor |
+| `media_player.yaml` | Media player, Sendspin, mixer, DACs, now-playing sensors |
+| `voice_assistant.yaml` | Voice assistant and microWakeWord |
+| `timer.yaml` | Voice timers |
+| `led_ring.yaml` | LED ring and effects |
+| `xmos_audio.yaml` | XMOS audio settings, DoA, beam steering |
+| `xmos_firmware.yaml` | XMOS variant select, update entity, per-variant settings |
+| `debug.yaml` | Diagnostic sensors and XMOS debug buttons |
+| `mmwave_ld2410.yaml` / `mmwave_ld2450.yaml` | Radar (optional) |
+| `sendspin_source.yaml` | Share the mic with Sendspin (optional) |
+| `developer.yaml` | Amplifier level and volume range tuning (optional) |
 
-We welcome contributions!
+### Useful substitutions
 
-### How to Help
+| Substitution | Default | What it does |
+| ------------ | ------- | ------------ |
+| `friendly_name` | `Satellite1` | Device name |
+| `temp_offset` / `humidity_offset` | `-3` / `0` | Sensor calibration |
+| `media_bits_per_sample` | `"24"` | Sendspin stream bit depth (`"16"` saves memory) |
+| `led_ring_max_current_ma` | `"1000"` | LED ring current limit |
+| `micro_wake_word_task_core` | `"1"` | CPU core for wake word inference |
+| `micro_wake_word_ring_buffer_duration` | `250ms` | How far the wake word engine may fall behind |
+| `tts_playback_start_timeout` | `5s` | How long a spoken reply may take to start |
+| `xmos_fw_version` | `"v2.0.0-beta.2"` | XMOS release to install |
+| `doa_led_offset` / `doa_led_clockwise` | `"0"` / `"true"` | Direction Indicator calibration |
 
-- 🐛 **Report bugs** — [open an issue](https://github.com/remcom/Satellite1-ESPHome/issues) if something doesn't work
-- 💡 **Suggest features** — share ideas for improvements
-- 🧪 **Test and provide feedback** — try the latest releases and share your experience
-- 📝 **Improve documentation** — help others get started
-
-### Choosing the Right Firmware
-
-- **Want Sendspin with a fast-moving upstream-tracking release cadence?** → you're in the right place
-- **Prefer the official FutureProofHomes-supported release?** → use [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
+More XMOS-related options are in the [XMOS guide](docs/XMOS.md#for-people-with-their-own-yaml).
 
 ---
 
 ## FAQ
 
 **Is this ready for daily use?**
-Yes — releases are versioned and tagged (currently v1.3.0), tested against real hardware, and built with linting/CI on every change. It isn't a one-off experiment; it's a maintained alternative firmware.
+The stable line (v1.4.1) is. The 2.0 betas bring a lot of new audio and XMOS features and are for testers; each release has detailed notes on what changed and how to go back.
 
 **Is this affiliated with FutureProofHomes?**
 No. It's an independent, community-maintained fork of their open-source firmware. Hardware design and the original firmware are FutureProofHomes' work.
 
 **Can I switch back to the official firmware later?**
-Yes. Both firmwares target the same hardware; you can reflash via USB or OTA at any time.
+Yes. Both target the same hardware; reflash over USB or OTA at any time. The XMOS is reflashed by whichever firmware you install.
 
-**How is this different from the official firmware?**
-Both now build on Sendspin for multi-room audio. This fork focuses on tracking upstream ESPHome releases quickly and shipping hardware/power-management fixes as they're found, backed by CI and linting on every change.
+**Which XMOS variant should I use?**
+Standard, unless you've removed the top cover and want better wake word detection while music plays — then try AEC4 with Mic Mode *Beam*. See [docs/XMOS.md](docs/XMOS.md).
+
+**Does it work without internet?**
+Voice control works fully locally with a local Home Assistant pipeline. Installing the AEC4 XMOS variant and OTA updates need internet; the Standard XMOS variant is always available offline.
+
+---
+
+## Contributing
+
+- 🐛 **Report bugs** — [open an issue](https://github.com/remcom/Satellite1-ESPHome/issues)
+- 💡 **Suggest features** — share ideas for improvements
+- 🧪 **Test betas** — each release note lists what feedback is most useful
+- 📝 **Improve documentation** — help others get started
 
 ---
 
 ## Documentation & Resources
 
-### Project Links
-
+- 📖 **XMOS guide** — [docs/XMOS.md](docs/XMOS.md)
 - 🌐 **Web Installer** — [remcom.github.io/Satellite1-ESPHome](https://remcom.github.io/Satellite1-ESPHome/)
-- 📖 **Official FPH Firmware** — [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome)
-- 📘 **FutureProofHomes Docs** — [docs.futureproofhomes.net](https://docs.futureproofhomes.net)
-
-### ESPHome & Home Assistant
-
-- 🏠 **Home Assistant** — [home-assistant.io](https://www.home-assistant.io/)
-- ⚡ **ESPHome** — [esphome.io](https://esphome.io)
-- 🔊 **Sendspin** — native multi-room audio sync (part of ESPHome since 2026.6.0)
-- 🎙️ **Voice PE Project** — [home-assistant-voice-pe](https://github.com/esphome/home-assistant-voice-pe)
+- 🎛️ **XMOS firmware** — [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS)
+- 📦 **Releases and release notes** — [GitHub releases](https://github.com/remcom/Satellite1-ESPHome/releases)
+- 📘 **Official FPH firmware** — [FutureProofHomes/Satellite1-ESPHome](https://github.com/FutureProofHomes/Satellite1-ESPHome) · [docs.futureproofhomes.net](https://docs.futureproofhomes.net)
+- 🏠 [Home Assistant](https://www.home-assistant.io/) · ⚡ [ESPHome](https://esphome.io) · 🎙️ [Voice PE](https://github.com/esphome/home-assistant-voice-pe)
 
 ---
 
 ## Credits
-
-This project builds upon excellent work from:
 
 - **[FutureProofHomes](https://futureproofhomes.net/)** — Satellite1 hardware design and original firmware
 - **[Nabu Casa](https://nabucasa.com/)** — Home Assistant and ESPHome development
@@ -272,12 +301,10 @@ This project builds upon excellent work from:
 
 ## License
 
-This project uses the same license as the original FutureProofHomes/Satellite1-ESPHome project.
-
-See [LICENSE](LICENSE) for full details.
+This project uses the same license as the original FutureProofHomes/Satellite1-ESPHome project. See [LICENSE](LICENSE) for details.
 
 ---
 
 ## Keywords
 
-ESPHome firmware, Satellite1, voice assistant, multi-room audio, synchronized audio, Sendspin, Home Assistant, ESP32-S3, local voice control, smart home, whole home audio, presence detection, LD2410, LD2450, TAS2780, PCM5122, FUSB302B, FutureProofHomes alternative firmware
+ESPHome firmware, Satellite1, voice assistant, multi-room audio, synchronized audio, Sendspin, Music Assistant, Home Assistant, ESP32-S3, XMOS, beamforming, echo cancellation, direction of arrival, local voice control, presence detection, LD2410, LD2450, TAS2780, PCM5122, FUSB302B, FutureProofHomes alternative firmware
