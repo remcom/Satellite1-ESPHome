@@ -35,11 +35,6 @@ substitutions:
   micro_wake_word_task_core: "1"
   # Audio the wake word task can fall behind by before it drops samples (120ms..1s, default 120ms)
   micro_wake_word_ring_buffer_duration: 250ms
-  # Keeps the wake word models and their tensor arenas in internal RAM for faster inference. Off
-  # until measured: okay_nabu + VAD need ~169 KB (+67 KB for "stop"), of ~167 KB internal RAM left
-  # after static allocation, and they load before the speakers allocate their internal-only I2S
-  # DMA buffers. The models fall back to PSRAM with a warning, playback cannot.
-  micro_wake_word_prefer_internal_ram: "false"
   # How long TTS playback may take to start before the pipeline gives up (default 2s). Cloud TTS
   # and the first response after boot can take longer to arrive.
   tts_playback_start_timeout: 5s
@@ -126,7 +121,6 @@ micro_wake_word:
   task_stack_in_psram: true
   task_core: ${micro_wake_word_task_core}
   ring_buffer_duration: ${micro_wake_word_ring_buffer_duration}
-  prefer_internal_ram: ${micro_wake_word_prefer_internal_ram}
   models:
     - model: https://github.com/OHF-Voice/micro-wake-word/releases/download/okay_nabu_20241226.3/okay_nabu.json
       id: okay_nabu
