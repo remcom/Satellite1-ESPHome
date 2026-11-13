@@ -1,3 +1,9 @@
+substitutions:
+  # Bit depth Sendspin (Music Assistant) streams FLAC and PCM in: 24 or 16. The
+  # chain after the media resampler (mixer, router, both DACs) runs at 32 bits,
+  # so 24 reaches the speaker intact; 16 saves a third of the media buffers.
+  media_bits_per_sample: "24"
+
 globals:
   # Stores the power mode from USB-PD contract (0 for <9V, 2 for >=9V)
   - id: tas2780_power_mode
@@ -27,6 +33,9 @@ audio_dac:
   - platform: pcm5122
     id: speaker_dac_pcm5122
     address: 0x4D
+    # Word length of the I2S data; must match the 32-bit speaker below, or the
+    # DAC only plays the top 16 bits of every sample
+    bits_per_sample: 32bit
 
 # API actions for switching between DACs
 api:
@@ -240,11 +249,13 @@ speaker:
     output_speaker: announcement_mixing_input
     sample_rate: 48000
     bits_per_sample: 16
+  # No bits_per_sample: passes the stream's bit depth (up to
+  # media_bits_per_sample from Sendspin) through to the 32-bit mixer.
+  # Announcements stay 16-bit.
   - platform: resampler
     id: media_resampling_speaker
     output_speaker: media_mixing_input
     sample_rate: 48000
-    bits_per_sample: 16
 
 sendspin:
   id: sendspin_hub
@@ -308,8 +319,10 @@ media_source:
     task_stack_in_psram: true
   - platform: sendspin
     id: sendspin_media_source
-    # codecs defaults to [flac, opus, pcm] - the preference order we want (flac is the least
-    # processor intensive; opus is 48 kHz only).
+    bits_per_sample: ${media_bits_per_sample}
+    # Preference order: FLAC is the least processor intensive. No Opus: it always decodes
+    # to 16 bits, which would undo media_bits_per_sample (the Voice PE dropped it too).
+    codecs: [flac, pcm]
 
 media_player:
   - platform: sendspin

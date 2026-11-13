@@ -2,7 +2,7 @@
 # esphome/build-action as the ghcr.io/esphome/esphome image tag, so both stay on
 # the same code. To track dev instead, pin a commit SHA with the matching nightly
 # image tag as a trailing comment (e.g. 2026.11.0-dev20261101).
-esphome==2026.11.0b2
+esphome==2026.11.0b4
 setuptools
 
 # Lint tools, same versions as upstream ESPHome, CI (.github/workflows/lint.yaml) and .pre-commit-config.yaml
