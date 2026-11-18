@@ -4,8 +4,8 @@
 
 [![Stable](https://img.shields.io/badge/Stable-v1.4.1-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)
 [![Beta](https://img.shields.io/badge/Beta-v2.0.0--beta8-orange)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.0b4-blue)](https://esphome.io)
-[![XMOS](https://img.shields.io/badge/XMOS-v2.0.0--beta.2-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.0-beta.2)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.0-blue)](https://esphome.io)
+[![XMOS](https://img.shields.io/badge/XMOS-v2.0.0-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.0)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -16,7 +16,7 @@
 This is an actively maintained ESPHome firmware fork for the [FutureProofHomes Satellite1](https://futureproofhomes.net/) (Core Board + HAT) voice assistant hardware, built around **Sendspin** — ESPHome's native, in-tree audio synchronization protocol — for synchronized multi-room music playback alongside full local voice assistant support.
 
 > [!CAUTION]
-> **The 2.0 line (v2.0.0-betaN) is an early beta.** It runs on an ESPHome beta (2026.11.0b4) and on beta XMOS firmware from a fork, and much of it hasn't been tested widely on hardware yet. If you rely on your Satellite1 every day, **stay on [v1.4.1](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)** for now.
+> **The 2.0 line (v2.0.0-betaN) is an early beta.** It needs ESPHome 2026.11.0 and runs XMOS firmware v2.0.0 from a fork, and much of it hasn't been tested widely on hardware yet. If you rely on your Satellite1 every day, **stay on [v1.4.1](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)** for now.
 
 ### Highlights
 
@@ -141,7 +141,7 @@ Each variant keeps its own audio settings, and switching is a one-click install 
 
 ## Why This Fork
 
-This project tracks upstream ESPHome closely (currently the **2026.11.0b4** beta), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
+This project tracks upstream ESPHome closely (currently **2026.11.0**), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
 
 Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and both build on Sendspin. The main differences are the release cadence and the XMOS firmware: this fork runs its own [XMOS firmware](https://github.com/remcom/Satellite1-XMOS) with direction of arrival, beamforming and the AEC4 variant.
 
@@ -171,7 +171,7 @@ What's left locally is the `satellite1` component (SPI link to the XMOS, its set
 - **Home Assistant** with a voice assistant pipeline configured (2026.6+ recommended for dual-channel audio)
 - **Music Assistant** with Sendspin for multi-room music (optional)
 - **Chrome or Edge** for the web installer
-- **To build yourself: ESPHome 2026.11.0b1 or newer** (2026.11.0b4 is what releases are built with). ESPHome 2026.10 and older, including the current Home Assistant add-on release, refuse to build this firmware. The build downloads the XMOS image, so it needs internet
+- **To build yourself: ESPHome 2026.11.0 or newer**, which is also the version the Home Assistant ESPHome add-on ships with Home Assistant 2026.11. ESPHome 2026.10 and older refuse to build this firmware. The build downloads the XMOS image, so it needs internet
 
 ### Recommended Setup
 
@@ -244,7 +244,7 @@ esphome logs config/satellite1.yaml
 | `micro_wake_word_task_core` | `"1"` | CPU core for wake word inference |
 | `micro_wake_word_ring_buffer_duration` | `250ms` | How far the wake word engine may fall behind |
 | `tts_playback_start_timeout` | `5s` | How long a spoken reply may take to start |
-| `xmos_fw_version` | `"v2.0.0-beta.2"` | XMOS release to install |
+| `xmos_fw_version` | `"v2.0.0"` | XMOS release to install |
 | `doa_led_offset` / `doa_led_clockwise` | `"0"` / `"true"` | Direction Indicator calibration |
 
 More XMOS-related options are in the [XMOS guide](docs/XMOS.md#for-people-with-their-own-yaml).

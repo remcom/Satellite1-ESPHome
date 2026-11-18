@@ -16,7 +16,7 @@ This guide covers:
 - [For people with their own YAML](#for-people-with-their-own-yaml)
 
 > [!CAUTION]
-> The XMOS firmware is **v2.0.0-beta.2** from [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS/releases). It's a beta from a fork, **not an official FutureProofHomes release**. Direction of arrival was tuned mostly in simulation, and the **AEC4 variant has not been tested on hardware yet**.
+> The XMOS firmware is **v2.0.0** from [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS/releases). It comes from a fork and is **not an official FutureProofHomes release**. Direction of arrival was tuned mostly in simulation, and the **AEC4 variant has not been tested on hardware yet**.
 
 ---
 
@@ -53,7 +53,7 @@ The XMOS doesn't remember its settings. The ESP32 stores them and sends them eve
 
 ## The two XMOS firmware variants
 
-Every XMOS release comes in two variants. They share the same version number (e.g. `v2.0.0-beta.2`), so the variant is shown separately, e.g. `v2.0.0-beta.2 (fixed_delay)` or `v2.0.0-beta.2 (aec4)`.
+Every XMOS release comes in two variants. They share the same version number (e.g. `v2.0.0`), so the variant is shown separately, e.g. `v2.0.0 (fixed_delay)` or `v2.0.0 (aec4)`.
 
 | | **Standard (fixed delay)** | **True beamforming (AEC4, experimental)** |
 |---|---|---|
@@ -89,7 +89,7 @@ Picking a variant on its own changes nothing. The reflash only starts when you p
 On the device page in Home Assistant:
 
 1. Under **Configuration**, set **XMOS Firmware Variant** to the variant you want.
-   **XMOS Firmware Update** now shows an update, e.g. from `v2.0.0-beta.2 (fixed_delay)` to `v2.0.0-beta.2 (aec4)`.
+   **XMOS Firmware Update** now shows an update, e.g. from `v2.0.0 (fixed_delay)` to `v2.0.0 (aec4)`.
 2. Open **XMOS Firmware Update** (also under *Settings → Updates*) and press **Install**.
 3. Home Assistant shows a progress bar, and the LED ring shows it too (blue). When it's done, **XMOS Firmware Update** shows as up to date and the audio settings for that variant are loaded.
 
@@ -221,7 +221,7 @@ The XMOS estimates where speech comes from, using frequencies up to 3000 Hz (hig
 
 ### Automatic updates
 
-Each ESP firmware release is built for one XMOS release (currently `v2.0.0-beta.2`). On the first boot after an ESP update that brings a new XMOS release, the device updates the XMOS by itself, **in the variant you selected**:
+Each ESP firmware release is built for one XMOS release (currently `v2.0.0`). On the first boot after an ESP update that brings a new XMOS release, the device updates the XMOS by itself, **in the variant you selected**:
 
 - **Standard**: installed from the image embedded in the ESP firmware.
 - **AEC4**: the device waits up to 60 s for WiFi and downloads the image. If WiFi doesn't come up or the download fails, it installs **Standard** instead so the device keeps working. **XMOS Firmware Update** then shows an update again, with the reason in its release notes. Press **Install** to retry.
@@ -255,9 +255,9 @@ All hidden by default, under **Diagnostic** on the device page.
 
 | Entity | What it does |
 |--------|--------------|
-| **XMOS Firmware** (text sensor, visible) | The running XMOS release and variant, e.g. `v2.0.0-beta.2 (aec4)`, or a status if the XMOS isn't reachable |
+| **XMOS Firmware** (text sensor, visible) | The running XMOS release and variant, e.g. `v2.0.0 (aec4)`, or a status if the XMOS isn't reachable |
 | **XMOS Hardware Reset** | Resets the XMOS. The settings are sent again once it's back |
-| **XMOS Flash v2.0.0-beta.2** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
+| **XMOS Flash v2.0.0** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
 | **XMOS Flash Embedded FW** | Flashes the Standard image embedded in the ESP firmware |
 | **XMOS Erase Chip** | Erases the XMOS flash. The XMOS stops working until something is flashed again (the next boot does that automatically) |
 
@@ -295,7 +295,7 @@ The boot-time XMOS update is in `on_xmos_connected` in [config/satellite1.common
 
 | Substitution | Default | Where | What it does |
 |--------------|---------|-------|--------------|
-| `xmos_fw_version` | `"v2.0.0-beta.2"` | `satellite1.base.yaml` | XMOS release this build installs |
+| `xmos_fw_version` | `"v2.0.0"` | `satellite1.base.yaml` | XMOS release this build installs |
 | `xmos_fw_release_url` | `https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}` | `satellite1.base.yaml` | Where images are downloaded from |
 | `xmos_settings_standard_default` | `"0, 1, 0, 1, 1"` | `xmos_firmware.yaml` | Recommended Standard settings |
 | `xmos_settings_aec4_default` | `"4, 1, 0, 1, 1"` | `xmos_firmware.yaml` | Recommended AEC4 settings |
