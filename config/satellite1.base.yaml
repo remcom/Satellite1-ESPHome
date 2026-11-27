@@ -95,7 +95,6 @@ packages:
   led_ring: !include common/led_ring.yaml
   xmos_audio: !include common/xmos_audio.yaml
   xmos_firmware: !include common/xmos_firmware.yaml
-  debug: !include common/debug.yaml
 
   ## OPTIONAL COMPONENTS
   # mmwave_ld2410: !include common/mmwave_ld2410.yaml
