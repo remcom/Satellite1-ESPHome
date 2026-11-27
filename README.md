@@ -149,6 +149,45 @@ This project tracks upstream ESPHome closely (currently **2026.11.1**), ships fi
 
 Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and both build on Sendspin. The main differences are the release cadence and the XMOS firmware: this fork runs its own [XMOS firmware](https://github.com/remcom/Satellite1-XMOS) with direction of arrival, beamforming and the AEC4 variant.
 
+### Compared with the official firmware
+
+Latest releases, as of November 2026: this fork **v2.0.3**, FutureProofHomes [**v0.2.1**](https://github.com/FutureProofHomes/Satellite1-ESPHome/releases/tag/v0.2.1) (stable) and [**v0.2.2-beta.0**](https://github.com/FutureProofHomes/Satellite1-ESPHome/releases/tag/v0.2.2-beta.0) (beta).
+
+**ESP firmware**
+
+| | This fork v2.0.3 | FPH v0.2.1 | FPH v0.2.2-beta.0 |
+| --- | --- | --- | --- |
+| ESPHome | 2026.11.1 | 2026.7.3 | 2026.10.2 |
+| XMOS firmware it installs | v2.0.2 (this fork's) | v1.0.3 | v1.1.0-beta.1 |
+| Drivers kept locally | `satellite1`, `memory_flasher`; everything else from ESPHome core | + `i2s_audio`, `fusb302b`, `tas2780`, `satellite1_radar` | + `ltr_als_ps`, `speaker_source` |
+| Music bit depth | 24-bit (32-bit mixer) | 16-bit | 16-bit |
+| Mic settings in Home Assistant | Microphone Setup, Mic Mode, Beam Steering, Mic Gain, Wake Word Channel and more | — | — |
+| Direction of arrival | Voice Direction sensors, Direction Indicator on the LED ring | — | — |
+| XMOS firmware variants | Standard or Beamforming (AEC4), picked with Microphone Setup | Standard only | Standard only |
+| XMOS update | Automatic at boot, plus an update entity with progress, failure reasons and fallback to the embedded image | Automatic at boot, plus flash buttons | Automatic at boot, plus flash buttons |
+| Speaker and line-out | One at a time, switches on jack detection | One at a time | Both at once, volume kept per output |
+| Radar | Separate LD2410 and LD2450 builds | Separate LD2410 and LD2450 builds | One build that detects the radar |
+| Wake words | Okay Nabu, Hey Jarvis, Hey Mycroft, Stop | Okay Nabu, Hey Jarvis, Stop | Okay Nabu, Hey Jarvis, Stop |
+| Secure build (encrypted NVS, signed OTA) | Yes | — | — |
+| XMOS audio quality sensors | Yes (hidden) | — | — |
+
+**XMOS firmware**
+
+| | This fork [v2.0.2](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.2) | FPH v1.0.3 | FPH [v1.1.0-beta.2](https://github.com/FutureProofHomes/Satellite1-XMOS/releases/tag/v1.1.0-beta.2) |
+| --- | --- | --- | --- |
+| Microphones | All four | Two | All four, AEC residuals averaged |
+| Voice library | lib_voice 2.0.0 | fwk_voice | fwk_voice 0.9.0 |
+| Variants | `fixed_delay` and `aec4` (echo cancellation on all four mics before the beamformer) | `fixed_delay` | `fixed_delay` |
+| Direction of arrival | GCC-PHAT on both mic pairs, with steady noise (TV, fan) removed | — | — |
+| Beamforming | Beam at the talker plus a blocking beam, steered to the wake word | — | — |
+| Echo reference | Mono, matched to the speaker channel the TAS2780 plays (L+R, left or right) | Stereo | Mono, always L+R |
+| Mic gain | 0–30 dB, after echo cancellation | Fixed | Fixed 10x |
+| Wake word channel | Own AGC; choice of AEC+IC+NS, AEC+IC or AEC only | No AGC of its own | No AGC of its own |
+| Telemetry | Echo reduction, reference drops, clipping, wake word timing | — | — |
+| SPI protocol / USB | `0x11`, SPI only | `0x10`, USB | `0x11`, SPI only |
+
+The two XMOS firmwares are not interchangeable: each ESP firmware installs its own XMOS release on the first boot.
+
 ### Upstreaming to ESPHome
 
 A long-term goal of this fork is to get the Satellite1 hardware drivers merged into ESPHome core, so the broader community can use them without a fork:
