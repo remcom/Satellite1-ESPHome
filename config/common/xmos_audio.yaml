@@ -220,6 +220,8 @@ script:
       # The XMOS steers within one 15 ms audio frame
       - delay: 30ms
       - script.execute: update_doa_led
+      # How long the wake word took to reach the XMOS, for tuning its wake word window
+      - lambda: id(satellite1_id).log_wake_timing();
 
   # Re-applies the mic settings after the XMOS (re)connected
   - id: apply_xmos_mic_settings
