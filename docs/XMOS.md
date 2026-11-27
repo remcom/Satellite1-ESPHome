@@ -16,7 +16,7 @@ This guide covers:
 - [For people with their own YAML](#for-people-with-their-own-yaml)
 
 > [!CAUTION]
-> The XMOS firmware is **v2.0.0** from [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS/releases). It comes from a fork and is **not an official FutureProofHomes release**. Direction of arrival was tuned mostly in simulation, and the **AEC4 variant has not been tested on hardware yet**.
+> The XMOS firmware is **v2.0.2** from [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS/releases). It comes from a fork and is **not an official FutureProofHomes release**. Direction of arrival was tuned mostly in simulation, and the **AEC4 variant has not been tested on hardware yet**.
 
 ---
 
@@ -53,7 +53,7 @@ The XMOS doesn't remember its settings. The ESP32 stores them and sends them eve
 
 ## The two XMOS firmware variants
 
-Every XMOS release comes in two variants. They share the same version number (e.g. `v2.0.0`), so the variant is shown separately, e.g. `v2.0.0 (fixed_delay)` or `v2.0.0 (aec4)`.
+Every XMOS release comes in two variants. They share the same version number (e.g. `v2.0.2`), so the variant is shown separately, e.g. `v2.0.2 (fixed_delay)` or `v2.0.2 (aec4)`.
 
 | | **Standard (fixed delay)** | **True beamforming (AEC4, experimental)** |
 |---|---|---|
@@ -62,7 +62,8 @@ Every XMOS release comes in two variants. They share the same version number (e.
 | **When the beam turns or the mic pair changes** | The echo canceller has to re-adapt, so echo leaks through for a moment | Nothing changes for the echo canceller, it already covers every mic |
 | **Best Mic Mode** | East/West pair (works with the cover on) | **Beam** (needs the top cover removed for now) |
 | **Where the image comes from** | **Embedded in the ESP firmware.** Can always be (re)installed, also without internet | **Downloaded** from the [XMOS release](https://github.com/remcom/Satellite1-XMOS/releases) when installed. Needs internet |
-| **Echo reference** | Speaker audio | **Mono** speaker audio |
+| **Echo reference** | **Mono**: what the speaker plays (see below) | **Mono**: what the speaker plays (see below) |
+| **Voice direction while music plays** | Paused | **Keeps working**: measured on the echo cancelled mics |
 | **Status** | Default. Same audio pipeline as earlier 2.0 betas | **Not yet tested on hardware**, built and measured in the XMOS simulator only |
 
 ### Which one should I pick?
@@ -70,11 +71,13 @@ Every XMOS release comes in two variants. They share the same version number (e.
 - **Keep Standard** if your device is in daily use, the top cover is on, or you have no reliable internet. It's the proven setup.
 - **Try AEC4** if you remove the top cover and want the best wake word detection **while music is playing**. That's exactly where AEC4 should do better: the beam can follow you without the echo canceller starting over each time.
 
-### AEC4 and stereo
+### Echo reference and stereo
 
-AEC4 cancels against a **mono** mix of what the speaker plays. That's also what the TAS2780 amplifier plays by default (`Speaker channel output` = *Mono (Left + Right)*).
+Both variants cancel against **one** (mono) reference: exactly what the single speaker plays. The ESP32 tells the XMOS what that is from `Speaker channel output`: *Mono (Left + Right)* (default), *Left Channel Only* or *Right Channel Only*, so stereo music is cancelled in every setting.
 
-- With `Speaker channel output` on **Left Channel Only** or **Right Channel Only**, or when you use the **3.5 mm line-out** with stereo music, the echo canceller only partly removes stereo music.
+Standard firmware before this change modelled the left and right channels separately. With stereo music on the mono speaker that never settles on one solution, and in the XMOS simulator it removed ~10 dB less echo (see [voice-simulation.md](https://github.com/remcom/Satellite1-XMOS/blob/develop/docs/voice-simulation.md)).
+
+- With the **3.5 mm line-out** and stereo speakers, the echo canceller only partly removes stereo music.
 - Spoken replies, announcements and timer sounds are mono and are always fully cancelled.
 
 ---
@@ -89,7 +92,7 @@ Picking a variant on its own changes nothing. The reflash only starts when you p
 On the device page in Home Assistant:
 
 1. Under **Configuration**, set **XMOS Firmware Variant** to the variant you want.
-   **XMOS Firmware Update** now shows an update, e.g. from `v2.0.0 (fixed_delay)` to `v2.0.0 (aec4)`.
+   **XMOS Firmware Update** now shows an update, e.g. from `v2.0.2 (fixed_delay)` to `v2.0.2 (aec4)`.
 2. Open **XMOS Firmware Update** (also under *Settings → Updates*) and press **Install**.
 3. Home Assistant shows a progress bar, and the LED ring shows it too (blue). When it's done, **XMOS Firmware Update** shows as up to date and the audio settings for that variant are loaded.
 
@@ -125,6 +128,7 @@ All settings are on the device page in Home Assistant under **Configuration**. S
 | [Wake Word Channel](#wake-word-channel) | select | Noise suppressed | Noise suppressed | ✅ | ✅ | No |
 | [Fast Speech Hold](#fast-speech-hold) | switch | On | On | ✅ | ✅ | No |
 | [Mic High-Pass Filter](#mic-high-pass-filter) | switch | On | On | ✅ | ✅ | No |
+| [Wake Word Level Control](#wake-word-level-control) | switch | On | On (shared) | | ✅ | No |
 | [Mic Gain](#mic-gain) | number | 20 dB | 20 dB (shared) | | | No |
 | [Direction Indicator](#direction-of-arrival-and-the-direction-indicator) | switch | Off | Off (shared) | | | Yes |
 
@@ -175,6 +179,12 @@ The interference canceller learns what to remove, and must stop learning while y
 
 A 100 Hz high-pass filter on the mics, before the echo canceller. Removes rumble (traffic, appliances, footsteps) without touching speech. On by default.
 
+### Wake Word Level Control
+
+Keeps the wake word at about the same level for the wake word engine whether you say it softly or loudly. Without it the wake word channel has a fixed gain: a wake word ~5 dB louder than usual (speaking up, or half the distance) clipped, and a soft one reached the engine very quietly. On (default), the XMOS raises the level of soft speech by up to 18 dB and lowers loud speech by up to 20 dB, and softly limits peaks so they never clip.
+
+It adapts while you talk and holds its level in silence, so it doesn't boost background noise. It can't make soft speech in a noisy room any cleaner, and right after you spoke loudly, the first soft wake word gets little of the extra gain. Shared by both variants. Needs XMOS firmware v2.0.2 or newer; older firmware ignores it. Turn it off to compare.
+
 ### Mic Gain
 
 Microphone level after echo cancellation, **0–30 dB**, default **20 dB**. Shared by both variants. Raise it if the wake word only works up close; lower it if you get false triggers in a loud room.
@@ -188,7 +198,7 @@ A button that loads the recommended settings for the variant that's **currently 
 | **Standard** | East/West pair | Wake word only | Noise suppressed | On | On |
 | **AEC4** | Beam | Wake word only | Noise suppressed | On | On |
 
-Mic Gain and Direction Indicator are left alone.
+Mic Gain, Wake Word Level Control and Direction Indicator are left alone.
 
 ---
 
@@ -221,7 +231,7 @@ The XMOS estimates where speech comes from, using frequencies up to 3000 Hz (hig
 
 ### Automatic updates
 
-Each ESP firmware release is built for one XMOS release (currently `v2.0.0`). On the first boot after an ESP update that brings a new XMOS release, the device updates the XMOS by itself, **in the variant you selected**:
+Each ESP firmware release is built for one XMOS release (currently `v2.0.2`). On the first boot after an ESP update that brings a new XMOS release, the device updates the XMOS by itself, **in the variant you selected**:
 
 - **Standard**: installed from the image embedded in the ESP firmware.
 - **AEC4**: the device waits up to 60 s for WiFi and downloads the image. If WiFi doesn't come up or the download fails, it installs **Standard** instead so the device keeps working. **XMOS Firmware Update** then shows an update again, with the reason in its release notes. Press **Install** to retry.
@@ -255,11 +265,33 @@ All hidden by default, under **Diagnostic** on the device page.
 
 | Entity | What it does |
 |--------|--------------|
-| **XMOS Firmware** (text sensor, visible) | The running XMOS release and variant, e.g. `v2.0.0 (aec4)`, or a status if the XMOS isn't reachable |
+| **XMOS Firmware** (text sensor, visible) | The running XMOS release and variant, e.g. `v2.0.2 (aec4)`, or a status if the XMOS isn't reachable |
 | **XMOS Hardware Reset** | Resets the XMOS. The settings are sent again once it's back |
-| **XMOS Flash v2.0.0** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
+| **XMOS Flash v2.0.2** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
 | **XMOS Flash Embedded FW** | Flashes the Standard image embedded in the ESP firmware |
 | **XMOS Erase Chip** | Erases the XMOS flash. The XMOS stops working until something is flashed again (the next boot does that automatically) |
+| **XMOS Echo Reduction** | How much of the speaker's sound the echo canceller removes (ERLE), in dB, averaged over its mics. Meaningful **while something plays**; when you talk or the room is quiet it drops, that's expected. Higher is better: roughly 20 dB and up is good |
+| **XMOS Echo Reduction Worst Mic** | The same for the mic that removes the least echo |
+| **XMOS Echo Reference Drops** | Speaker audio frames the echo canceller missed because it fell behind, since the XMOS started. Should stay 0; if it rises the XMOS is overloaded |
+| **XMOS Clipped Samples Voice Channel** | Output samples at full scale on channel 0 (to Home Assistant) since the XMOS started |
+| **XMOS Clipped Samples Wake Word Channel** | The same on channel 1 (wake word). If it rises while you talk, lower **Mic Gain** |
+
+The XMOS sensors update every 10 s and need XMOS firmware with audio quality telemetry (v2.0.1 or newer); older firmware logs one warning and leaves them unknown. The counters restart when the XMOS restarts.
+
+### Measuring the wake word timing
+
+The XMOS finds the wake word's direction from the DOA results of a short window before the ESP32 reports it. It leaves out the last ~300 ms, which is about how long the wake word takes to get there (I2S, the wake word engine, the SPI write). If the real delay is different, the window catches speech after the wake word (a TV) or misses part of it. To measure it:
+
+1. Use XMOS firmware that reports the timing (v2.0.2 or newer); older firmware notes this once at DEBUG level and logs nothing.
+2. Pick a quiet room (no TV, fan or music) and open the device log.
+3. Say the wake word ~20 times from 1–3 m, at different speeds, with a few seconds of silence after each.
+4. After each wake word the log shows a line like:
+
+   ```
+   [I][satellite1]: Wake timing #12: last located speech 285 ms (19 frames) before the report; the window skips 300 ms; 41 DOA results in the window, located
+   ```
+
+The first number is the delay: the time from the end of the wake word to the report. Note the median and the highest of your ~20 values; reverb makes it read a few frames short, and values near 0 mean the engine fired before the word ended (or a sound was heard after it). "The window skips" should be about the highest usual value. If it's well off, report the numbers in an issue.
 
 > [!TIP]
 > The debug buttons always install **Standard**, whatever **XMOS Firmware Variant** says. **XMOS Firmware Update** will then show an update if you selected AEC4. The per-variant settings follow whichever variant actually runs.
@@ -295,7 +327,7 @@ The boot-time XMOS update is in `on_xmos_connected` in [config/satellite1.common
 
 | Substitution | Default | Where | What it does |
 |--------------|---------|-------|--------------|
-| `xmos_fw_version` | `"v2.0.0"` | `satellite1.base.yaml` | XMOS release this build installs |
+| `xmos_fw_version` | `"v2.0.2"` | `satellite1.base.yaml` | XMOS release this build installs |
 | `xmos_fw_release_url` | `https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}` | `satellite1.base.yaml` | Where images are downloaded from |
 | `xmos_settings_standard_default` | `"0, 1, 0, 1, 1"` | `xmos_firmware.yaml` | Recommended Standard settings |
 | `xmos_settings_aec4_default` | `"4, 1, 0, 1, 1"` | `xmos_firmware.yaml` | Recommended AEC4 settings |
@@ -334,6 +366,7 @@ substitutions:
 | `xmos_mic_gain` | Mic Gain |
 | `doa_indicator` | Direction Indicator |
 | `sat1_doa` | DoA sensor (`voice_direction`, `voice_direction_confidence`) |
+| `sat1_audio_quality` | XMOS audio quality sensors (`sensor: platform: satellite1`, `type: audio_quality`) |
 | `xflash` | XMOS memory flasher |
 
 ### Scripts
@@ -358,8 +391,11 @@ id(satellite1_id).set_steer_policy(satellite1::STEER_POLICY_WAKE_WORD);  // FOLL
 id(satellite1_id).set_ch1_tap(satellite1::CH1_TAP_NS);         // NS, IC, AEC
 id(satellite1_id).set_ic_fast_hold(bool);
 id(satellite1_id).set_hpf(bool);
+id(satellite1_id).set_ch1_agc(bool);                              // Wake Word Level Control
 id(satellite1_id).notify_wake_word(bool detected);
+id(satellite1_id).set_ref_mix(satellite1::REF_MIX_DOWNMIX);   // DOWNMIX, LEFT, RIGHT: match the TAS2780
 id(satellite1_id).read_beam_azimuth(uint16_t &azimuth);        // XMOS_NO_BEAM outside Beam mode
+id(satellite1_id).log_wake_timing();                            // logs how long the last wake word took to reach the XMOS
 id(satellite1_id).get_xmos_fw_variant();                       // XMOS_FW_VARIANT_FIXED_DELAY or XMOS_FW_VARIANT_AEC4
 id(sat1_doa).read_direction(); id(sat1_doa).get_azimuth(); id(sat1_doa).is_valid();
 ```
@@ -368,4 +404,4 @@ All setters return `false` when the XMOS isn't connected or the firmware doesn't
 
 ### Compatibility
 
-The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
+The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs v2.0.1 or newer. The wake word timing (`log_wake_timing`, `read_wake_timing`) and Wake Word Level Control (`set_ch1_agc`) need v2.0.2 or newer. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.

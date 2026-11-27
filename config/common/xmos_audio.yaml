@@ -34,6 +34,33 @@ sensor:
       id: voice_direction_confidence
       disabled_by_default: true
 
+  # Audio quality telemetry of the XMOS (stats servicer). All hidden by default: enable them on the
+  # device page to check the echo canceller and the audio path, e.g. while music plays.
+  - platform: satellite1
+    type: audio_quality
+    id: sat1_audio_quality
+    update_interval: 10s
+    echo_reduction:
+      name: "XMOS Echo Reduction"
+      id: xmos_echo_reduction
+      disabled_by_default: true
+    echo_reduction_worst:
+      name: "XMOS Echo Reduction Worst Mic"
+      id: xmos_echo_reduction_worst
+      disabled_by_default: true
+    reference_drops:
+      name: "XMOS Echo Reference Drops"
+      id: xmos_reference_drops
+      disabled_by_default: true
+    clipped_samples_ch0:
+      name: "XMOS Clipped Samples Voice Channel"
+      id: xmos_clipped_samples_ch0
+      disabled_by_default: true
+    clipped_samples_ch1:
+      name: "XMOS Clipped Samples Wake Word Channel"
+      id: xmos_clipped_samples_ch1
+      disabled_by_default: true
+
 switch:
   # Stops the XMOS interference canceller adapting within ~30 ms of speech onset, instead of
   # ~400 ms into it, so it doesn't learn to cancel the start of the wake word.
@@ -66,6 +93,23 @@ switch:
       - lambda: id(satellite1_id).set_hpf(true);
     on_turn_off:
       - lambda: id(satellite1_id).set_hpf(false);
+
+  # Levels the wake word channel on the XMOS, so a wake word said softly or loudly reaches the
+  # wake word engine at about the same level instead of too quiet or clipped. It is designed for
+  # micro_wake_word's gain_factor 4; off gives the fixed mic gain as before.
+  - platform: template
+    name: "Wake Word Level Control"
+    id: xmos_ch1_agc
+    icon: "mdi:tune-vertical"
+    entity_category: config
+    disabled_by_default: true
+    optimistic: true
+    restore_state: all
+    initial_state: ON
+    on_turn_on:
+      - lambda: id(satellite1_id).set_ch1_agc(true);
+    on_turn_off:
+      - lambda: id(satellite1_id).set_ch1_agc(false);
 
   - platform: template
     name: "Direction Indicator"
@@ -193,6 +237,8 @@ script:
       # The XMOS steers within one 15 ms audio frame
       - delay: 30ms
       - script.execute: update_doa_led
+      # How long the wake word took to reach the XMOS, for tuning its wake word window
+      - lambda: id(satellite1_id).log_wake_timing();
 
   # Re-applies the mic settings after the XMOS (re)connected
   - id: apply_xmos_mic_settings
@@ -213,6 +259,12 @@ script:
           }
           id(satellite1_id).set_ic_fast_hold(id(xmos_ic_fast_hold).state);
           id(satellite1_id).set_hpf(id(xmos_hpf).state);
+          id(satellite1_id).set_ch1_agc(id(xmos_ch1_agc).state);
+          // Echo reference: what the TAS2780 plays (Speaker channel output, media_player.yaml)
+          auto spk = id(tas_mode_select).active_index();
+          if (spk.has_value() && spk.value() <= satellite1::REF_MIX_LAST) {
+            id(satellite1_id).set_ref_mix(static_cast<satellite1::XMOSRefMix>(spk.value()));
+          }
 
 interval:
   # Follow the talker while the voice assistant waits for or listens to a command

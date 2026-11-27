@@ -260,6 +260,75 @@ bool Satellite1::read_doa(DoaResult &result) {
   return true;
 }
 
+bool Satellite1::read_audio_quality(AudioQuality &quality) {
+  uint8_t resp[AUDIO_QUALITY_PAYLOAD_LEN]{};
+  if (!this->transfer(DC_RESOURCE::STATS, DC_STATS_CMD::GET_AUDIO_QUALITY, resp, sizeof(resp))) {
+    return false;
+  }
+  if (resp[0] != AUDIO_QUALITY_VERSION) {
+    ESP_LOGV(TAG, "Unknown audio quality payload version %u", resp[0]);
+    return false;
+  }
+  auto u32 = [&resp](size_t at) { return encode_uint32(resp[at + 3], resp[at + 2], resp[at + 1], resp[at]); };
+  quality.aec_channels = std::min<uint8_t>(resp[1], AUDIO_QUALITY_MAX_AEC_CHANNELS);
+  quality.output_channels = resp[2];
+  quality.flags = resp[3];
+  quality.sequence = u32(4);
+  quality.ref_drops_oldest = u32(8);
+  quality.ref_drops_newest = u32(12);
+  for (size_t ch = 0; ch < AUDIO_QUALITY_MAX_AEC_CHANNELS; ch++) {
+    quality.erle_cdb[ch] = static_cast<int16_t>(encode_uint16(resp[16 + 2 * ch + 1], resp[16 + 2 * ch]));
+  }
+  quality.clips[0] = u32(24);
+  quality.clips[1] = u32(28);
+  return true;
+}
+
+bool Satellite1::read_wake_timing(WakeTiming &timing) {
+  uint8_t resp[AUDIO_WAKE_TIMING_PAYLOAD_LEN]{};
+  if (!this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::GET_WAKE_TIMING, resp, sizeof(resp))) {
+    return false;
+  }
+  if (resp[0] != AUDIO_WAKE_TIMING_VERSION) {
+    ESP_LOGV(TAG, "Unknown wake timing payload version %u", resp[0]);
+    return false;
+  }
+  timing.handled = (resp[1] & AUDIO_WAKE_TIMING_FLAG_HANDLED) != 0;
+  timing.located = (resp[1] & AUDIO_WAKE_TIMING_FLAG_LOCATED) != 0;
+  timing.sequence = encode_uint16(resp[3], resp[2]);
+  timing.newest_age = encode_uint16(resp[5], resp[4]);
+  timing.window_results = resp[6];
+  timing.latency_frames = resp[7];
+  return true;
+}
+
+void Satellite1::log_wake_timing() {
+  WakeTiming timing{};
+  if (!this->read_wake_timing(timing)) {
+    if (!this->wake_timing_unsupported_logged_) {
+      ESP_LOGD(TAG, "The XMOS firmware doesn't report the wake word timing");
+      this->wake_timing_unsupported_logged_ = true;
+    }
+    return;
+  }
+  if (!timing.handled || (this->wake_timing_seen_ && timing.sequence == this->wake_timing_sequence_)) {
+    ESP_LOGD(TAG, "The XMOS hasn't handled the wake word yet");
+    return;
+  }
+  this->wake_timing_seen_ = true;
+  this->wake_timing_sequence_ = timing.sequence;
+  if (timing.newest_age == AUDIO_WAKE_TIMING_NO_AGE) {
+    ESP_LOGI(TAG, "Wake timing #%u: no located speech before the wake word", timing.sequence);
+    return;
+  }
+  // In a quiet room the newest located speech is the end of the wake word
+  ESP_LOGI(TAG,
+           "Wake timing #%u: last located speech %u ms (%u frames) before the report; the window skips %u ms; "
+           "%u DOA results in the window, %s",
+           timing.sequence, timing.newest_age * XMOS_FRAME_MS, timing.newest_age, timing.latency_frames * XMOS_FRAME_MS,
+           timing.window_results, timing.located ? "located" : "not located");
+}
+
 bool Satellite1::set_mic_gain(uint8_t gain_db) {
   if (gain_db > XMOS_MIC_GAIN_DB_MAX) {
     ESP_LOGE(TAG, "Mic gain %u dB out of range (max %u dB)", gain_db, XMOS_MIC_GAIN_DB_MAX);
@@ -310,6 +379,11 @@ bool Satellite1::set_hpf(bool enable) {
   return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_HPF, &payload, 1);
 }
 
+bool Satellite1::set_ch1_agc(bool enable) {
+  uint8_t payload = enable;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_CH1_AGC, &payload, 1);
+}
+
 bool Satellite1::set_steer_policy(XMOSSteerPolicy policy) {
   if (policy > STEER_POLICY_LAST) {
     ESP_LOGE(TAG, "Unknown steering policy %u", policy);
@@ -317,6 +391,15 @@ bool Satellite1::set_steer_policy(XMOSSteerPolicy policy) {
   }
   uint8_t payload = policy;
   return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_STEER_POLICY, &payload, 1);
+}
+
+bool Satellite1::set_ref_mix(XMOSRefMix mix) {
+  if (mix > REF_MIX_LAST) {
+    ESP_LOGE(TAG, "Unknown echo reference mix %u", mix);
+    return false;
+  }
+  uint8_t payload = mix;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_REF_MIX, &payload, 1);
 }
 
 bool Satellite1::notify_wake_word(bool detected) {
