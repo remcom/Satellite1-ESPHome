@@ -2,9 +2,8 @@
 
 **Actively maintained ESPHome firmware for the FutureProofHomes Satellite1 voice assistant: local voice control, synchronized 24-bit multi-room audio, a four-mic XMOS beamforming front end, and presence detection — tracking upstream ESPHome closely.**
 
-[![Stable](https://img.shields.io/badge/Stable-v1.4.1-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)
-[![Beta](https://img.shields.io/badge/Beta-v2.0.0--beta8-orange)](https://github.com/remcom/Satellite1-ESPHome/releases)
-[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.0-blue)](https://esphome.io)
+[![Stable](https://img.shields.io/badge/Stable-v2.0.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.0)
+[![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.1-blue)](https://esphome.io)
 [![XMOS](https://img.shields.io/badge/XMOS-v2.0.0-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.0)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
@@ -15,8 +14,8 @@
 
 This is an actively maintained ESPHome firmware fork for the [FutureProofHomes Satellite1](https://futureproofhomes.net/) (Core Board + HAT) voice assistant hardware, built around **Sendspin** — ESPHome's native, in-tree audio synchronization protocol — for synchronized multi-room music playback alongside full local voice assistant support.
 
-> [!CAUTION]
-> **The 2.0 line (v2.0.0-betaN) is an early beta.** It needs ESPHome 2026.11.0 and runs XMOS firmware v2.0.0 from a fork, and much of it hasn't been tested widely on hardware yet. If you rely on your Satellite1 every day, **stay on [v1.4.1](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v1.4.1)** for now.
+> [!NOTE]
+> **Updating from v1.4.x?** v2.0.0 reflashes the XMOS chip automatically on the first boot (about a minute, don't unplug it). The direction-based mic features (Beam, Follow talker, Beam Steering, Direction Indicator) still need the top cover removed; the default settings work with the cover on. See the [v2.0.0 release notes](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.0).
 
 ### Highlights
 
@@ -141,7 +140,7 @@ Each variant keeps its own audio settings, and switching is a one-click install 
 
 ## Why This Fork
 
-This project tracks upstream ESPHome closely (currently **2026.11.0**), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
+This project tracks upstream ESPHome closely (currently **2026.11.1**), ships fixes for LED/timer/button logic and DAC power management as they're found, and runs `clang-tidy` and pre-commit linting on every change. It's a smaller, focused codebase maintained specifically for the Satellite1 hardware, with a release cadence built around getting fixes and upstream ESPHome improvements out quickly.
 
 Both this fork and the official [FutureProofHomes firmware](https://github.com/FutureProofHomes/Satellite1-ESPHome) target the same hardware and both build on Sendspin. The main differences are the release cadence and the XMOS firmware: this fork runs its own [XMOS firmware](https://github.com/remcom/Satellite1-XMOS) with direction of arrival, beamforming and the AEC4 variant.
 
@@ -228,7 +227,7 @@ esphome logs config/satellite1.yaml
 | `led_ring.yaml` | LED ring and effects |
 | `xmos_audio.yaml` | XMOS audio settings, DoA, beam steering |
 | `xmos_firmware.yaml` | XMOS variant select, update entity, per-variant settings |
-| `debug.yaml` | Diagnostic sensors and XMOS debug buttons |
+| `debug.yaml` | Diagnostic sensors and XMOS debug buttons (optional) |
 | `mmwave_ld2410.yaml` / `mmwave_ld2450.yaml` | Radar (optional) |
 | `sendspin_source.yaml` | Share the mic with Sendspin (optional) |
 | `developer.yaml` | Amplifier level and volume range tuning (optional) |
@@ -254,7 +253,7 @@ More XMOS-related options are in the [XMOS guide](docs/XMOS.md#for-people-with-t
 ## FAQ
 
 **Is this ready for daily use?**
-The stable line (v1.4.1) is. The 2.0 betas bring a lot of new audio and XMOS features and are for testers; each release has detailed notes on what changed and how to go back.
+Yes, v2.0.0 is the stable release and works for daily use with the default settings. Betas are for testers; each release has detailed notes on what changed and how to go back.
 
 **Is this affiliated with FutureProofHomes?**
 No. It's an independent, community-maintained fork of their open-source firmware. Hardware design and the original firmware are FutureProofHomes' work.

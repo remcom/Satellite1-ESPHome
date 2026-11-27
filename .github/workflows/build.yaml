@@ -51,6 +51,37 @@ jobs:
           fi
           echo "ESPHOME_VERSION=${ESPHOME_VERSION}" >> $GITHUB_ENV
 
+      # The manifest summary is parsed and held in RAM by every device on each
+      # update check, then sent to HA in one API message. The full release body
+      # (23 KB for v2.0.0) made devices reboot, so only the summary part goes
+      # in: everything above the first "## " heading, minus the "# " title.
+      # The full notes stay reachable through release-url.
+      - name: Extract release summary
+        id: summary
+        env:
+          BODY: ${{ github.event.release.body }}
+        run: |
+          set -euo pipefail
+          MAX_BYTES=4096
+          printf '%s\n' "${BODY}" | tr -d '\r' \
+            | awk 'NR==1 && /^# /{next} /^## /{exit} {print}' \
+            | sed -e '/./,$!d' > summary.md
+          size=$(wc -c < summary.md)
+          if [ "${size}" -gt "${MAX_BYTES}" ]; then
+            echo "::warning::Release summary is ${size} bytes, truncating to ${MAX_BYTES}." \
+                 "Keep the part above '## What's Changed' short (see CLAUDE.md)."
+            head -c "${MAX_BYTES}" summary.md | sed '$d' > summary.tmp
+            mv summary.tmp summary.md
+          fi
+          echo "Release summary: $(wc -c < summary.md) bytes"
+          delim="EOF_$(openssl rand -hex 8)"
+          {
+            echo "text<<${delim}"
+            cat summary.md
+            echo "${delim}"
+          } >> "$GITHUB_OUTPUT"
+          rm summary.md
+
       - name: Write signing key for the hardened variant
         if: matrix.device == 'satellite1.secure'
         env:
@@ -76,7 +107,7 @@ jobs:
           complete-manifest: true
           version: ${{ env.ESPHOME_VERSION }}
           release-url: ${{ github.event.release.html_url }}
-          release-summary: ${{ github.event.release.body }}
+          release-summary: ${{ steps.summary.outputs.text }}
           substitutions: |
             esp32_fw_version=${{ env.VERSION }}
 
