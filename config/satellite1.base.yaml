@@ -16,7 +16,7 @@ substitutions:
   esp32_fw_version: dev
   # XMOS firmware release. The images are downloaded by the file name that carries the tag, so the
   # version string and the image can't point at different releases.
-  xmos_fw_version: "v2.0.1"
+  xmos_fw_version: "v2.0.2"
   xmos_fw_release_url: https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}
 
 globals:
