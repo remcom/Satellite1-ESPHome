@@ -66,8 +66,7 @@ void Satellite1AudioQualitySensor::update() {
     PUBLISH_STATE(this->clipped_samples_ch1_sensor_, static_cast<float>(q.clips[1]));
   }
   ESP_LOGV(TAG, "seq %u, AEC channels %u, drops %u/%u, clips %u/%u", (unsigned) q.sequence, q.aec_channels,
-           (unsigned) q.ref_drops_oldest, (unsigned) q.ref_drops_newest, (unsigned) q.clips[0],
-           (unsigned) q.clips[1]);
+           (unsigned) q.ref_drops_oldest, (unsigned) q.ref_drops_newest, (unsigned) q.clips[0], (unsigned) q.clips[1]);
 }
 
 void Satellite1AudioQualitySensor::dump_config() {

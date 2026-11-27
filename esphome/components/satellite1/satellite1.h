@@ -155,10 +155,10 @@ static const int16_t AUDIO_QUALITY_ERLE_UNKNOWN = INT16_MIN;
  * saturate; reads don't clear them.
  */
 struct AudioQuality {
-  uint8_t aec_channels;     ///< 0 (no AEC), 2 (fixed_delay) or 4 (aec4)
-  uint8_t output_channels;  ///< 2 with I2S output, else 0 (no clip counts)
-  uint8_t flags;            ///< AUDIO_QUALITY_FLAG_*
-  uint32_t sequence;        ///< completed pipeline frames, wraps; unchanged = the pipeline stalled
+  uint8_t aec_channels;       ///< 0 (no AEC), 2 (fixed_delay) or 4 (aec4)
+  uint8_t output_channels;    ///< 2 with I2S output, else 0 (no clip counts)
+  uint8_t flags;              ///< AUDIO_QUALITY_FLAG_*
+  uint32_t sequence;          ///< completed pipeline frames, wraps; unchanged = the pipeline stalled
   uint32_t ref_drops_oldest;  ///< speaker reference frames dropped from a full queue
   uint32_t ref_drops_newest;  ///< new reference frames that could not be queued
   int16_t erle_cdb[AUDIO_QUALITY_MAX_AEC_CHANNELS];  ///< echo reduction per AEC mic, 0.01 dB

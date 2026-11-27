@@ -22,7 +22,9 @@ Satellite1DoaSensor = sat.namespace.class_(
     "Satellite1DoaSensor", cg.PollingComponent, cg.Parented.template(sat.Satellite1)
 )
 Satellite1AudioQualitySensor = sat.namespace.class_(
-    "Satellite1AudioQualitySensor", cg.PollingComponent, cg.Parented.template(sat.Satellite1)
+    "Satellite1AudioQualitySensor",
+    cg.PollingComponent,
+    cg.Parented.template(sat.Satellite1),
 )
 
 TYPE_DOA = "doa"
