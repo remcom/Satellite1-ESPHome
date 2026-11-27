@@ -16,7 +16,7 @@ This guide covers:
 - [For people with their own YAML](#for-people-with-their-own-yaml)
 
 > [!CAUTION]
-> The XMOS firmware is **v2.0.0** from [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS/releases). It comes from a fork and is **not an official FutureProofHomes release**. Direction of arrival was tuned mostly in simulation, and the **AEC4 variant has not been tested on hardware yet**.
+> The XMOS firmware is **v2.0.1** from [remcom/Satellite1-XMOS](https://github.com/remcom/Satellite1-XMOS/releases). It comes from a fork and is **not an official FutureProofHomes release**. Direction of arrival was tuned mostly in simulation, and the **AEC4 variant has not been tested on hardware yet**.
 
 ---
 
@@ -53,7 +53,7 @@ The XMOS doesn't remember its settings. The ESP32 stores them and sends them eve
 
 ## The two XMOS firmware variants
 
-Every XMOS release comes in two variants. They share the same version number (e.g. `v2.0.0`), so the variant is shown separately, e.g. `v2.0.0 (fixed_delay)` or `v2.0.0 (aec4)`.
+Every XMOS release comes in two variants. They share the same version number (e.g. `v2.0.1`), so the variant is shown separately, e.g. `v2.0.1 (fixed_delay)` or `v2.0.1 (aec4)`.
 
 | | **Standard (fixed delay)** | **True beamforming (AEC4, experimental)** |
 |---|---|---|
@@ -92,7 +92,7 @@ Picking a variant on its own changes nothing. The reflash only starts when you p
 On the device page in Home Assistant:
 
 1. Under **Configuration**, set **XMOS Firmware Variant** to the variant you want.
-   **XMOS Firmware Update** now shows an update, e.g. from `v2.0.0 (fixed_delay)` to `v2.0.0 (aec4)`.
+   **XMOS Firmware Update** now shows an update, e.g. from `v2.0.1 (fixed_delay)` to `v2.0.1 (aec4)`.
 2. Open **XMOS Firmware Update** (also under *Settings → Updates*) and press **Install**.
 3. Home Assistant shows a progress bar, and the LED ring shows it too (blue). When it's done, **XMOS Firmware Update** shows as up to date and the audio settings for that variant are loaded.
 
@@ -224,7 +224,7 @@ The XMOS estimates where speech comes from, using frequencies up to 3000 Hz (hig
 
 ### Automatic updates
 
-Each ESP firmware release is built for one XMOS release (currently `v2.0.0`). On the first boot after an ESP update that brings a new XMOS release, the device updates the XMOS by itself, **in the variant you selected**:
+Each ESP firmware release is built for one XMOS release (currently `v2.0.1`). On the first boot after an ESP update that brings a new XMOS release, the device updates the XMOS by itself, **in the variant you selected**:
 
 - **Standard**: installed from the image embedded in the ESP firmware.
 - **AEC4**: the device waits up to 60 s for WiFi and downloads the image. If WiFi doesn't come up or the download fails, it installs **Standard** instead so the device keeps working. **XMOS Firmware Update** then shows an update again, with the reason in its release notes. Press **Install** to retry.
@@ -258,9 +258,9 @@ All hidden by default, under **Diagnostic** on the device page.
 
 | Entity | What it does |
 |--------|--------------|
-| **XMOS Firmware** (text sensor, visible) | The running XMOS release and variant, e.g. `v2.0.0 (aec4)`, or a status if the XMOS isn't reachable |
+| **XMOS Firmware** (text sensor, visible) | The running XMOS release and variant, e.g. `v2.0.1 (aec4)`, or a status if the XMOS isn't reachable |
 | **XMOS Hardware Reset** | Resets the XMOS. The settings are sent again once it's back |
-| **XMOS Flash v2.0.0** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
+| **XMOS Flash v2.0.1** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
 | **XMOS Flash Embedded FW** | Flashes the Standard image embedded in the ESP firmware |
 | **XMOS Erase Chip** | Erases the XMOS flash. The XMOS stops working until something is flashed again (the next boot does that automatically) |
 | **XMOS Echo Reduction** | How much of the speaker's sound the echo canceller removes (ERLE), in dB, averaged over its mics. Meaningful **while something plays**; when you talk or the room is quiet it drops, that's expected. Higher is better: roughly 20 dB and up is good |
@@ -269,7 +269,7 @@ All hidden by default, under **Diagnostic** on the device page.
 | **XMOS Clipped Samples Voice Channel** | Output samples at full scale on channel 0 (to Home Assistant) since the XMOS started |
 | **XMOS Clipped Samples Wake Word Channel** | The same on channel 1 (wake word). If it rises while you talk, lower **Mic Gain** |
 
-The XMOS sensors update every 10 s and need XMOS firmware with audio quality telemetry (after v2.0.0); older firmware logs one warning and leaves them unknown. The counters restart when the XMOS restarts.
+The XMOS sensors update every 10 s and need XMOS firmware with audio quality telemetry (v2.0.1 or newer); older firmware logs one warning and leaves them unknown. The counters restart when the XMOS restarts.
 
 > [!TIP]
 > The debug buttons always install **Standard**, whatever **XMOS Firmware Variant** says. **XMOS Firmware Update** will then show an update if you selected AEC4. The per-variant settings follow whichever variant actually runs.
@@ -305,7 +305,7 @@ The boot-time XMOS update is in `on_xmos_connected` in [config/satellite1.common
 
 | Substitution | Default | Where | What it does |
 |--------------|---------|-------|--------------|
-| `xmos_fw_version` | `"v2.0.0"` | `satellite1.base.yaml` | XMOS release this build installs |
+| `xmos_fw_version` | `"v2.0.1"` | `satellite1.base.yaml` | XMOS release this build installs |
 | `xmos_fw_release_url` | `https://github.com/remcom/Satellite1-XMOS/releases/download/${xmos_fw_version}` | `satellite1.base.yaml` | Where images are downloaded from |
 | `xmos_settings_standard_default` | `"0, 1, 0, 1, 1"` | `xmos_firmware.yaml` | Recommended Standard settings |
 | `xmos_settings_aec4_default` | `"4, 1, 0, 1, 1"` | `xmos_firmware.yaml` | Recommended AEC4 settings |
@@ -380,4 +380,4 @@ All setters return `false` when the XMOS isn't connected or the firmware doesn't
 
 ### Compatibility
 
-The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs XMOS firmware after v2.0.0. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
+The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs v2.0.1 or newer. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
