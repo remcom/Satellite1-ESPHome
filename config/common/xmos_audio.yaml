@@ -213,6 +213,11 @@ script:
           }
           id(satellite1_id).set_ic_fast_hold(id(xmos_ic_fast_hold).state);
           id(satellite1_id).set_hpf(id(xmos_hpf).state);
+          // Echo reference: what the TAS2780 plays (Speaker channel output, media_player.yaml)
+          auto spk = id(tas_mode_select).active_index();
+          if (spk.has_value() && spk.value() <= satellite1::REF_MIX_LAST) {
+            id(satellite1_id).set_ref_mix(static_cast<satellite1::XMOSRefMix>(spk.value()));
+          }
 
 interval:
   # Follow the talker while the voice assistant waits for or listens to a command

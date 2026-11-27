@@ -83,6 +83,8 @@ enum DcAudioCmdId {
   SET_HPF = 7,
   SET_STEER_POLICY = 8,
   SET_WAKE_EVENT = 9,
+  // From the XMOS firmware with a mono echo reference in both variants. Older firmware ignores it.
+  SET_REF_MIX = 10,
 };
 }  // namespace DC_AUDIO_CMD
 
@@ -119,6 +121,14 @@ enum XMOSSteerPolicy : uint8_t {
   STEER_POLICY_WAKE_WORD = 1,      ///< only wake words, so a TV can't pull the beam
   STEER_POLICY_FIXED = 2,          ///< nothing
   STEER_POLICY_LAST = STEER_POLICY_FIXED,
+};
+
+/// What the XMOS mixes its (mono) echo canceller reference from. Must match what the TAS2780 plays.
+enum XMOSRefMix : uint8_t {
+  REF_MIX_DOWNMIX = 0,  ///< (L+R)/2, the TAS2780 "Mono (Left + Right)" mode (XMOS default)
+  REF_MIX_LEFT = 1,
+  REF_MIX_RIGHT = 2,
+  REF_MIX_LAST = REF_MIX_RIGHT,
 };
 
 /// Direction of arrival as reported by the XMOS audio servicer.
@@ -274,6 +284,9 @@ class Satellite1 : public Component,
 
   /// Selects what may steer the XMOS beam. Not persisted by the XMOS.
   bool set_steer_policy(XMOSSteerPolicy policy);
+
+  /// Tells the XMOS which speaker channel(s) the TAS2780 plays, for its echo reference. Not persisted.
+  bool set_ref_mix(XMOSRefMix mix);
 
   /**
    * @brief Reports a wake word, or the end of the conversation it started, to the XMOS.

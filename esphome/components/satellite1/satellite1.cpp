@@ -319,6 +319,15 @@ bool Satellite1::set_steer_policy(XMOSSteerPolicy policy) {
   return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_STEER_POLICY, &payload, 1);
 }
 
+bool Satellite1::set_ref_mix(XMOSRefMix mix) {
+  if (mix > REF_MIX_LAST) {
+    ESP_LOGE(TAG, "Unknown echo reference mix %u", mix);
+    return false;
+  }
+  uint8_t payload = mix;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_REF_MIX, &payload, 1);
+}
+
 bool Satellite1::notify_wake_word(bool detected) {
   uint8_t payload = detected;
   return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_WAKE_EVENT, &payload, 1);

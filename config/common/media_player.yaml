@@ -111,6 +111,13 @@ select:
             }
             ESP_LOGI("main", "No channel selected");
             return esphome::tas2780::ChannelSelect::MONO_DWN_MIX;
+      # The XMOS echo canceller needs a reference of what the speaker actually plays. Option order
+      # matches satellite1::XMOSRefMix. Also re-applied from apply_xmos_mic_settings on (re)connect.
+      - lambda: |-
+          auto index = id(tas_mode_select).active_index();
+          id(satellite1_id).set_ref_mix(index.has_value() && index.value() <= satellite1::REF_MIX_LAST
+                                            ? static_cast<satellite1::XMOSRefMix>(index.value())
+                                            : satellite1::REF_MIX_DOWNMIX);
 
 binary_sensor:
   - platform: gpio

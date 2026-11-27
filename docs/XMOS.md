@@ -62,7 +62,8 @@ Every XMOS release comes in two variants. They share the same version number (e.
 | **When the beam turns or the mic pair changes** | The echo canceller has to re-adapt, so echo leaks through for a moment | Nothing changes for the echo canceller, it already covers every mic |
 | **Best Mic Mode** | East/West pair (works with the cover on) | **Beam** (needs the top cover removed for now) |
 | **Where the image comes from** | **Embedded in the ESP firmware.** Can always be (re)installed, also without internet | **Downloaded** from the [XMOS release](https://github.com/remcom/Satellite1-XMOS/releases) when installed. Needs internet |
-| **Echo reference** | Speaker audio | **Mono** speaker audio |
+| **Echo reference** | **Mono**: what the speaker plays (see below) | **Mono**: what the speaker plays (see below) |
+| **Voice direction while music plays** | Paused | **Keeps working**: measured on the echo cancelled mics |
 | **Status** | Default. Same audio pipeline as earlier 2.0 betas | **Not yet tested on hardware**, built and measured in the XMOS simulator only |
 
 ### Which one should I pick?
@@ -70,11 +71,13 @@ Every XMOS release comes in two variants. They share the same version number (e.
 - **Keep Standard** if your device is in daily use, the top cover is on, or you have no reliable internet. It's the proven setup.
 - **Try AEC4** if you remove the top cover and want the best wake word detection **while music is playing**. That's exactly where AEC4 should do better: the beam can follow you without the echo canceller starting over each time.
 
-### AEC4 and stereo
+### Echo reference and stereo
 
-AEC4 cancels against a **mono** mix of what the speaker plays. That's also what the TAS2780 amplifier plays by default (`Speaker channel output` = *Mono (Left + Right)*).
+Both variants cancel against **one** (mono) reference: exactly what the single speaker plays. The ESP32 tells the XMOS what that is from `Speaker channel output`: *Mono (Left + Right)* (default), *Left Channel Only* or *Right Channel Only*, so stereo music is cancelled in every setting.
 
-- With `Speaker channel output` on **Left Channel Only** or **Right Channel Only**, or when you use the **3.5 mm line-out** with stereo music, the echo canceller only partly removes stereo music.
+Standard firmware before this change modelled the left and right channels separately. With stereo music on the mono speaker that never settles on one solution, and in the XMOS simulator it removed ~10 dB less echo (see [voice-simulation.md](https://github.com/remcom/Satellite1-XMOS/blob/develop/docs/voice-simulation.md)).
+
+- With the **3.5 mm line-out** and stereo speakers, the echo canceller only partly removes stereo music.
 - Spoken replies, announcements and timer sounds are mono and are always fully cancelled.
 
 ---
@@ -359,6 +362,7 @@ id(satellite1_id).set_ch1_tap(satellite1::CH1_TAP_NS);         // NS, IC, AEC
 id(satellite1_id).set_ic_fast_hold(bool);
 id(satellite1_id).set_hpf(bool);
 id(satellite1_id).notify_wake_word(bool detected);
+id(satellite1_id).set_ref_mix(satellite1::REF_MIX_DOWNMIX);   // DOWNMIX, LEFT, RIGHT: match the TAS2780
 id(satellite1_id).read_beam_azimuth(uint16_t &azimuth);        // XMOS_NO_BEAM outside Beam mode
 id(satellite1_id).get_xmos_fw_variant();                       // XMOS_FW_VARIANT_FIXED_DELAY or XMOS_FW_VARIANT_AEC4
 id(sat1_doa).read_direction(); id(sat1_doa).get_azimuth(); id(sat1_doa).is_valid();
@@ -368,4 +372,4 @@ All setters return `false` when the XMOS isn't connected or the firmware doesn't
 
 ### Compatibility
 
-The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
+The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs XMOS firmware after v2.0.0. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
