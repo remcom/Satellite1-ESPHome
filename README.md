@@ -227,7 +227,7 @@ esphome logs config/satellite1.yaml
 | `timer.yaml` | Voice timers |
 | `led_ring.yaml` | LED ring and effects |
 | `xmos_audio.yaml` | XMOS audio settings, DoA, beam steering |
-| `xmos_firmware.yaml` | XMOS variant select, update entity, per-variant settings |
+| `xmos_firmware.yaml` | Microphone Setup presets, XMOS update entity, firmware install scripts |
 | `debug.yaml` | Diagnostic sensors and XMOS debug buttons (optional) |
 | `mmwave_ld2410.yaml` / `mmwave_ld2450.yaml` | Radar (optional) |
 | `sendspin_source.yaml` | Share the mic with Sendspin (optional) |
