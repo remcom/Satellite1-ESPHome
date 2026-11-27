@@ -86,7 +86,7 @@ script:
           id(xmos_update).set_target_variant(variant);
 
   # Loads the audio settings of the selected preset, then reflashes the XMOS if it runs another
-  # firmware variant (or release) than the preset needs
+  # firmware variant (or release) than the preset needs. Custom changes nothing.
   - id: xmos_apply_mic_setup
     then:
       - lambda: |-
@@ -107,9 +107,14 @@ script:
           values[4] ? id(xmos_hpf).turn_on() : id(xmos_hpf).turn_off();
           values[5] ? id(xmos_ch1_agc).turn_on() : id(xmos_ch1_agc).turn_off();
           id(xmos_mic_setup_quiet) = false;
-      # Does nothing when the XMOS already runs the target firmware
-      - update.perform:
-          id: xmos_update
+      # Does nothing when the XMOS already runs the target firmware. Never for Custom, which keeps the
+      # installed firmware even when it is an older release or doesn't respond.
+      - if:
+          condition:
+            lambda: return id(xmos_mic_setup).active_index().value_or(2) <= 1;
+          then:
+            - update.perform:
+                id: xmos_update
 
   # Called when a preset audio setting changes, and from satellite1 on_xmos_connected.
   # - When a setting no longer matches the selected preset, Microphone Setup becomes Custom.
