@@ -11,70 +11,8 @@ substitutions:
   ota_manifest: satellite1
 
 packages:
-  # This is an inline package to prefix the on_client_connected with the wait_until action
-  # It must appear before the actual package so it becomes the original config and the
-  # on_client_connected list from the package config is appended onto this one.
-  va_connected_wait_for_ble_and_flasher:
-    voice_assistant:
-      on_client_connected:
-        - wait_until:
-            not: ble.enabled
-        - wait_until:
-            not: memory_flasher.in_progress
-        - delay: 2s
-
-    wifi:
-      on_disconnect:
-        - ble.enable:
-      on_connect:
-        - delay: 5s  # Gives time for improv results to be transmitted
-        - ble.disable:
-        # Enable/disable Sendspin static adjustment delay if the jack is plugged in or not
-        - if:
-            condition:
-              - binary_sensor.is_on: line_out_sensor
-            then:
-              - sendspin.media_source.enable_static_delay_adjustment:
-            else:
-              - sendspin.media_source.disable_static_delay_adjustment:
-
-    satellite1:
-      on_xmos_no_response:
-        then:
-          - if:
-              condition:
-                - lambda: return id(init_in_progress);
-                - lambda: return id(xflash).has_image_embedded();
-              then:
-                - memory_flasher.write_embedded_image:
-
-      on_xmos_connected:
-        then:
-          - delay: 1s
-          - script.execute: control_leds
-          - if:
-              condition:
-                - lambda: return id(init_in_progress);
-                - lambda: return id(xflash).has_image_embedded();
-                - lambda: return !id(xflash).match_embedded( id(satellite1_id).get_xmos_fw_version() );
-              then:
-                # Update the XMOS to this build's release, keeping the selected firmware variant
-                - if:
-                    condition:
-                      lambda: return id(xmos_fw_variant).active_index().value_or(0) == 1;
-                    then:
-                      # The AEC4 image is downloaded. If WiFi doesn't come up or the download fails,
-                      # the standard image is installed instead (fallback 2) and "XMOS Reflash
-                      # Required" stays on until AEC4 is installed with the button.
-                      - wait_until:
-                          condition:
-                            wifi.connected:
-                          timeout: 60s
-                      - script.execute:
-                          id: xmos_install_selected_firmware
-                          fallback: 2
-                    else:
-                      - memory_flasher.write_embedded_image:
+  # Must stay the first package, see common/startup_hooks.yaml
+  startup_hooks: !include common/startup_hooks.yaml
 
   home-assistant-voice: !include satellite1.base.yaml
 
@@ -131,6 +69,20 @@ update:
     name: None
     id: update_http_request
     source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json
+
+interval:
+  # A failed update check (manifest not reachable, no free socket) publishes nothing: Home Assistant keeps
+  # the previous result until the next regular check 6 h later. Retry it sooner.
+  - interval: 15min
+    then:
+      - if:
+          condition:
+            lambda: return id(update_http_request).status_has_error();
+          then:
+            - logger.log:
+                level: WARN
+                format: "The last firmware update check failed, checking again"
+            - component.update: update_http_request
 
 switch:
   - platform: template
