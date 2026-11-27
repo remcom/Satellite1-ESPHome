@@ -16,6 +16,23 @@ sensor:
     lambda: |-
       return static_cast<light::AddressableLight *>(id(hw_led_ring)->get_output())->get_estimated_current_ma();
 
+switch:
+  # Keeps the ring still during a voice interaction (waiting, listening, thinking, replying): the
+  # ring shows what it shows when idle. Errors and other states still light it. For testing
+  # whether the spin animations couple into the mics.
+  - platform: template
+    name: "Voice Assistant LED Animations Off"
+    id: va_led_animations_off
+    icon: "mdi:led-off"
+    entity_category: config
+    disabled_by_default: true
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      - script.execute: control_leds
+    on_turn_off:
+      - script.execute: control_leds
+
 globals:
   # Global index for our LEDs. So that switching between different animation does not lead to unwanted effects.
   - id: global_led_animation_index
@@ -501,6 +518,12 @@ script:
             id(control_leds_warning).execute();
           } else if (id(timer_ringing).state) {
             id(control_leds_timer_ringing).execute();
+          } else if (id(va_led_animations_off).state &&
+                     (id(voice_assistant_phase) == ${voice_assist_waiting_for_command_phase_id} ||
+                      id(voice_assistant_phase) == ${voice_assist_listening_for_command_phase_id} ||
+                      id(voice_assistant_phase) == ${voice_assist_thinking_phase_id} ||
+                      id(voice_assistant_phase) == ${voice_assist_replying_phase_id})) {
+            id(control_leds_voice_assistant_idle_phase).execute();
           } else if (id(voice_assistant_phase) == ${voice_assist_waiting_for_command_phase_id}) {
             id(control_leds_voice_assistant_waiting_for_command_phase).execute();
           } else if (id(voice_assistant_phase) == ${voice_assist_listening_for_command_phase_id}) {

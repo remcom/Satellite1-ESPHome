@@ -4,7 +4,7 @@
 
 [![Stable](https://img.shields.io/badge/Stable-v2.0.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.0)
 [![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.1-blue)](https://esphome.io)
-[![XMOS](https://img.shields.io/badge/XMOS-v2.0.0-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.0)
+[![XMOS](https://img.shields.io/badge/XMOS-v2.0.1-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.1)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
 [![License](https://img.shields.io/badge/License-Same%20as%20upstream-lightgrey)](LICENSE)
 
@@ -243,7 +243,7 @@ esphome logs config/satellite1.yaml
 | `micro_wake_word_task_core` | `"1"` | CPU core for wake word inference |
 | `micro_wake_word_ring_buffer_duration` | `250ms` | How far the wake word engine may fall behind |
 | `tts_playback_start_timeout` | `5s` | How long a spoken reply may take to start |
-| `xmos_fw_version` | `"v2.0.0"` | XMOS release to install |
+| `xmos_fw_version` | `"v2.0.1"` | XMOS release to install |
 | `doa_led_offset` / `doa_led_clockwise` | `"0"` / `"true"` | Direction Indicator calibration |
 
 More XMOS-related options are in the [XMOS guide](docs/XMOS.md#for-people-with-their-own-yaml).

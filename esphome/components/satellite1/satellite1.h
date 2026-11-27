@@ -25,6 +25,8 @@ static const uint8_t AUDIO_SERVICER_RESID = 230;
 
 static const uint8_t DFU_CONTROLLER_SERVICER_RESID = 240;
 
+static const uint8_t STATS_SERVICER_RESID = 250;
+
 static const uint8_t MAX_CONNECTION_ATTEMPTS = 3;
 
 static const uint8_t XMOS_FW_VERSION_LEN = 5;
@@ -41,6 +43,7 @@ enum DcResourceEnum {
   CNTRL_ID = 1,
   AUDIO = AUDIO_SERVICER_RESID,
   DFU_CONTROLLER = DFU_CONTROLLER_SERVICER_RESID,
+  STATS = STATS_SERVICER_RESID,
   GPIO_PORT_IN_A = GPIO_SERVICER_RESID_PORT_IN_A,
   GPIO_PORT_IN_B = GPIO_SERVICER_RESID_PORT_IN_B,
   GPIO_PORT_OUT_A = GPIO_SERVICER_RESID_PORT_OUT_A
@@ -83,6 +86,8 @@ enum DcAudioCmdId {
   SET_HPF = 7,
   SET_STEER_POLICY = 8,
   SET_WAKE_EVENT = 9,
+  // From the XMOS firmware with a mono echo reference in both variants. Older firmware ignores it.
+  SET_REF_MIX = 10,
 };
 }  // namespace DC_AUDIO_CMD
 
@@ -119,6 +124,45 @@ enum XMOSSteerPolicy : uint8_t {
   STEER_POLICY_WAKE_WORD = 1,      ///< only wake words, so a TV can't pull the beam
   STEER_POLICY_FIXED = 2,          ///< nothing
   STEER_POLICY_LAST = STEER_POLICY_FIXED,
+};
+
+/// What the XMOS mixes its (mono) echo canceller reference from. Must match what the TAS2780 plays.
+enum XMOSRefMix : uint8_t {
+  REF_MIX_DOWNMIX = 0,  ///< (L+R)/2, the TAS2780 "Mono (Left + Right)" mode (XMOS default)
+  REF_MIX_LEFT = 1,
+  REF_MIX_RIGHT = 2,
+  REF_MIX_LAST = REF_MIX_RIGHT,
+};
+
+/// Stats servicer commands (read only).
+namespace DC_STATS_CMD {
+enum DcStatsCmdId {
+  GET_AUDIO_QUALITY = (3 | CONTROL_CMD_READ_BIT),
+};
+}  // namespace DC_STATS_CMD
+
+static const uint8_t AUDIO_QUALITY_PAYLOAD_LEN = 32;
+static const uint8_t AUDIO_QUALITY_VERSION = 1;
+static const uint8_t AUDIO_QUALITY_MAX_AEC_CHANNELS = 4;
+static const uint8_t AUDIO_QUALITY_FLAG_REFERENCE = 1 << 0;  ///< reference drop counters are available
+static const uint8_t AUDIO_QUALITY_FLAG_READY = 1 << 1;      ///< at least one pipeline frame was published
+/// ERLE value for a channel without a measurement
+static const int16_t AUDIO_QUALITY_ERLE_UNKNOWN = INT16_MIN;
+
+/**
+ * Audio quality telemetry of the XMOS stats servicer (payload version 1, see
+ * docs/device-control-spi-protocol.md in Satellite1-XMOS). Counters run since the XMOS booted and
+ * saturate; reads don't clear them.
+ */
+struct AudioQuality {
+  uint8_t aec_channels;       ///< 0 (no AEC), 2 (fixed_delay) or 4 (aec4)
+  uint8_t output_channels;    ///< 2 with I2S output, else 0 (no clip counts)
+  uint8_t flags;              ///< AUDIO_QUALITY_FLAG_*
+  uint32_t sequence;          ///< completed pipeline frames, wraps; unchanged = the pipeline stalled
+  uint32_t ref_drops_oldest;  ///< speaker reference frames dropped from a full queue
+  uint32_t ref_drops_newest;  ///< new reference frames that could not be queued
+  int16_t erle_cdb[AUDIO_QUALITY_MAX_AEC_CHANNELS];  ///< echo reduction per AEC mic, 0.01 dB
+  uint32_t clips[2];  ///< output samples at or above 0.99 full scale: left (channel 0), right (channel 1)
 };
 
 /// Direction of arrival as reported by the XMOS audio servicer.
@@ -263,6 +307,13 @@ class Satellite1 : public Component,
    */
   bool read_beam_azimuth(uint16_t &azimuth);
 
+  /**
+   * @brief Reads the audio quality telemetry from the XMOS stats servicer.
+   *
+   * @return false if the transfer failed, the XMOS firmware has no telemetry or the payload version is unknown
+   */
+  bool read_audio_quality(AudioQuality &quality);
+
   /// Selects the signal on the XMOS right output channel. Not persisted by the XMOS.
   bool set_ch1_tap(XMOSCh1Tap tap);
 
@@ -274,6 +325,9 @@ class Satellite1 : public Component,
 
   /// Selects what may steer the XMOS beam. Not persisted by the XMOS.
   bool set_steer_policy(XMOSSteerPolicy policy);
+
+  /// Tells the XMOS which speaker channel(s) the TAS2780 plays, for its echo reference. Not persisted.
+  bool set_ref_mix(XMOSRefMix mix);
 
   /**
    * @brief Reports a wake word, or the end of the conversation it started, to the XMOS.
