@@ -74,22 +74,23 @@ The XMOS chip on the HAT processes all four microphones: high-pass filter, echo 
 
 | Feature | Entity |
 |---------|--------|
+| One choice for the firmware variant and its audio settings | **Microphone Setup** — Cover on (Standard), Cover off (Beamforming, AEC4), Custom |
 | Choose the mics or a beam | **Mic Mode** — East/West pair, North/South pair, Average, Follow talker, Beam |
 | Turn the beam towards a wake word, and hold it there | **Beam Steering** — Wake word only, Follow speech, Fixed |
 | Mic level | **Mic Gain** (0–30 dB) |
 | LED pointing at where it listens | **Direction Indicator** |
 | Voice direction for automations | **Voice Direction**, **Voice Direction Confidence** |
-| Fine tuning | **Wake Word Channel**, **Fast Speech Hold**, **Mic High-Pass Filter** |
-| Two XMOS firmware variants | **XMOS Firmware Variant**, **XMOS Firmware Update**, **Reset XMOS Audio Settings** |
+| Fine tuning | **Wake Word Channel**, **Fast Speech Hold**, **Mic High-Pass Filter**, **Wake Word Level Control** |
+| XMOS firmware install and progress | **XMOS Firmware Update** |
 
 **Two XMOS firmware variants:**
 
 | Variant | Summary |
 |---------|---------|
 | **Standard (fixed delay)** | The default. Echo cancellation on the selected mic pair. Embedded in the ESP firmware, so it can always be reinstalled offline |
-| **True beamforming (AEC4, experimental)** | Echo cancellation on all four mics before the beamformer, so steering the beam doesn't make echo cancellation start over. Downloaded when installed. Not yet tested on hardware |
+| **Beamforming (AEC4)** | Echo cancellation on all four mics before the beamformer, so steering the beam doesn't make echo cancellation start over. Downloaded when installed. Recommended with the top cover removed |
 
-Each variant keeps its own audio settings, and switching is a one-click install from the **XMOS Firmware Update** entity.
+Pick **Microphone Setup** *Cover on* or *Cover off*: it loads the recommended audio settings and reflashes the XMOS to the matching variant right away. Mic Mode, Beam Steering and the fine tuning settings are hidden by default; changing one makes Microphone Setup *Custom*.
 
 > [!IMPORTANT]
 > Beam, Follow talker, Beam Steering and the Direction Indicator need the **top cover removed** for now; with the cover on, use a fixed mic pair or Average.
@@ -226,7 +227,7 @@ esphome logs config/satellite1.yaml
 | `timer.yaml` | Voice timers |
 | `led_ring.yaml` | LED ring and effects |
 | `xmos_audio.yaml` | XMOS audio settings, DoA, beam steering |
-| `xmos_firmware.yaml` | XMOS variant select, update entity, per-variant settings |
+| `xmos_firmware.yaml` | Microphone Setup presets, XMOS update entity, firmware install scripts |
 | `debug.yaml` | Diagnostic sensors and XMOS debug buttons (optional) |
 | `mmwave_ld2410.yaml` / `mmwave_ld2450.yaml` | Radar (optional) |
 | `sendspin_source.yaml` | Share the mic with Sendspin (optional) |
@@ -262,7 +263,7 @@ No. It's an independent, community-maintained fork of their open-source firmware
 Yes. Both target the same hardware; reflash over USB or OTA at any time. The XMOS is reflashed by whichever firmware you install.
 
 **Which XMOS variant should I use?**
-Standard, unless you've removed the top cover and want better wake word detection while music plays — then try AEC4 with Mic Mode *Beam*. See [docs/XMOS.md](docs/XMOS.md).
+Set **Microphone Setup** to match your device: *Cover on (Standard)*, or *Cover off (Beamforming, AEC4)* once you've removed the top cover. See [docs/XMOS.md](docs/XMOS.md).
 
 **Does it work without internet?**
 Voice control works fully locally with a local Home Assistant pipeline. Installing the AEC4 XMOS variant and OTA updates need internet; the Standard XMOS variant is always available offline.

@@ -200,7 +200,7 @@ struct WakeTiming {
 enum XMOSFwVariant : uint8_t {
   XMOS_FW_VARIANT_FIXED_DELAY = 0,  ///< default: AEC on the selected mic pair
   XMOS_FW_VARIANT_BYPASS = 1,       ///< not released
-  XMOS_FW_VARIANT_AEC4 = 2,         ///< experimental: AEC on all four mics before the beamformer
+  XMOS_FW_VARIANT_AEC4 = 2,         ///< AEC on all four mics before the beamformer
 };
 
 /// Short name of a firmware variant as used in the release assets, e.g. "aec4".

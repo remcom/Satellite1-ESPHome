@@ -7,6 +7,8 @@
 #include "esphome/components/memory_flasher/memory_flasher.h"
 #include "esphome/components/satellite1/satellite1.h"
 
+#include <memory>
+
 namespace esphome::satellite1 {
 
 class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPIService {
@@ -49,7 +51,7 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   int erasing_step_();
   void publish_progress() override;
 
-  memory_flasher::FlashImageReader *reader_{nullptr};
+  std::unique_ptr<memory_flasher::FlashImageReader> reader_;
   md5::MD5Digest md5_receive_;
 
   uint32_t flashing_start_time_{0};
@@ -60,8 +62,9 @@ class XMOSFlasher : public memory_flasher::MemoryFlasher, public Satellite1SPISe
   size_t bytes_remaining_{0};
   uint32_t page_pos_{0};
 
-  uint8_t *reader_buffer_{nullptr};
-  uint8_t *compare_buffer_{nullptr};
+  /// One flash page each, allocated by init_flashing_() and freed by deinit_flashing_()
+  RAMUniquePtr<uint8_t[]> reader_buffer_;
+  RAMUniquePtr<uint8_t[]> compare_buffer_;
 
   /// Keeps the loop running without delay while an action is in progress, every loop call handles one page/sector.
   HighFrequencyLoopRequester high_freq_;

@@ -4,9 +4,11 @@
 # steering, the wake word channel, the IC fast hold and the high-pass filter need XMOS firmware
 # with wake word steering; older firmware ignores them.
 #
-# Tuning and diagnostic entities are disabled by default, so Home Assistant only shows Mic Mode,
-# Beam Steering, Mic Gain and Direction Indicator. They still apply on the device, and can be
-# enabled in Home Assistant. This only affects devices Home Assistant adds after this change.
+# Mic Mode, Beam Steering, Wake Word Channel, Fast Speech Hold, Mic High-Pass Filter and Wake Word
+# Level Control are set by the presets of Microphone Setup (common/xmos_firmware.yaml); changing one
+# by hand makes it Custom. They and the diagnostic entities are disabled by default, so Home Assistant
+# only shows Microphone Setup, Mic Gain and Direction Indicator. They still apply on the device, and
+# can be enabled in Home Assistant. This only affects devices Home Assistant adds after this change.
 
 substitutions:
   # LED that faces the North mic, and whether increasing azimuth (North -> East) runs clockwise
@@ -76,8 +78,10 @@ switch:
     # Also re-applied from satellite1 on_xmos_connected, like the mic settings below
     on_turn_on:
       - lambda: id(satellite1_id).set_ic_fast_hold(true);
+      - script.execute: xmos_mic_setup_check
     on_turn_off:
       - lambda: id(satellite1_id).set_ic_fast_hold(false);
+      - script.execute: xmos_mic_setup_check
 
   # 100 Hz high-pass on the mics, removes rumble below the speech band
   - platform: template
@@ -91,8 +95,10 @@ switch:
     initial_state: ON
     on_turn_on:
       - lambda: id(satellite1_id).set_hpf(true);
+      - script.execute: xmos_mic_setup_check
     on_turn_off:
       - lambda: id(satellite1_id).set_hpf(false);
+      - script.execute: xmos_mic_setup_check
 
   # Levels the wake word channel on the XMOS, so a wake word said softly or loudly reaches the
   # wake word engine at about the same level instead of too quiet or clipped. It is designed for
@@ -108,8 +114,10 @@ switch:
     initial_state: ON
     on_turn_on:
       - lambda: id(satellite1_id).set_ch1_agc(true);
+      - script.execute: xmos_mic_setup_check
     on_turn_off:
       - lambda: id(satellite1_id).set_ch1_agc(false);
+      - script.execute: xmos_mic_setup_check
 
   - platform: template
     name: "Direction Indicator"
@@ -145,8 +153,9 @@ select:
   - platform: template
     name: "Mic Mode"
     id: xmos_mic_mode
-    icon: "mdi:microphone-settings"
+    icon: "mdi:microphone"
     entity_category: config
+    disabled_by_default: true
     optimistic: true
     restore_value: true
     # Order matches satellite1::XMOSMicMode
@@ -161,6 +170,7 @@ select:
     # from restoring the option at boot runs before the XMOS is connected and fails silently.
     on_value:
       - lambda: id(satellite1_id).set_mic_mode(static_cast<satellite1::XMOSMicMode>(i));
+      - script.execute: xmos_mic_setup_check
 
   # What moves the beam ("Beam") and the mic pair ("Follow talker"). A wake word steers at once
   # in the first two. "Wake word only" keeps a TV or radio from pulling the beam away from you:
@@ -170,6 +180,7 @@ select:
     id: xmos_steer_policy
     icon: "mdi:target-account"
     entity_category: config
+    disabled_by_default: true
     optimistic: true
     restore_value: true
     # Order matches satellite1::XMOSSteerPolicy
@@ -180,6 +191,7 @@ select:
     initial_option: "Wake word only"
     on_value:
       - lambda: id(satellite1_id).set_steer_policy(static_cast<satellite1::XMOSSteerPolicy>(i));
+      - script.execute: xmos_mic_setup_check
 
   # The XMOS channel the wake word engine listens to (channel 1, without the AGC of channel 0)
   - platform: template
@@ -198,6 +210,7 @@ select:
     initial_option: "Noise suppressed"
     on_value:
       - lambda: id(satellite1_id).set_ch1_tap(static_cast<satellite1::XMOSCh1Tap>(i));
+      - script.execute: xmos_mic_setup_check
 
 script:
   # Points doa_led_index at where the XMOS listens: the beam in the "Beam" mic mode, else the

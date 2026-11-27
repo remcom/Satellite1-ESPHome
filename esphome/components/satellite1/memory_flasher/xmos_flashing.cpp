@@ -346,10 +346,10 @@ bool XMOSFlasher::init_flashing_() {
 
   switch (this->requested_action_) {
     case ACTION_FLASH_EMBEDDED_IMAGE:
-      this->reader_ = new EmbeddedImageReader(this->embedded_image_);
+      this->reader_ = make_unique<EmbeddedImageReader>(this->embedded_image_);
       break;
     case ACTION_FLASH_REMOTE_IMAGE:
-      this->reader_ = new HttpImageReader(this->http_request_, this->url_);
+      this->reader_ = make_unique<HttpImageReader>(this->http_request_, this->url_);
       break;
     case ACTION_FULL_ERASE:
       this->total_sectors_to_erase_ = FLASH_TOTAL_NUMBER_OF_SECTORS;
@@ -363,23 +363,16 @@ bool XMOSFlasher::init_flashing_() {
     return false;
   }
 
-  // NOLINTBEGIN(cppcoreguidelines-no-malloc): exceptions are disabled in this build
-  // (CONFIG_COMPILER_CXX_EXCEPTIONS=n), so a std::vector allocation failure would abort()
-  // instead of letting us report INIT_FLASH_ERROR and bail out gracefully.
-  this->reader_buffer_ = (uint8_t *) malloc(FLASH_PAGE_SIZE);
-  if (this->reader_buffer_ == nullptr) {
+  // Empty when out of memory. Exceptions are disabled in this build (CONFIG_COMPILER_CXX_EXCEPTIONS=n),
+  // so a std::vector allocation failure would abort() instead of letting us report INIT_FLASH_ERROR.
+  RAMAllocator<uint8_t> allocator;
+  this->reader_buffer_ = allocator.make_unique_array_for_overwrite(FLASH_PAGE_SIZE);
+  this->compare_buffer_ = allocator.make_unique_array_for_overwrite(FLASH_PAGE_SIZE);
+  if (this->reader_buffer_ == nullptr || this->compare_buffer_ == nullptr) {
     ESP_LOGE(TAG, "Couldn't allocate memory");
     this->error_code_ = INIT_FLASH_ERROR;
     return false;
   }
-
-  this->compare_buffer_ = (uint8_t *) malloc(FLASH_PAGE_SIZE);
-  if (this->compare_buffer_ == nullptr) {
-    ESP_LOGE(TAG, "Couldn't allocate memory");
-    this->error_code_ = INIT_FLASH_ERROR;
-    return false;
-  }
-  // NOLINTEND(cppcoreguidelines-no-malloc)
 
   ESP_LOGD(TAG, "MD5 expected: %s", this->md5_expected_.c_str());
 
@@ -412,22 +405,12 @@ bool XMOSFlasher::init_flashing_() {
 }
 
 void XMOSFlasher::deinit_flashing_() {
-  // NOLINTBEGIN(cppcoreguidelines-no-malloc): pairs with the malloc() in init_flashing_().
-  if (this->reader_buffer_) {
-    free(this->reader_buffer_);
-    this->reader_buffer_ = nullptr;
-  }
+  this->reader_buffer_.reset();
+  this->compare_buffer_.reset();
 
-  if (this->compare_buffer_) {
-    free(this->compare_buffer_);
-    this->compare_buffer_ = nullptr;
-  }
-  // NOLINTEND(cppcoreguidelines-no-malloc)
-
-  if (this->reader_) {
+  if (this->reader_ != nullptr) {
     this->reader_->deinit_reader();
-    delete this->reader_;
-    this->reader_ = nullptr;
+    this->reader_.reset();
   }
 
   this->md5_expected_.clear();
@@ -453,9 +436,11 @@ int XMOSFlasher::erasing_step_() {
 }
 
 int XMOSFlasher::flashing_step_() {
+  uint8_t *page = this->reader_buffer_.get();
+  uint8_t *read_back = this->compare_buffer_.get();
   // Never read past the announced image size, bytes_remaining_ must not underflow.
   size_t to_read = std::min(FLASH_PAGE_SIZE, this->bytes_remaining_);
-  int bytes_read = this->reader_->read_image_block(this->reader_buffer_, to_read);
+  int bytes_read = this->reader_->read_image_block(page, to_read);
   if (bytes_read < 0) {
     ESP_LOGE(TAG, "Stream closed");
     this->error_code_ = CONNECTION_ERROR;
@@ -467,32 +452,32 @@ int XMOSFlasher::flashing_step_() {
     return -1;
   }
 
-  this->md5_receive_.add(this->reader_buffer_, bytes_read);
+  this->md5_receive_.add(page, bytes_read);
   this->bytes_remaining_ -= bytes_read;
   if (static_cast<size_t>(bytes_read) != FLASH_PAGE_SIZE) {
     // it's the last page to flash
     // fill it up with zeros
-    memset(this->reader_buffer_ + bytes_read, 0, FLASH_PAGE_SIZE - bytes_read);
+    memset(page + bytes_read, 0, FLASH_PAGE_SIZE - bytes_read);
   }
 
   uint32_t page_pos = this->page_pos_;
-  if (!this->write_page_(page_pos, this->reader_buffer_)) {
+  if (!this->write_page_(page_pos, page)) {
     ESP_LOGE(TAG, "Error while writing page %" PRIu32 ", retrying...", page_pos);
   }
 
   // read back the page that has just been written
-  this->read_page_(page_pos, this->compare_buffer_);
+  this->read_page_(page_pos, read_back);
 
-  if (memcmp(this->reader_buffer_, this->compare_buffer_, FLASH_PAGE_SIZE) != 0) {
+  if (memcmp(page, read_back, FLASH_PAGE_SIZE) != 0) {
     // not equal, give it a second try
-    if (!this->write_page_(page_pos, this->reader_buffer_)) {
+    if (!this->write_page_(page_pos, page)) {
       ESP_LOGE(TAG, "Error while writing page %" PRIu32 ", giving up...", page_pos);
       this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
     }
 
-    this->read_page_(page_pos, this->compare_buffer_);
-    if (memcmp(this->reader_buffer_, this->compare_buffer_, FLASH_PAGE_SIZE) != 0) {
+    this->read_page_(page_pos, read_back);
+    if (memcmp(page, read_back, FLASH_PAGE_SIZE) != 0) {
       ESP_LOGE(TAG, "Read page mismatch, page addr: %" PRIu32, page_pos);
       this->error_code_ = WRITE_TO_FLASH_ERROR;
       return -1;
