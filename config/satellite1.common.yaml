@@ -132,6 +132,20 @@ update:
     id: update_http_request
     source: https://github.com/remcom/Satellite1-ESPHome/releases/download/latest/${ota_manifest}-manifest.json
 
+interval:
+  # A failed update check (manifest not reachable, no free socket) publishes nothing: Home Assistant keeps
+  # the previous result until the next regular check 6 h later. Retry it sooner.
+  - interval: 15min
+    then:
+      - if:
+          condition:
+            lambda: return id(update_http_request).status_has_error();
+          then:
+            - logger.log:
+                level: WARN
+                format: "The last firmware update check failed, checking again"
+            - component.update: update_http_request
+
 switch:
   - platform: template
     id: beta_firmware

@@ -27,6 +27,12 @@ esp32:
       CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC: "y"
       CONFIG_MBEDTLS_SSL_PROTO_TLS1_3: "y"  # TLS 1.3 isn't enabled by default in ESP-IDF
 
+      # ESPHome sizes the socket pool to exactly what api, sendspin, mdns and ota register (13), but
+      # http_request registers nothing. The update check, the OTA download and the XMOS image download
+      # then fail when every other socket is in use. Keep a few spare. ESPHome warns at build time if
+      # the components ever need more than this.
+      CONFIG_LWIP_MAX_SOCKETS: "16"
+
 psram:
   mode: octal
   speed: 80MHz
