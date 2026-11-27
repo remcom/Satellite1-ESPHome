@@ -81,6 +81,27 @@ Important IDs used across YAML configs:
 - XMOS firmware version defined in `satellite1.base.yaml` (`xmos_fw_version` substitution)
 - User docs: `README.md` (feature overview), `docs/XMOS.md` (XMOS settings/variants). Release notes are drafted as `RELEASE_NOTES_vX.Y.Z-betaN.md` in the repo root (untracked) and follow the previous release's structure
 
+## Release notes structure
+
+The release body is split by CI (`Extract release summary` step in `.github/workflows/build.yaml`): everything **above the first line starting with `## `** (minus the `# ` title line) becomes the manifest `summary` that devices download on every update check and HA shows in the update dialog. The rest is only reachable via the "Release notes" link (`release_url`). A 23 KB summary in v2.0.0 made devices reboot while fetching the manifest, so:
+
+```markdown
+# 🚀 vX.Y.Z                      <- title, dropped from the summary
+
+Intro: 1-3 short paragraphs, what this release is and why to update.
+
+> [!WARNING]                     <- optional: only what users MUST know before
+> ## ...                         <- updating (reflash, breaking change). Headings
+                                    inside `>` callouts are fine
+## What's Changed                <- summary ends here; all details below
+### ...
+## 🔄 Updating / ↩️ Going back / 📦 Firmware variants / 🔗 Full Changelog / 💬 Feedback
+```
+
+- Keep the summary part **under ~3 KB** (CI warns and truncates at 4 KB). Check with `awk 'NR==1 && /^# /{next} /^## /{exit} {print}' RELEASE_NOTES_vX.Y.Z.md | wc -c`
+- The summary must make sense on its own: no in-page anchor links (`#-updating-...`), they don't work in HA. Use absolute URLs
+- Never put a line starting with `## ` in the intro; that ends the summary early
+
 ## Gotchas
 
 - **`@automation.register_action()` requires `synchronous=`** — use `synchronous=True` when `play()` completes inline (GPIO, I2C); use `synchronous=False` when work is deferred to a FreeRTOS task. Missing this produces a WARNING and disables StringRef optimization.
