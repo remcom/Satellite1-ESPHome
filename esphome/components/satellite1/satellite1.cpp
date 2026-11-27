@@ -379,6 +379,11 @@ bool Satellite1::set_hpf(bool enable) {
   return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_HPF, &payload, 1);
 }
 
+bool Satellite1::set_ch1_agc(bool enable) {
+  uint8_t payload = enable;
+  return this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::SET_CH1_AGC, &payload, 1);
+}
+
 bool Satellite1::set_steer_policy(XMOSSteerPolicy policy) {
   if (policy > STEER_POLICY_LAST) {
     ESP_LOGE(TAG, "Unknown steering policy %u", policy);
