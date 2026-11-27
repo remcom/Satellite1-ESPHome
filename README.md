@@ -2,7 +2,7 @@
 
 **Actively maintained ESPHome firmware for the FutureProofHomes Satellite1 voice assistant: local voice control, synchronized 24-bit multi-room audio, a four-mic XMOS beamforming front end, and presence detection — tracking upstream ESPHome closely.**
 
-[![Stable](https://img.shields.io/badge/Stable-v2.0.0-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.0)
+[![Stable](https://img.shields.io/badge/Stable-v2.0.3-brightgreen)](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.3)
 [![ESPHome](https://img.shields.io/badge/ESPHome-2026.11.1-blue)](https://esphome.io)
 [![XMOS](https://img.shields.io/badge/XMOS-v2.0.2-purple)](https://github.com/remcom/Satellite1-XMOS/releases/tag/v2.0.2)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-Compatible-green)](https://www.home-assistant.io/)
@@ -16,12 +16,14 @@ This is an actively maintained ESPHome firmware fork for the [FutureProofHomes S
 
 > [!NOTE]
 > **Updating from v1.4.x?** v2.0.0 reflashes the XMOS chip automatically on the first boot (about a minute, don't unplug it). The direction-based mic features (Beam, Follow talker, Beam Steering, Direction Indicator) still need the top cover removed; the default settings work with the cover on. See the [v2.0.0 release notes](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.0).
+>
+> **Updating from v2.0.0–v2.0.2?** **Microphone Setup** replaces the **XMOS Firmware Variant** select and the **Reset XMOS Audio Settings** button; update automations that use them. Updating doesn't reflash the XMOS. See the [v2.0.3 release notes](https://github.com/remcom/Satellite1-ESPHome/releases/tag/v2.0.3).
 
 ### Highlights
 
 - 🎶 **Sendspin multi-room audio** — synchronized playback across Satellite1s and other Sendspin players, streamed in **24-bit** FLAC or PCM from Music Assistant
 - 🎙️ **Local voice assistant** — on-device wake words, Home Assistant Assist, timers, announcements
-- 🎯 **XMOS four-mic front end** — echo cancellation, noise suppression, beamforming, direction of arrival and wake word beam steering, with a choice of **two XMOS firmware variants** ([guide](docs/XMOS.md))
+- 🎯 **XMOS four-mic front end** — echo cancellation, noise suppression, beamforming, direction of arrival and wake word beam steering, set up with one **Microphone Setup** choice: *Cover on* or *Cover off* ([guide](docs/XMOS.md))
 - 📡 **Presence detection** — optional LD2410 or LD2450 mmWave radar builds
 - 🔊 **Speaker and line-out** — TAS2780 amplifier and PCM5122 line-out DAC, auto power-down when idle
 - 🔁 **OTA updates** — stable and beta channels, XMOS updates as a Home Assistant update entity
@@ -101,6 +103,7 @@ Pick **Microphone Setup** *Cover on* or *Cover off*: it loads the recommended au
 
 - **24-LED ring** with animations for every voice assistant phase (waiting, listening, thinking, replying), errors, mute, volume, timers, jack plug/unplug, XMOS flashing and factory reset
 - **LED Ring** light entity for your own use when the device is idle
+- **Voice Assistant LED Animations Off** switch (hidden by default) keeps the ring still while the voice assistant listens, thinks and replies; errors and timers still show
 - **Current limit** — the ring is dimmed just enough to stay under 1000 mA (`led_ring_max_current_ma`), with an **LED Ring Current** diagnostic sensor
 
 ### 🔘 Buttons
@@ -126,11 +129,12 @@ Pick **Microphone Setup** *Cover on* or *Cover off*: it loads the recommended au
 - **Ambient Light** (LTR-303), **Wi-Fi Signal RSSI**, **Internal Temperature**, **Uptime**
 - **USB-C Power Contract** — the USB-PD contract negotiated by the FUSB302B
 - **XMOS Firmware** version and variant
+- **XMOS audio quality** (hidden by default): **Echo Reduction**, **Echo Reduction Worst Mic**, **Echo Reference Drops** and clipped samples per channel, to check the echo canceller while music plays
 - Debug entities (hidden by default): heap, PSRAM, loop time, reset reason, XMOS reset/flash/erase buttons, safe-mode restart
 
 ### ⚙️ System
 
-- **OTA updates** from GitHub releases, with a **Beta firmware** switch to follow the beta channel
+- **OTA updates** from GitHub releases, with a **Beta firmware** switch to follow the beta channel; a failed update check is retried every 15 minutes
 - **XMOS firmware updates** as a regular Home Assistant update with progress, automatic fallback to the embedded image, and failure reasons
 - **ESPHome Dashboard adoption** and remote compile (`satellite1-dashboard.yaml`, `satellite1-remote.yaml`)
 - **Fast WiFi reconnect** after a reboot (DHCP lease cache)
@@ -254,7 +258,7 @@ More XMOS-related options are in the [XMOS guide](docs/XMOS.md#for-people-with-t
 ## FAQ
 
 **Is this ready for daily use?**
-Yes, v2.0.0 is the stable release and works for daily use with the default settings. Betas are for testers; each release has detailed notes on what changed and how to go back.
+Yes, v2.0.3 is the current stable release and works for daily use with the default settings. Betas are for testers; each release has detailed notes on what changed and how to go back.
 
 **Is this affiliated with FutureProofHomes?**
 No. It's an independent, community-maintained fork of their open-source firmware. Hardware design and the original firmware are FutureProofHomes' work.
