@@ -94,6 +94,23 @@ switch:
     on_turn_off:
       - lambda: id(satellite1_id).set_hpf(false);
 
+  # Levels the wake word channel on the XMOS, so a wake word said softly or loudly reaches the
+  # wake word engine at about the same level instead of too quiet or clipped. It is designed for
+  # micro_wake_word's gain_factor 4; off gives the fixed mic gain as before.
+  - platform: template
+    name: "Wake Word Level Control"
+    id: xmos_ch1_agc
+    icon: "mdi:tune-vertical"
+    entity_category: config
+    disabled_by_default: true
+    optimistic: true
+    restore_state: all
+    initial_state: ON
+    on_turn_on:
+      - lambda: id(satellite1_id).set_ch1_agc(true);
+    on_turn_off:
+      - lambda: id(satellite1_id).set_ch1_agc(false);
+
   - platform: template
     name: "Direction Indicator"
     id: doa_indicator
@@ -242,6 +259,7 @@ script:
           }
           id(satellite1_id).set_ic_fast_hold(id(xmos_ic_fast_hold).state);
           id(satellite1_id).set_hpf(id(xmos_hpf).state);
+          id(satellite1_id).set_ch1_agc(id(xmos_ch1_agc).state);
           // Echo reference: what the TAS2780 plays (Speaker channel output, media_player.yaml)
           auto spk = id(tas_mode_select).active_index();
           if (spk.has_value() && spk.value() <= satellite1::REF_MIX_LAST) {

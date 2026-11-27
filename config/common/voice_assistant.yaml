@@ -28,8 +28,9 @@ substitutions:
   factory_reset_cancelled_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_cancelled.mp3
   factory_reset_confirmed_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/factory_reset_confirmed.mp3
   error_cloud_expired_sound_file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/error_cloud_expired.mp3
-  # Gain on XMOS channel 1 for the wake word engine. That channel has no AGC, so speech is at the
-  # XMOS mic gain level. Channel 0 is AGC'd to near full scale and clips with any gain here.
+  # Gain on XMOS channel 1 for the wake word engine. Channel 1 has a level control of its own
+  # (Wake Word Level Control) that expects this x4; without it speech is at the XMOS mic gain level.
+  # Channel 0 is AGC'd to near full scale and clips with any gain here.
   micro_wake_word_gain_factor: "4"
   # Wake word inference runs on core 1, away from the main loop, WiFi and BLE on core 0
   micro_wake_word_task_core: "1"

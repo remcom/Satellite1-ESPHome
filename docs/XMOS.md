@@ -128,6 +128,7 @@ All settings are on the device page in Home Assistant under **Configuration**. S
 | [Wake Word Channel](#wake-word-channel) | select | Noise suppressed | Noise suppressed | ✅ | ✅ | No |
 | [Fast Speech Hold](#fast-speech-hold) | switch | On | On | ✅ | ✅ | No |
 | [Mic High-Pass Filter](#mic-high-pass-filter) | switch | On | On | ✅ | ✅ | No |
+| [Wake Word Level Control](#wake-word-level-control) | switch | On | On (shared) | | ✅ | No |
 | [Mic Gain](#mic-gain) | number | 20 dB | 20 dB (shared) | | | No |
 | [Direction Indicator](#direction-of-arrival-and-the-direction-indicator) | switch | Off | Off (shared) | | | Yes |
 
@@ -178,6 +179,12 @@ The interference canceller learns what to remove, and must stop learning while y
 
 A 100 Hz high-pass filter on the mics, before the echo canceller. Removes rumble (traffic, appliances, footsteps) without touching speech. On by default.
 
+### Wake Word Level Control
+
+Keeps the wake word at about the same level for the wake word engine whether you say it softly or loudly. Without it the wake word channel has a fixed gain: a wake word ~5 dB louder than usual (speaking up, or half the distance) clipped, and a soft one reached the engine very quietly. On (default), the XMOS raises the level of soft speech by up to 18 dB and lowers loud speech by up to 20 dB, and softly limits peaks so they never clip.
+
+It adapts while you talk and holds its level in silence, so it doesn't boost background noise. It can't make soft speech in a noisy room any cleaner, and right after you spoke loudly, the first soft wake word gets little of the extra gain. Shared by both variants. Needs XMOS firmware newer than v2.0.1; older firmware ignores it. Turn it off to compare.
+
 ### Mic Gain
 
 Microphone level after echo cancellation, **0–30 dB**, default **20 dB**. Shared by both variants. Raise it if the wake word only works up close; lower it if you get false triggers in a loud room.
@@ -191,7 +198,7 @@ A button that loads the recommended settings for the variant that's **currently 
 | **Standard** | East/West pair | Wake word only | Noise suppressed | On | On |
 | **AEC4** | Beam | Wake word only | Noise suppressed | On | On |
 
-Mic Gain and Direction Indicator are left alone.
+Mic Gain, Wake Word Level Control and Direction Indicator are left alone.
 
 ---
 
@@ -384,6 +391,7 @@ id(satellite1_id).set_steer_policy(satellite1::STEER_POLICY_WAKE_WORD);  // FOLL
 id(satellite1_id).set_ch1_tap(satellite1::CH1_TAP_NS);         // NS, IC, AEC
 id(satellite1_id).set_ic_fast_hold(bool);
 id(satellite1_id).set_hpf(bool);
+id(satellite1_id).set_ch1_agc(bool);                              // Wake Word Level Control
 id(satellite1_id).notify_wake_word(bool detected);
 id(satellite1_id).set_ref_mix(satellite1::REF_MIX_DOWNMIX);   // DOWNMIX, LEFT, RIGHT: match the TAS2780
 id(satellite1_id).read_beam_azimuth(uint16_t &azimuth);        // XMOS_NO_BEAM outside Beam mode
@@ -396,4 +404,4 @@ All setters return `false` when the XMOS isn't connected or the firmware doesn't
 
 ### Compatibility
 
-The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs v2.0.1 or newer. The wake word timing (`log_wake_timing`, `read_wake_timing`) needs the release after v2.0.1. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
+The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs v2.0.1 or newer. The wake word timing (`log_wake_timing`, `read_wake_timing`) and Wake Word Level Control (`set_ch1_agc`) need the release after v2.0.1. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.

@@ -90,6 +90,8 @@ enum DcAudioCmdId {
   SET_REF_MIX = 10,
   // From the XMOS firmware that measures the wake word report latency. Older firmware rejects it.
   GET_WAKE_TIMING = (11 | CONTROL_CMD_READ_BIT),
+  // From the XMOS firmware with a level control on the wake word channel. Older firmware rejects it.
+  SET_CH1_AGC = 12,
 };
 }  // namespace DC_AUDIO_CMD
 
@@ -342,6 +344,9 @@ class Satellite1 : public Component,
 
   /// Whether the XMOS high-passes the mics at 100 Hz before the echo canceller. Not persisted.
   bool set_hpf(bool enable);
+
+  /// Whether the XMOS levels the wake word channel with its own AGC (XMOS default on). Not persisted.
+  bool set_ch1_agc(bool enable);
 
   /// Selects what may steer the XMOS beam. Not persisted by the XMOS.
   bool set_steer_policy(XMOSSteerPolicy policy);
