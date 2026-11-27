@@ -1,72 +1,62 @@
-# Choice between the two XMOS firmware variants of the release set by xmos_fw_version.
+# Microphone Setup: one choice that picks the XMOS firmware variant and its recommended audio settings.
 #
-# - Standard (fixed delay): the default. Embedded in this build, so it can always be installed.
-# - True beamforming (AEC4, experimental): the echo canceller runs on all four mics before the
-#   beamformer, so the beam gets echo-cancelled audio from every mic, and steering it no longer makes
-#   the echo canceller re-converge. Downloaded from the XMOS release when installed. Not yet tested on
-#   hardware. It cancels against mono speaker audio, so with "Left only"/"Right only" speaker modes or
-#   on the stereo line-out, stereo music is only partly cancelled. TTS and announcements are mono.
+# - Cover on (Standard): the fixed delay firmware with the East/West mic pair. The firmware is
+#   embedded in this build, so it can always be installed, also without internet.
+# - Cover off (Beamforming, AEC4): the echo canceller runs on all four mics before the beamformer, so
+#   the beam gets echo-cancelled audio from every mic, and steering it doesn't make the echo canceller
+#   re-converge. Downloaded from the XMOS release when installed. It cancels against mono speaker
+#   audio, so on the stereo line-out stereo music is only partly cancelled.
+# - Custom: keeps the installed firmware and the audio settings as they are. Picked automatically when
+#   one of the preset's audio settings is changed by hand.
 #
-# Switching ALWAYS reflashes the XMOS chip: pick the variant in "XMOS Firmware Variant", then install
-# it from the "XMOS Firmware Update" entity, which Home Assistant shows as an available update. The
-# update entity shows the progress, and after a failure the reason. The choice is kept across ESP
-# updates, see the boot-time update in satellite1.common.yaml.
-#
-# Each variant keeps its own XMOS audio settings (Mic Mode, Beam Steering, Wake Word Channel, Fast
-# Speech Hold, Mic High-Pass Filter). When the XMOS comes up with another variant than last time, the
-# current settings are saved for the old variant and the new variant's settings are loaded. AEC4 starts
-# out with Mic Mode "Beam". Mic Gain is shared, the mics are the same.
+# Picking a preset loads its audio settings and, if it needs the other firmware variant, reflashes the
+# XMOS right away. The "XMOS Firmware Update" entity shows the progress, and after a failure the reason;
+# pressing Install there retries. The choice is kept across ESP updates, see the boot-time update in
+# satellite1.common.yaml.
 
 substitutions:
-  # Recommended XMOS audio settings per variant, loaded the first time a variant runs and by "Reset
-  # XMOS Audio Settings". Indices into Mic Mode, Beam Steering and Wake Word Channel, then Fast Speech
-  # Hold and Mic High-Pass Filter (1 = on). See common/xmos_audio.yaml for the options.
-  xmos_settings_standard_default: "0, 1, 0, 1, 1"  # East/West pair, Wake word only, Noise suppressed
-  xmos_settings_aec4_default: "4, 1, 0, 1, 1"      # Beam, Wake word only, Noise suppressed
+  # Audio settings of the presets: indices into Mic Mode, Beam Steering and Wake Word Channel, then
+  # Fast Speech Hold, Mic High-Pass Filter and Wake Word Level Control (1 = on). See
+  # common/xmos_audio.yaml for the options.
+  xmos_preset_cover_on: "0, 1, 0, 1, 1, 1"   # East/West pair, Wake word only, Noise suppressed
+  xmos_preset_cover_off: "4, 1, 0, 1, 1, 1"  # Beam, Wake word only, Noise suppressed
 
 globals:
-  # Variant that ran when the XMOS last connected (0 standard, 1 AEC4), -1 before the first connect
-  - id: xmos_last_variant
-    type: int
+  # False until Microphone Setup was matched to what the device ran before it existed, on the first
+  # XMOS connect, see xmos_mic_setup_check
+  - id: xmos_mic_setup_initialized
+    type: bool
     restore_value: true
-    initial_value: '-1'
-  # Saved XMOS audio settings per variant, in the order of the substitutions above. 255 = never saved:
-  # the standard set starts out that way, so updating keeps the settings users already have.
-  - id: xmos_settings_standard
-    type: std::array<uint8_t, 5>
-    restore_value: true
-    initial_value: '{255, 255, 255, 255, 255}'
-  - id: xmos_settings_aec4
-    type: std::array<uint8_t, 5>
-    restore_value: true
-    initial_value: '{${xmos_settings_aec4_default}}'
+    initial_value: 'false'
+  # Set while Microphone Setup or its audio settings are changed by the firmware itself, so the
+  # changes don't trigger each other
+  - id: xmos_mic_setup_quiet
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 select:
   - platform: template
-    id: xmos_fw_variant
-    name: "XMOS Firmware Variant"
-    icon: "mdi:chip"
+    id: xmos_mic_setup
+    name: "Microphone Setup"
+    icon: "mdi:microphone-settings"
     entity_category: config
     optimistic: true
     restore_value: true
-    # Index 0 = fixed_delay, 1 = aec4
+    # Index 0 and 1 are the presets in the order of the substitutions above, 2 is Custom
     options:
-      - "Standard (fixed delay)"
-      - "True beamforming (AEC4, experimental)"
-    initial_option: "Standard (fixed delay)"
+      - "Cover on (Standard)"
+      - "Cover off (Beamforming, AEC4)"
+      - "Custom"
+    initial_option: "Cover on (Standard)"
     on_value:
       # Also runs on the restore at boot, which sets the update entity's target
-      - lambda: |-
-          id(xmos_update).set_target_variant(i == 1 ? satellite1::XMOS_FW_VARIANT_AEC4
-                                                    : satellite1::XMOS_FW_VARIANT_FIXED_DELAY);
+      - script.execute: xmos_update_target_variant
       - if:
           condition:
-            lambda: return !id(init_in_progress);
+            lambda: return !id(init_in_progress) && !id(xmos_mic_setup_quiet);
           then:
-            - logger.log:
-                level: WARN
-                format: "XMOS firmware variant '%s' selected. Nothing changes until you install it from 'XMOS Firmware Update', which reflashes the XMOS."
-                args: [x.c_str()]
+            - script.execute: xmos_apply_mic_setup
 
 update:
   - platform: satellite1
@@ -79,29 +69,95 @@ update:
           id: xmos_install_selected_firmware
           fallback: 1
 
-button:
-  - platform: template
-    id: xmos_audio_settings_reset
-    name: "Reset XMOS Audio Settings"
-    icon: "mdi:restore"
-    entity_category: config
-    on_press:
-      - if:
-          condition:
-            lambda: return id(satellite1_id).get_xmos_fw_variant() == satellite1::XMOS_FW_VARIANT_AEC4;
-          then:
-            - logger.log: "Loading the recommended XMOS audio settings for the AEC4 firmware"
-            - script.execute:
-                id: xmos_set_audio_settings
-                values: !lambda 'return {${xmos_settings_aec4_default}};'
-          else:
-            - logger.log: "Loading the recommended XMOS audio settings for the standard firmware"
-            - script.execute:
-                id: xmos_set_audio_settings
-                values: !lambda 'return {${xmos_settings_standard_default}};'
-
 script:
-  # Installs the selected variant of this build's XMOS release.
+  # Points the update entity at the firmware variant of the selected preset. Custom keeps the running one.
+  - id: xmos_update_target_variant
+    then:
+      - lambda: |-
+          const auto setup = id(xmos_mic_setup).active_index().value_or(0);
+          satellite1::XMOSFwVariant variant;
+          if (setup == 0) {
+            variant = satellite1::XMOS_FW_VARIANT_FIXED_DELAY;
+          } else if (setup == 1) {
+            variant = satellite1::XMOS_FW_VARIANT_AEC4;
+          } else {
+            variant = id(satellite1_id).get_xmos_fw_variant();
+          }
+          id(xmos_update).set_target_variant(variant);
+
+  # Loads the audio settings of the selected preset, then reflashes the XMOS if it runs another
+  # firmware variant (or release) than the preset needs
+  - id: xmos_apply_mic_setup
+    then:
+      - lambda: |-
+          const auto setup = id(xmos_mic_setup).active_index().value_or(2);
+          if (setup > 1) {
+            ESP_LOGI("xmos_firmware", "Custom microphone setup: firmware and audio settings stay as they are");
+            return;
+          }
+          static const uint8_t PRESETS[2][6] = {{${xmos_preset_cover_on}}, {${xmos_preset_cover_off}}};
+          const uint8_t *values = PRESETS[setup];
+          ESP_LOGI("xmos_firmware", "Loading the audio settings of '%s'",
+                   id(xmos_mic_setup).current_option().c_str());
+          id(xmos_mic_setup_quiet) = true;
+          id(xmos_mic_mode).make_call().set_index(values[0]).perform();
+          id(xmos_steer_policy).make_call().set_index(values[1]).perform();
+          id(xmos_ch1_tap).make_call().set_index(values[2]).perform();
+          values[3] ? id(xmos_ic_fast_hold).turn_on() : id(xmos_ic_fast_hold).turn_off();
+          values[4] ? id(xmos_hpf).turn_on() : id(xmos_hpf).turn_off();
+          values[5] ? id(xmos_ch1_agc).turn_on() : id(xmos_ch1_agc).turn_off();
+          id(xmos_mic_setup_quiet) = false;
+      # Does nothing when the XMOS already runs the target firmware
+      - update.perform:
+          id: xmos_update
+
+  # Called when a preset audio setting changes, and from satellite1 on_xmos_connected.
+  # - When a setting no longer matches the selected preset, Microphone Setup becomes Custom.
+  # - The first time the XMOS connects after Microphone Setup was added, picks the preset that matches
+  #   the running firmware variant and the audio settings, else Custom, so updating changes nothing.
+  - id: xmos_mic_setup_check
+    then:
+      - lambda: |-
+          if (id(xmos_mic_setup_quiet)) {
+            return;
+          }
+          const bool migrate = !id(xmos_mic_setup_initialized);
+          if (migrate ? id(satellite1_id).get_state() != satellite1::SAT_XMOS_CONNECTED_STATE
+                      : id(init_in_progress)) {
+            // Migrating needs the running variant. Otherwise these are the restores at boot.
+            return;
+          }
+          static const uint8_t PRESETS[2][6] = {{${xmos_preset_cover_on}}, {${xmos_preset_cover_off}}};
+          const uint8_t current[6] = {
+              static_cast<uint8_t>(id(xmos_mic_mode).active_index().value_or(255)),
+              static_cast<uint8_t>(id(xmos_steer_policy).active_index().value_or(255)),
+              static_cast<uint8_t>(id(xmos_ch1_tap).active_index().value_or(255)),
+              static_cast<uint8_t>(id(xmos_ic_fast_hold).state),
+              static_cast<uint8_t>(id(xmos_hpf).state),
+              static_cast<uint8_t>(id(xmos_ch1_agc).state),
+          };
+          const auto setup = id(xmos_mic_setup).active_index().value_or(2);
+          size_t want;
+          if (migrate) {
+            id(xmos_mic_setup_initialized) = true;
+            const size_t preset =
+                id(satellite1_id).get_xmos_fw_variant() == satellite1::XMOS_FW_VARIANT_AEC4 ? 1 : 0;
+            want = memcmp(current, PRESETS[preset], sizeof(current)) == 0 ? preset : 2;
+          } else {
+            if (setup > 1 || memcmp(current, PRESETS[setup], sizeof(current)) == 0) {
+              return;
+            }
+            want = 2;
+          }
+          if (want == setup) {
+            return;
+          }
+          id(xmos_mic_setup_quiet) = true;
+          id(xmos_mic_setup).make_call().set_index(want).perform();
+          id(xmos_mic_setup_quiet) = false;
+          ESP_LOGI("xmos_firmware", "Microphone Setup is now '%s'", id(xmos_mic_setup).current_option().c_str());
+
+  # Installs the firmware variant the update entity targets, from this build's XMOS release.
   #   fallback 1: if the download breaks off after erasing, the standard image is installed instead.
   #   fallback 2: also if it fails before (the boot-time update, the old release must not stay).
   - id: xmos_install_selected_firmware
@@ -119,9 +175,9 @@ script:
           else:
             - if:
                 condition:
-                  lambda: return id(xmos_fw_variant).active_index().value_or(0) == 1;
+                  lambda: return id(xmos_update).get_target_variant() == satellite1::XMOS_FW_VARIANT_AEC4;
                 then:
-                  - logger.log: "Reflashing XMOS with the AEC4 (true beamforming) firmware ${xmos_fw_version}"
+                  - logger.log: "Reflashing XMOS with the AEC4 (beamforming) firmware ${xmos_fw_version}"
                   - lambda: id(xmos_remote_flash_fallback) = fallback;
                   - memory_flasher.write_image:
                       image_file: ${xmos_fw_release_url}/satellite1_xmos_aec4-${xmos_fw_version}.factory.bin
@@ -129,55 +185,3 @@ script:
                 else:
                   - logger.log: "Reflashing XMOS with the standard firmware ${xmos_fw_version}"
                   - memory_flasher.write_embedded_image:
-
-  # Sets the XMOS audio setting entities (which send them to the XMOS and save them), in the order of
-  # xmos_settings_*_default. A value of 255 leaves that setting alone.
-  - id: xmos_set_audio_settings
-    parameters:
-      values: int[]
-    then:
-      - lambda: |-
-          if (values.size() < 5) {
-            return;
-          }
-          if (values[0] != 255) {
-            id(xmos_mic_mode).make_call().set_index(values[0]).perform();
-          }
-          if (values[1] != 255) {
-            id(xmos_steer_policy).make_call().set_index(values[1]).perform();
-          }
-          if (values[2] != 255) {
-            id(xmos_ch1_tap).make_call().set_index(values[2]).perform();
-          }
-          if (values[3] != 255) {
-            values[3] ? id(xmos_ic_fast_hold).turn_on() : id(xmos_ic_fast_hold).turn_off();
-          }
-          if (values[4] != 255) {
-            values[4] ? id(xmos_hpf).turn_on() : id(xmos_hpf).turn_off();
-          }
-
-  # Called from satellite1 on_xmos_connected, before the settings are sent to the XMOS. When the XMOS
-  # runs another variant than last time, whichever way it was installed, saves the current settings for
-  # the old variant and loads the new variant's.
-  - id: xmos_sync_variant_settings
-    then:
-      - lambda: |-
-          const int running = id(satellite1_id).get_xmos_fw_variant() == satellite1::XMOS_FW_VARIANT_AEC4 ? 1 : 0;
-          // Before this existed, only the standard firmware was installed
-          const int last = id(xmos_last_variant) < 0 ? 0 : id(xmos_last_variant);
-          id(xmos_last_variant) = running;
-          if (last == running) {
-            return;
-          }
-          auto &saved = last == 1 ? id(xmos_settings_aec4) : id(xmos_settings_standard);
-          saved = {
-              static_cast<uint8_t>(id(xmos_mic_mode).active_index().value_or(255)),
-              static_cast<uint8_t>(id(xmos_steer_policy).active_index().value_or(255)),
-              static_cast<uint8_t>(id(xmos_ch1_tap).active_index().value_or(255)),
-              static_cast<uint8_t>(id(xmos_ic_fast_hold).state),
-              static_cast<uint8_t>(id(xmos_hpf).state),
-          };
-          ESP_LOGI("xmos_firmware", "XMOS now runs the %s firmware, loading its audio settings",
-                   running == 1 ? "AEC4" : "standard");
-          const auto &load = running == 1 ? id(xmos_settings_aec4) : id(xmos_settings_standard);
-          id(xmos_set_audio_settings).execute(std::vector<int>(load.begin(), load.end()));

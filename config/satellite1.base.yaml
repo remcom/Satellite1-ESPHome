@@ -134,8 +134,9 @@ satellite1:
       - text_sensor.template.publish:
           id: xmos_firmware_version_text
           state: !lambda 'return id(satellite1_id).status_string();'
-      # Loads the audio settings of the firmware variant if it changed, see common/xmos_firmware.yaml
-      - script.execute: xmos_sync_variant_settings
+      # Matches Microphone Setup to the running firmware once, see common/xmos_firmware.yaml
+      - script.execute: xmos_mic_setup_check
+      - script.execute: xmos_update_target_variant
       - script.execute: apply_xmos_mic_settings
 
   on_xmos_detached:
@@ -151,7 +152,7 @@ memory_flasher:
       image_version: ${xmos_fw_version}
       # image_file: ../satellite1_firmware_fixed_delay.factory.bin
       # md5_file: ../satellite1_firmware_fixed_delay.factory.md5
-      # Always the standard (fixed_delay) variant. The AEC4 variant is downloaded when it is selected,
+      # Always the standard (fixed_delay) variant. The AEC4 variant is downloaded when its preset is selected,
       # see common/xmos_firmware.yaml.
       image_file: ${xmos_fw_release_url}/satellite1_xmos-${xmos_fw_version}.factory.bin
       md5_file: ${xmos_fw_release_url}/satellite1_xmos-${xmos_fw_version}.factory.md5

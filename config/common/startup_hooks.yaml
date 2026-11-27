@@ -40,20 +40,23 @@ satellite1:
     then:
       - delay: 1s
       - script.execute: control_leds
+      # Before the boot-time update decides which variant to install. Also run from the base config.
+      - script.execute: xmos_mic_setup_check
+      - script.execute: xmos_update_target_variant
       - if:
           condition:
             - lambda: return id(init_in_progress);
             - lambda: return id(xflash).has_image_embedded();
             - lambda: return !id(xflash).match_embedded( id(satellite1_id).get_xmos_fw_version() );
           then:
-            # Update the XMOS to this build's release, keeping the selected firmware variant
+            # Update the XMOS to this build's release, keeping the firmware variant of Microphone Setup
             - if:
                 condition:
-                  lambda: return id(xmos_fw_variant).active_index().value_or(0) == 1;
+                  lambda: return id(xmos_update).get_target_variant() == satellite1::XMOS_FW_VARIANT_AEC4;
                 then:
                   # The AEC4 image is downloaded. If WiFi doesn't come up or the download fails,
                   # the standard image is installed instead (fallback 2) and "XMOS Reflash
-                  # Required" stays on until AEC4 is installed with the button.
+                  # Required" stays on until AEC4 is installed from "XMOS Firmware Update".
                   - wait_until:
                       condition:
                         wifi.connected:
