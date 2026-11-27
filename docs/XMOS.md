@@ -263,6 +263,13 @@ All hidden by default, under **Diagnostic** on the device page.
 | **XMOS Flash v2.0.0** | Downloads and flashes the **Standard** image of this release. Mainly for testing; prefer the update entity |
 | **XMOS Flash Embedded FW** | Flashes the Standard image embedded in the ESP firmware |
 | **XMOS Erase Chip** | Erases the XMOS flash. The XMOS stops working until something is flashed again (the next boot does that automatically) |
+| **XMOS Echo Reduction** | How much of the speaker's sound the echo canceller removes (ERLE), in dB, averaged over its mics. Meaningful **while something plays**; when you talk or the room is quiet it drops, that's expected. Higher is better: roughly 20 dB and up is good |
+| **XMOS Echo Reduction Worst Mic** | The same for the mic that removes the least echo |
+| **XMOS Echo Reference Drops** | Speaker audio frames the echo canceller missed because it fell behind, since the XMOS started. Should stay 0; if it rises the XMOS is overloaded |
+| **XMOS Clipped Samples Voice Channel** | Output samples at full scale on channel 0 (to Home Assistant) since the XMOS started |
+| **XMOS Clipped Samples Wake Word Channel** | The same on channel 1 (wake word). If it rises while you talk, lower **Mic Gain** |
+
+The XMOS sensors update every 10 s and need XMOS firmware with audio quality telemetry (after v2.0.0); older firmware logs one warning and leaves them unknown. The counters restart when the XMOS restarts.
 
 > [!TIP]
 > The debug buttons always install **Standard**, whatever **XMOS Firmware Variant** says. **XMOS Firmware Update** will then show an update if you selected AEC4. The per-variant settings follow whichever variant actually runs.
@@ -337,6 +344,7 @@ substitutions:
 | `xmos_mic_gain` | Mic Gain |
 | `doa_indicator` | Direction Indicator |
 | `sat1_doa` | DoA sensor (`voice_direction`, `voice_direction_confidence`) |
+| `sat1_audio_quality` | XMOS audio quality sensors (`sensor: platform: satellite1`, `type: audio_quality`) |
 | `xflash` | XMOS memory flasher |
 
 ### Scripts

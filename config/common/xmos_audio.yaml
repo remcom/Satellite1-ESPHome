@@ -34,6 +34,33 @@ sensor:
       id: voice_direction_confidence
       disabled_by_default: true
 
+  # Audio quality telemetry of the XMOS (stats servicer). All hidden by default: enable them on the
+  # device page to check the echo canceller and the audio path, e.g. while music plays.
+  - platform: satellite1
+    type: audio_quality
+    id: sat1_audio_quality
+    update_interval: 10s
+    echo_reduction:
+      name: "XMOS Echo Reduction"
+      id: xmos_echo_reduction
+      disabled_by_default: true
+    echo_reduction_worst:
+      name: "XMOS Echo Reduction Worst Mic"
+      id: xmos_echo_reduction_worst
+      disabled_by_default: true
+    reference_drops:
+      name: "XMOS Echo Reference Drops"
+      id: xmos_reference_drops
+      disabled_by_default: true
+    clipped_samples_ch0:
+      name: "XMOS Clipped Samples Voice Channel"
+      id: xmos_clipped_samples_ch0
+      disabled_by_default: true
+    clipped_samples_ch1:
+      name: "XMOS Clipped Samples Wake Word Channel"
+      id: xmos_clipped_samples_ch1
+      disabled_by_default: true
+
 switch:
   # Stops the XMOS interference canceller adapting within ~30 ms of speech onset, instead of
   # ~400 ms into it, so it doesn't learn to cancel the start of the wake word.
