@@ -59,9 +59,9 @@ Everything else (i2s_audio full duplex bus, fusb302b, tas2780, pcm5122, resample
 ### XMOS firmware variants
 
 - Two variants per XMOS release: Standard (`fixed_delay`, embedded in the ESP build) and AEC4 (downloaded at install). User-facing explanation in `docs/XMOS.md`.
-- `common/xmos_firmware.yaml`: variant select, `xmos_update` entity, per-variant settings tuples, install scripts; `common/xmos_audio.yaml`: mic settings, DoA, beam steering.
+- `common/xmos_firmware.yaml`: Microphone Setup select (`xmos_mic_setup`: Cover on = Standard, Cover off = AEC4, Custom), `xmos_update` entity, preset tuples, install scripts; `common/xmos_audio.yaml`: mic settings, DoA, beam steering. Picking a preset applies its settings and reflashes right away (`update.perform`); changing a preset setting by hand flips it to Custom (`xmos_mic_setup_check`).
 - Images are fetched by tag-carrying names (`satellite1_xmos-${xmos_fw_version}.factory.bin`, `satellite1_xmos_aec4-...`) from `xmos_fw_release_url`, so the build needs internet.
-- The XMOS persists nothing: every setting is re-sent from `on_xmos_connected` (`apply_xmos_mic_settings`). New settings must be added there and, if per-variant, to the 5-value tuples (`xmos_settings_*_default`, `xmos_sync_variant_settings`, `xmos_set_audio_settings`).
+- The XMOS persists nothing: every setting is re-sent from `on_xmos_connected` (`apply_xmos_mic_settings`). New settings must be added there and, if a preset sets them, to the 6-value preset tuples (`xmos_preset_cover_on/off`), `xmos_apply_mic_setup` and `xmos_mic_setup_check`, plus `- script.execute: xmos_mic_setup_check` in the setting's on_value.
 
 ## Key Component IDs
 
