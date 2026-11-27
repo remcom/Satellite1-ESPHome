@@ -248,7 +248,7 @@ bool Satellite1::read_doa(DoaResult &result) {
   if (!this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::GET_DOA, resp, sizeof(resp))) {
     return false;
   }
-  result.azimuth = encode_uint16(resp[1], resp[0]);
+  result.azimuth = encode_value_le<uint16_t>(&resp[0]);
   result.confidence = resp[2];
   result.valid = (resp[3] & AUDIO_DOA_FLAG_VALID) != 0;
   result.updated = (resp[3] & AUDIO_DOA_FLAG_UPDATED) != 0;
@@ -269,7 +269,7 @@ bool Satellite1::read_audio_quality(AudioQuality &quality) {
     ESP_LOGV(TAG, "Unknown audio quality payload version %u", resp[0]);
     return false;
   }
-  auto u32 = [&resp](size_t at) { return encode_uint32(resp[at + 3], resp[at + 2], resp[at + 1], resp[at]); };
+  auto u32 = [&resp](size_t at) { return encode_value_le<uint32_t>(&resp[at]); };
   quality.aec_channels = std::min<uint8_t>(resp[1], AUDIO_QUALITY_MAX_AEC_CHANNELS);
   quality.output_channels = resp[2];
   quality.flags = resp[3];
@@ -277,7 +277,7 @@ bool Satellite1::read_audio_quality(AudioQuality &quality) {
   quality.ref_drops_oldest = u32(8);
   quality.ref_drops_newest = u32(12);
   for (size_t ch = 0; ch < AUDIO_QUALITY_MAX_AEC_CHANNELS; ch++) {
-    quality.erle_cdb[ch] = static_cast<int16_t>(encode_uint16(resp[16 + 2 * ch + 1], resp[16 + 2 * ch]));
+    quality.erle_cdb[ch] = encode_value_le<int16_t>(&resp[16 + 2 * ch]);
   }
   quality.clips[0] = u32(24);
   quality.clips[1] = u32(28);
@@ -295,8 +295,8 @@ bool Satellite1::read_wake_timing(WakeTiming &timing) {
   }
   timing.handled = (resp[1] & AUDIO_WAKE_TIMING_FLAG_HANDLED) != 0;
   timing.located = (resp[1] & AUDIO_WAKE_TIMING_FLAG_LOCATED) != 0;
-  timing.sequence = encode_uint16(resp[3], resp[2]);
-  timing.newest_age = encode_uint16(resp[5], resp[4]);
+  timing.sequence = encode_value_le<uint16_t>(&resp[2]);
+  timing.newest_age = encode_value_le<uint16_t>(&resp[4]);
   timing.window_results = resp[6];
   timing.latency_frames = resp[7];
   return true;
@@ -352,7 +352,7 @@ bool Satellite1::read_beam_azimuth(uint16_t &azimuth) {
   if (!this->transfer(DC_RESOURCE::AUDIO, DC_AUDIO_CMD::GET_BEAM, resp, sizeof(resp))) {
     return false;
   }
-  azimuth = encode_uint16(resp[1], resp[0]);
+  azimuth = encode_value_le<uint16_t>(&resp[0]);
   if (azimuth >= 360 && azimuth != XMOS_NO_BEAM) {
     ESP_LOGD(TAG, "Ignoring beam with invalid azimuth %u", azimuth);
     return false;
