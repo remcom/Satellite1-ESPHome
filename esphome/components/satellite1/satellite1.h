@@ -88,6 +88,8 @@ enum DcAudioCmdId {
   SET_WAKE_EVENT = 9,
   // From the XMOS firmware with a mono echo reference in both variants. Older firmware ignores it.
   SET_REF_MIX = 10,
+  // From the XMOS firmware that measures the wake word report latency. Older firmware rejects it.
+  GET_WAKE_TIMING = (11 | CONTROL_CMD_READ_BIT),
 };
 }  // namespace DC_AUDIO_CMD
 
@@ -97,6 +99,14 @@ static const uint8_t AUDIO_DOA_PAYLOAD_LEN = 4;
 static const uint8_t AUDIO_DOA_FLAG_VALID = 1 << 0;
 static const uint8_t AUDIO_DOA_FLAG_UPDATED = 1 << 1;
 static const uint8_t AUDIO_BEAM_PAYLOAD_LEN = 2;
+static const uint8_t AUDIO_WAKE_TIMING_PAYLOAD_LEN = 8;
+static const uint8_t AUDIO_WAKE_TIMING_VERSION = 1;
+static const uint8_t AUDIO_WAKE_TIMING_FLAG_HANDLED = 1 << 0;  ///< a wake word was handled since the XMOS started
+static const uint8_t AUDIO_WAKE_TIMING_FLAG_LOCATED = 1 << 1;  ///< and its direction was found
+/// Wake timing age when there was no DOA result at all.
+static const uint16_t AUDIO_WAKE_TIMING_NO_AGE = 0xFFFF;
+/// Length of an XMOS audio frame, the unit of the wake timing.
+static const uint8_t XMOS_FRAME_MS = 15;
 /// Beam azimuth reported outside the beam mic mode.
 static const uint16_t XMOS_NO_BEAM = 0xFFFF;
 
@@ -171,6 +181,16 @@ struct DoaResult {
   uint8_t confidence;  ///< 0..255
   bool valid;          ///< a result was produced within the last ~0.5 s
   bool updated;        ///< a result was produced in the most recent audio frame
+};
+
+/// How long the last wake word took to reach the XMOS, see DC_AUDIO_CMD::GET_WAKE_TIMING.
+struct WakeTiming {
+  bool handled;            ///< a wake word was handled since the XMOS started
+  bool located;            ///< its direction was found
+  uint16_t sequence;       ///< number of that wake word since the XMOS started (wraps)
+  uint16_t newest_age;     ///< frames from the newest DOA result to the wake event, AUDIO_WAKE_TIMING_NO_AGE if none
+  uint8_t window_results;  ///< DOA results in the wake word window
+  uint8_t latency_frames;  ///< frames the window leaves out before the wake event
 };
 
 /// XMOS firmware build variant, as reported by DC_DFU_CMD::GET_VARIANT. All variants of a release share
@@ -337,6 +357,21 @@ class Satellite1 : public Component,
    */
   bool notify_wake_word(bool detected);
 
+  /**
+   * @brief Reads how long the last wake word took to reach the XMOS.
+   *
+   * @return false if the transfer failed, the XMOS firmware can't measure it or the payload version is unknown
+   */
+  bool read_wake_timing(WakeTiming &timing);
+
+  /**
+   * @brief Logs the timing of the wake word just reported, for tuning the XMOS wake word window.
+   *
+   * Call ~30 ms after notify_wake_word(true). Logs at INFO once per wake word; firmware without
+   * the measurement is noted once at DEBUG.
+   */
+  void log_wake_timing();
+
   void set_spi_flash_direct_access_mode(bool enable);
 
   /// The XMOS fixes the direction of its GPIO ports, so there is no mode to set.
@@ -396,6 +431,11 @@ class Satellite1 : public Component,
 
   GPIOPin *xmos_rst_pin_{nullptr};
   bool xmos_reset_in_progress_{false};
+
+  // log_wake_timing()
+  bool wake_timing_seen_{false};
+  uint16_t wake_timing_sequence_{0};
+  bool wake_timing_unsupported_logged_{false};
   std::function<void()> xmos_reset_done_callback_{};
 };
 

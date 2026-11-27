@@ -271,6 +271,21 @@ All hidden by default, under **Diagnostic** on the device page.
 
 The XMOS sensors update every 10 s and need XMOS firmware with audio quality telemetry (v2.0.1 or newer); older firmware logs one warning and leaves them unknown. The counters restart when the XMOS restarts.
 
+### Measuring the wake word timing
+
+The XMOS finds the wake word's direction from the DOA results of a short window before the ESP32 reports it. It leaves out the last ~300 ms, which is about how long the wake word takes to get there (I2S, the wake word engine, the SPI write). If the real delay is different, the window catches speech after the wake word (a TV) or misses part of it. To measure it:
+
+1. Use XMOS firmware that reports the timing (the release after v2.0.1); older firmware notes this once at DEBUG level and logs nothing.
+2. Pick a quiet room (no TV, fan or music) and open the device log.
+3. Say the wake word ~20 times from 1–3 m, at different speeds, with a few seconds of silence after each.
+4. After each wake word the log shows a line like:
+
+   ```
+   [I][satellite1]: Wake timing #12: last located speech 285 ms (19 frames) before the report; the window skips 300 ms; 41 DOA results in the window, located
+   ```
+
+The first number is the delay: the time from the end of the wake word to the report. Note the median and the highest of your ~20 values; reverb makes it read a few frames short, and values near 0 mean the engine fired before the word ended (or a sound was heard after it). "The window skips" should be about the highest usual value. If it's well off, report the numbers in an issue.
+
 > [!TIP]
 > The debug buttons always install **Standard**, whatever **XMOS Firmware Variant** says. **XMOS Firmware Update** will then show an update if you selected AEC4. The per-variant settings follow whichever variant actually runs.
 
@@ -372,6 +387,7 @@ id(satellite1_id).set_hpf(bool);
 id(satellite1_id).notify_wake_word(bool detected);
 id(satellite1_id).set_ref_mix(satellite1::REF_MIX_DOWNMIX);   // DOWNMIX, LEFT, RIGHT: match the TAS2780
 id(satellite1_id).read_beam_azimuth(uint16_t &azimuth);        // XMOS_NO_BEAM outside Beam mode
+id(satellite1_id).log_wake_timing();                            // logs how long the last wake word took to reach the XMOS
 id(satellite1_id).get_xmos_fw_variant();                       // XMOS_FW_VARIANT_FIXED_DELAY or XMOS_FW_VARIANT_AEC4
 id(sat1_doa).read_direction(); id(sat1_doa).get_azimuth(); id(sat1_doa).is_valid();
 ```
@@ -380,4 +396,4 @@ All setters return `false` when the XMOS isn't connected or the firmware doesn't
 
 ### Compatibility
 
-The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs v2.0.1 or newer. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
+The audio settings need 2.0 XMOS firmware with the audio servicer (device-control resource 230). **Beam** needs v2.0.0-alpha.5 or newer. Beam Steering, the wake word channel, Fast Speech Hold and the high-pass filter need v2.0.0-alpha.6 or newer. The echo reference mix (`set_ref_mix`) needs v2.0.1 or newer. The wake word timing (`log_wake_timing`, `read_wake_timing`) needs the release after v2.0.1. Older firmware ignores them, and the DoA sensor logs a single warning. Firmware older than v2.0.0-beta.2 can't report its variant and is shown as `fixed_delay`.
